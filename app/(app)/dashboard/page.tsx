@@ -1,7 +1,7 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/utils/supabase/client";
 import { ensureSeedData, getChallenges, getStreak, Challenge } from "@/lib/storage";
 
 function ProgressRing({ progress }: { progress: number }) {
@@ -42,28 +42,32 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
 
+  // TEMPORARY — allow access without auth
   useEffect(() => {
-    const checkUser = async () => {
-      const supabase = getSupabaseBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push("/login");
-      setLoading(false);
-    };
-    checkUser();
-  }, [router]);
+    setLoading(false);
+  }, []);
 
+  // Load challenge data from local storage
   useEffect(() => {
     ensureSeedData();
     setChallenges(getChallenges());
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Dashboard</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
+            Dashboard
+          </p>
           <h2 className="text-3xl font-display">Your Challenges</h2>
         </div>
         <button
@@ -85,7 +89,8 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {challenges.map((challenge) => {
           const streak = getStreak(challenge.id);
-          const progress = challenge.duration > 0 ? streak / challenge.duration : 0;
+          const progress =
+            challenge.duration > 0 ? streak / challenge.duration : 0;
 
           return (
             <button
@@ -99,7 +104,9 @@ export default function DashboardPage() {
                   {Math.round(progress * 100)}% complete • {streak}-day streak
                 </p>
                 {challenge.description && (
-                  <p className="text-xs text-slate-400 mt-1">{challenge.description}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {challenge.description}
+                  </p>
                 )}
               </div>
 
