@@ -54,7 +54,10 @@ export default function LoginPage() {
             {loading ? "Logging in..." : "Log In"}
           </button>
         </form>
-        <p className="text-center text-sm text-slate-600">No account? <a href="/signup" className="font-semibold" style={{ color: "var(--neon-teal)" }}>Sign up</a></p>
+        <div className="flex justify-between items-center text-sm">
+          <p className="text-slate-600">No account? <a href="/signup" className="font-semibold" style={{ color: "var(--neon-teal)" }}>Sign up</a></p>
+          <a href="/forgot-password" className="font-semibold" style={{ color: "var(--neon-teal)" }}>Forgot password?</a>
+        </div>
       </div>
     </div>
   );
