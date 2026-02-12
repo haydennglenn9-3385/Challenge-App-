@@ -23,14 +23,12 @@ export default function DashboardPage() {
 
     window.addEventListener("message", handleMessage);
 
-    // Ask Wix for the user
     window.parent.postMessage({ type: "REQUEST_WIX_USER" }, "*");
     console.log("DASHBOARD SENT REQUEST_WIX_USER");
 
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // Still waiting for Wix to respond
   if (!checked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -42,14 +40,12 @@ export default function DashboardPage() {
     );
   }
 
-  // Wix responded but no user exists → redirect to login
   if (checked && !user) {
     console.log("NO USER RECEIVED — redirecting to /login");
     router.push("/login");
     return null;
   }
 
-  // User exists → show dashboard
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="max-w-3xl mx-auto neon-card rounded-3xl p-8 space-y-6">
