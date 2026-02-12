@@ -1,19 +1,19 @@
 // app/layout.tsx
 import "./globals.css";
-import { useEffect } from "react";
+import ClientWrapper from "./client-wrapper";
+
+export const metadata = {
+  title: "Challenge App",
+  description: "Fitness challenges for the community",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    const isEmbedded = window !== window.parent;
-    if (isEmbedded) {
-      document.body.classList.add("embedded");
-    }
-  }, []);
-
   return (
     <html lang="en">
       <body>
-        <div className="site-wrapper">{children}</div>
+        <ClientWrapper>
+          {children}
+        </ClientWrapper>
       </body>
     </html>
   );
