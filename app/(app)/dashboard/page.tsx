@@ -24,7 +24,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // If we haven't received anything yet, show loading
+  // Still waiting for Wix to respond
   if (!checked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -36,17 +36,19 @@ export default function DashboardPage() {
     );
   }
 
-  // If Wix explicitly says "no user", redirect to login
+  // Wix responded but no user exists → redirect to login
   if (checked && !user) {
     router.push("/login");
     return null;
   }
 
-  // If user exists, show dashboard
+  // User exists → show dashboard
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="max-w-3xl mx-auto neon-card rounded-3xl p-8 space-y-6">
-        <h1 className="text-3xl font-display">Welcome back, {user.profile?.nickname || "friend"}!</h1>
+        <h1 className="text-3xl font-display">
+          Welcome back, {user.profile?.nickname || "friend"}!
+        </h1>
 
         <p className="text-slate-700">
           Your challenges will appear here once we connect your Wix Member ID to your challenge data.
