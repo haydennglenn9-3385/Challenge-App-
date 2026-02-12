@@ -30,8 +30,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // ⭐ GATE THE APP UNTIL WIX USER ARRIVES
-  if (!wixUser) {
+  // ⭐ ALLOW /dashboard TO LOAD EVEN BEFORE WIX USER ARRIVES
+  if (!wixUser && pathname !== "/dashboard") {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
         Loading your account...
@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // ⭐ INITIALS FOR PROFILE BUTTON
   const initials =
-    wixUser.name
+    wixUser?.name
       ?.trim()
       .split(/\s+/)
       .map((n) => n[0])
@@ -83,7 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* SETTINGS DROPDOWN */}
-      {showSettings && (
+      {showSettings && wixUser && (
         <div className="absolute right-6 mt-2 bg-white shadow-lg rounded-lg p-4 border border-slate-200 z-50">
           <p className="text-sm text-slate-700 mb-2">{wixUser.email}</p>
           <button
