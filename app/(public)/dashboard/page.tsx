@@ -2,47 +2,65 @@
 
 import { useEffect, useState } from "react";
 
+type WixUser = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false);
+  const [wixUser, setWixUser] = useState<WixUser | null>(null);
 
+  // Log when the dashboard mounts
   useEffect(() => {
-    console.log("🔥 CLEAN DASHBOARD MOUNTED");
-    setMounted(true);
+    console.log("🔥 DASHBOARD MOUNTED");
 
-    // TEMP: Log every message to confirm the page is alive
+    // Send a test message to Wix (or parent)
+    window.parent.postMessage({ type: "DASHBOARD_READY" }, "*");
+    console.log("📤 SENT DASHBOARD_READY");
+  }, []);
+
+  // Listen for Wix identity
+  useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      console.log("📩 MESSAGE RECEIVED IN CLEAN DASHBOARD:", event.data);
+      if (event.data?.type === "USER_INFO") {
+        console.log("📨 RECEIVED USER_INFO:", event.data.user);
+        setWixUser(event.data.user);
+      }
     }
 
     window.addEventListener("message", handleMessage);
-
-    // TEMP: Send a test message upward so we know postMessage works
-    window.parent.postMessage({ type: "CLEAN_DASHBOARD_TEST" }, "*");
-    console.log("📤 SENT CLEAN_DASHBOARD_TEST");
-
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="p-6 rounded-3xl text-center bg-white shadow">
-          <p className="text-lg font-semibold">Mounting clean dashboard…</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="p-10 rounded-3xl text-center bg-white shadow space-y-4">
-        <h1 className="text-3xl font-bold">Clean Dashboard Loaded</h1>
-        <p className="text-slate-600">
-          If you see this, React mounted successfully.
-        </p>
-        <p className="text-slate-500 text-sm">
-          Check the console for logs.
-        </p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50 px-6 py-20">
+      <div className="bg-white shadow-xl rounded-2xl p-10 max-w-xl w-full text-center border border-slate-200">
+        <h1 className="text-3xl font-bold text-slate-800 mb-4">
+          Welcome to your Dashboard
+        </h1>
+
+        {!wixUser && (
+          <p className="text-slate-600">
+            Waiting for Wix user info…
+            <br />
+            Check the console for messages.
+          </p>
+        )}
+
+        {wixUser && (
+          <div className="mt-6 text-left">
+            <p className="text-lg text-slate-700">
+              <strong>Name:</strong> {wixUser.name}
+            </p>
+            <p className="text-lg text-slate-700">
+              <strong>Email:</strong> {wixUser.email}
+            </p>
+            <p className="text-lg text-slate-700">
+              <strong>User ID:</strong> {wixUser.id}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
