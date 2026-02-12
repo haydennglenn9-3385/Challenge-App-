@@ -7,7 +7,10 @@ export default function HomePage() {
 
         {/* LEFT SIDE */}
         <div className="space-y-6 animate-slide-up">
-          <span className="neon-chip px-4 py-1 rounded-full text-sm font-semibold inline-block">
+          <span
+            className="neon-chip px-4 py-1 rounded-full text-sm font-semibold inline-block"
+            style={{ background: "white", color: "var(--neon-ink)" }}
+          >
             Invite-only fitness challenges
           </span>
 
