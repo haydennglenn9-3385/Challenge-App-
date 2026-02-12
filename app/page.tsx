@@ -1,69 +1,76 @@
+// app/page.tsx
 import Link from "next/link";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="max-w-6xl mx-auto grid gap-10 lg:grid-cols-[1.1fr_0.9fr] items-center">
-        <div className="space-y-6">
-          <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--neon-teal)" }} />
+    <main className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 flex items-center justify-center p-8">
+      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        
+        {/* Left side */}
+        <div>
+          <span className="inline-block bg-black text-white text-xs px-3 py-1 rounded-full mb-4">
             Invite-only fitness challenges
-          </p>
-          <h1 className="text-5xl sm:text-6xl font-display leading-[0.95]">
+          </span>
+
+          <h1 className="text-4xl font-bold mb-4">
             Queers and Allies Fitness Challenge
           </h1>
-          <p className="text-lg text-slate-600">
-            Spark friendly competition, track streaks, and keep your gym crew moving together. Create
-            vibrant challenges and cheer each other on every day.
+
+          <p className="text-gray-700 mb-8">
+            Spark friendly competition, track streaks, and keep your gym crew moving together.
+            Create vibrant challenges and cheer each other on every day.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/signup"
-              className="px-6 py-3 rounded-full font-semibold rainbow-cta"
-            >
-              Join the gym crew
+
+          <div className="flex flex-col gap-3">
+            <Link href="/join">
+              <button className="w-full md:w-auto px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-pink-500 to-purple-500">
+                Join the gym crew
+              </button>
             </Link>
-            <Link
-              href="/login"
-              className="px-6 py-3 rounded-full font-semibold border border-slate-200 bg-white/80"
-            >
-              Log in
+
+            <Link href="/login">
+              <button className="w-full md:w-auto px-6 py-3 rounded-lg font-semibold border border-gray-400">
+                Log in
+              </button>
             </Link>
-            <Link
-              href="/dashboard"
-              className="px-6 py-3 rounded-full font-semibold border border-slate-200 bg-white/80"
-            >
-              View dashboard
+
+            <Link href="/dashboard">
+              <button className="w-full md:w-auto px-6 py-3 rounded-lg font-semibold border border-gray-400">
+                View dashboard
+              </button>
             </Link>
           </div>
         </div>
 
-        <div className="neon-card rounded-3xl p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Tonight's lineup</h2>
-            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">Live</span>
+        {/* Right side */}
+        <div className="bg-white/70 backdrop-blur-md p-6 rounded-xl shadow-md">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">Live</span>
+            <h2 className="font-semibold">Tonight's lineup</h2>
           </div>
-          <div className="space-y-4">
-            {[
-              { title: "Sprint Ladder", meta: "4 members • 12 days left" },
-              { title: "Core Circuit", meta: "7 members • 9 days left" },
-              { title: "Flex Friday", meta: "5 members • 3 days left" },
-            ].map((card) => (
-              <div key={card.title} className="flex items-center justify-between rounded-2xl bg-white/90 border border-slate-100 px-4 py-3">
-                <div>
-                  <p className="font-semibold">{card.title}</p>
-                  <p className="text-sm text-slate-500">{card.meta}</p>
-                </div>
-                <div className="h-10 w-10 rounded-full" style={{ background: "linear-gradient(135deg, var(--neon-teal), var(--neon-yellow))" }} />
-              </div>
-            ))}
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-white/80 p-4">
-            <p className="text-sm text-slate-500">Today's focus</p>
-            <p className="text-lg font-semibold">Hydration + mobility reset</p>
+
+          <ul className="space-y-4">
+            <li className="p-4 bg-white rounded-lg shadow">
+              <p className="font-semibold">Sprint Ladder</p>
+              <p className="text-sm text-gray-600">4 members • 12 days left</p>
+            </li>
+
+            <li className="p-4 bg-white rounded-lg shadow">
+              <p className="font-semibold">Core Circuit</p>
+              <p className="text-sm text-gray-600">7 members • 9 days left</p>
+            </li>
+
+            <li className="p-4 bg-white rounded-lg shadow">
+              <p className="font-semibold">Flex Friday</p>
+              <p className="text-sm text-gray-600">5 members • 3 days left</p>
+            </li>
+          </ul>
+
+          <div className="mt-6 text-sm text-gray-700">
+            <strong>Today's focus:</strong> Hydration + mobility reset
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

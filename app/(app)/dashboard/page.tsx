@@ -1,119 +1,109 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ensureSeedData, getChallenges, getStreak, Challenge } from "@/lib/storage";
+import { jwtDecode } from "jwt-decode";
+import { createClient } from "@supabase/supabase-js";
 
-function ProgressRing({ progress }: { progress: number }) {
-  const radius = 32;
-  const stroke = 6;
-  const normalizedRadius = radius - stroke * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const clamped = Math.max(0, Math.min(1, progress));
-  const strokeDashoffset = circumference - clamped * circumference;
-
-  return (
-    <svg height={radius * 2} width={radius * 2}>
-      <circle
-        stroke="#e5e5e5"
-        fill="transparent"
-        strokeWidth={stroke}
-        r={normalizedRadius}
-        cx={radius}
-        cy={radius}
-      />
-      <circle
-        stroke="#22c55e"
-        fill="transparent"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={`${circumference} ${circumference}`}
-        style={{ strokeDashoffset, transition: "stroke-dashoffset 0.4s ease" }}
-        r={normalizedRadius}
-        cx={radius}
-        cy={radius}
-      />
-    </svg>
-  );
-}
+type User = {
+  id: string;
+  wix_id: string;
+  created_at: string;
+};
 
 export default function DashboardPage() {
-  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
 
-  // TEMPORARY — allow access without auth
   useEffect(() => {
-    setLoading(false);
+    async function loadUser() {
+      try {
+        // 1. Read token from URL
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get("token");
+
+        if (!token) {
+          console.error("No token found in URL");
+          return;
+        }
+
+        // 2. Decode token
+        const decoded: any = jwtDecode(token);
+        const wixId = decoded.wixId;
+
+        if (!wixId) {
+          console.error("Token missing wixId");
+          return;
+        }
+
+        // 3. Supabase client
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // 4. Try to find user
+        const { data: existingUser, error: findError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("wix_id", wixId)
+          .single();
+
+        if (findError && findError.code !== "PGRST116") {
+          console.error("Error finding user:", findError);
+        }
+
+        let finalUser = existingUser;
+
+        // 5. Create user if not found
+        if (!existingUser) {
+          const { data: newUser, error: createError } = await supabase
+            .from("users")
+            .insert({ wix_id: wixId })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error("Error creating user:", createError);
+            return;
+          }
+
+          finalUser = newUser;
+        }
+
+        setUser(finalUser);
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadUser();
   }, []);
 
-  // Load challenge data from local storage
-  useEffect(() => {
-    ensureSeedData();
-    setChallenges(getChallenges());
-  }, []);
-
+  // 6. Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
+      <div className="flex items-center justify-center h-screen text-xl">
+        Loading your account…
       </div>
     );
   }
 
+  // 7. Render dashboard
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-            Dashboard
-          </p>
-          <h2 className="text-3xl font-display">Your Challenges</h2>
-        </div>
-        <button
-          onClick={() => router.push("/challenges/new")}
-          className="px-4 py-2 rounded-full font-semibold rainbow-cta"
-        >
-          Create a challenge
-        </button>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">Welcome back!</h1>
+
+      <div className="bg-white shadow rounded p-4">
+        <p className="text-gray-700">Your Wix ID:</p>
+        <p className="font-mono text-sm mt-1">{user?.wix_id}</p>
       </div>
 
-      {challenges.length === 0 && (
-        <div className="neon-card rounded-2xl p-6">
-          <p className="text-slate-600">
-            You haven't joined or created any challenges yet.
-          </p>
-        </div>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {challenges.map((challenge) => {
-          const streak = getStreak(challenge.id);
-          const progress =
-            challenge.duration > 0 ? streak / challenge.duration : 0;
-
-          return (
-            <button
-              key={challenge.id}
-              onClick={() => router.push(`/challenge/${challenge.id}`)}
-              className="neon-card w-full flex items-center justify-between rounded-2xl px-5 py-5 text-left hover:-translate-y-0.5 transition"
-            >
-              <div>
-                <p className="text-lg font-semibold">{challenge.title}</p>
-                <p className="text-sm text-slate-500">
-                  {Math.round(progress * 100)}% complete • {streak}-day streak
-                </p>
-                {challenge.description && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    {challenge.description}
-                  </p>
-                )}
-              </div>
-
-              <ProgressRing progress={progress} />
-            </button>
-          );
-        })}
+      {/* Replace this with your real dashboard UI */}
+      <div className="mt-6">
+        <h2 className="text-xl font-semibold mb-2">Your Challenges</h2>
+        <p className="text-gray-600">Challenge data will go here.</p>
       </div>
     </div>
   );

@@ -1,14 +1,20 @@
+// app/layout.tsx
 import "./globals.css";
-
-export const metadata = {
-  title: "Gym Challenge Hub",
-  description: "Queers and Allies Fitness Challenge",
-};
+import { useEffect } from "react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const isEmbedded = window !== window.parent;
+    if (isEmbedded) {
+      document.body.classList.add("embedded");
+    }
+  }, []);
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <div className="site-wrapper">{children}</div>
+      </body>
     </html>
   );
 }
