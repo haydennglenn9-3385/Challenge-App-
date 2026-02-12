@@ -9,8 +9,13 @@ export default function DashboardPage() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    console.log("DASHBOARD MOUNTED — requesting Wix user");
+
     function handleMessage(event: MessageEvent) {
+      console.log("DASHBOARD RECEIVED MESSAGE:", event.data);
+
       if (event.data?.type === "WIX_USER") {
+        console.log("DASHBOARD RECEIVED USER:", event.data.user);
         setUser(event.data.user);
         setChecked(true);
       }
@@ -18,8 +23,9 @@ export default function DashboardPage() {
 
     window.addEventListener("message", handleMessage);
 
-    // Ask Wix for the user on load
+    // Ask Wix for the user
     window.parent.postMessage({ type: "REQUEST_WIX_USER" }, "*");
+    console.log("DASHBOARD SENT REQUEST_WIX_USER");
 
     return () => window.removeEventListener("message", handleMessage);
   }, []);
@@ -38,6 +44,7 @@ export default function DashboardPage() {
 
   // Wix responded but no user exists → redirect to login
   if (checked && !user) {
+    console.log("NO USER RECEIVED — redirecting to /login");
     router.push("/login");
     return null;
   }
