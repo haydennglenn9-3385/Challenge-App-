@@ -1,66 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [checked, setChecked] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log("DASHBOARD MOUNTED — requesting Wix user");
+    console.log("🔥 CLEAN DASHBOARD MOUNTED");
+    setMounted(true);
 
+    // TEMP: Log every message to confirm the page is alive
     function handleMessage(event: MessageEvent) {
-      console.log("DASHBOARD RECEIVED MESSAGE:", event.data);
-
-      if (event.data?.type === "WIX_USER") {
-        console.log("DASHBOARD RECEIVED USER:", event.data.user);
-        setUser(event.data.user);
-        setChecked(true);
-      }
+      console.log("📩 MESSAGE RECEIVED IN CLEAN DASHBOARD:", event.data);
     }
 
     window.addEventListener("message", handleMessage);
 
-    window.parent.postMessage({ type: "REQUEST_WIX_USER" }, "*");
-    console.log("DASHBOARD SENT REQUEST_WIX_USER");
+    // TEMP: Send a test message upward so we know postMessage works
+    window.parent.postMessage({ type: "CLEAN_DASHBOARD_TEST" }, "*");
+    console.log("📤 SENT CLEAN_DASHBOARD_TEST");
 
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  if (!checked) {
+  if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="neon-card p-6 rounded-3xl text-center">
-          <p className="text-lg font-display">Loading your dashboard…</p>
-          <p className="text-sm text-slate-500 mt-2">Just a moment.</p>
+        <div className="p-6 rounded-3xl text-center bg-white shadow">
+          <p className="text-lg font-semibold">Mounting clean dashboard…</p>
         </div>
       </div>
     );
   }
 
-  if (checked && !user) {
-    console.log("NO USER RECEIVED — redirecting to /login");
-    router.push("/login");
-    return null;
-  }
-
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="max-w-3xl mx-auto neon-card rounded-3xl p-8 space-y-6">
-        <h1 className="text-3xl font-display">
-          Welcome back, {user.profile?.nickname || "friend"}!
-        </h1>
-
-        <p className="text-slate-700">
-          Your challenges will appear here once we connect your Wix Member ID to your challenge data.
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="p-10 rounded-3xl text-center bg-white shadow space-y-4">
+        <h1 className="text-3xl font-bold">Clean Dashboard Loaded</h1>
+        <p className="text-slate-600">
+          If you see this, React mounted successfully.
         </p>
-
-        <div className="p-4 bg-white rounded-2xl shadow">
-          <p className="font-semibold">Your Wix Member ID:</p>
-          <p className="text-sm text-slate-600 break-all mt-1">{user._id}</p>
-        </div>
+        <p className="text-slate-500 text-sm">
+          Check the console for logs.
+        </p>
       </div>
     </div>
   );
