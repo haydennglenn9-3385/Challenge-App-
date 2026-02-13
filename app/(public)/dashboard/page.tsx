@@ -13,10 +13,10 @@ export default function DashboardPage() {
   const name = searchParams.get("name") || "friend";
 
   const rainbowButton =
-    "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)]";
+    "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   const whiteButton =
-    "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium";
+    "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium inline-block";
 
   return (
     <div className="min-h-screen px-6 py-16 flex flex-col items-center bg-[linear-gradient(to_bottom_right,#BAE3EF,#DFF58C,#FDD3EC,#FFE4B6)]">
@@ -34,7 +34,7 @@ export default function DashboardPage() {
             Change Password
           </a>
 
-          <button className={`${rainbowButton} w-full mt-4`}>
+          <button className={`${rainbowButton} mt-4`}>
             Log Out
           </button>
         </div>
@@ -84,9 +84,9 @@ export default function DashboardPage() {
                 <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
               </div>
 
-              {/* Progress Ring */}
-              <div className="w-14 h-14 rounded-full bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)] flex items-center justify-center">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-700 text-sm font-semibold">
+              {/* Progress Ring (slightly larger) */}
+              <div className="w-20 h-20 rounded-full bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)] flex items-center justify-center">
+                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-slate-700 text-sm font-semibold">
                   75%
                 </div>
               </div>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
 
           </div>
 
-          <button className={`${rainbowButton} w-full mt-4`}>
+          <button className={`${rainbowButton} mt-4`}>
             Join a Challenge
           </button>
         </div>
@@ -117,8 +117,23 @@ export default function DashboardPage() {
 
           </div>
 
-          <button className={`${rainbowButton} w-full mt-4`}>
+          <button className={`${rainbowButton} mt-4`}>
             Create New Challenge
+          </button>
+        </div>
+
+        {/* MESSAGE BOARD */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 md:col-span-2">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Message Board</h2>
+
+          <div className="space-y-3 text-slate-700">
+            <p>💬 Alex: “Killed my workout today!”</p>
+            <p>💬 Jordan: “Hydration check 💧”</p>
+            <p>💬 Sam: “Anyone doing Flex Friday?”</p>
+          </div>
+
+          <button className={`${rainbowButton} mt-4`}>
+            Post Message
           </button>
         </div>
 
