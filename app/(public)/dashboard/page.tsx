@@ -30,11 +30,11 @@ export default function DashboardPage() {
           <p className="text-slate-700"><strong>Name:</strong> {name}</p>
           <p className="text-slate-700"><strong>Email:</strong> {email}</p>
 
-          <a href="#" className="text-slate-600 underline mt-4 inline-block">
+          <a href="#" className="text-slate-600 underline mt-4 block">
             Change Password
           </a>
 
-          <button className={`${rainbowButton} mt-4`}>
+          <button className={`${rainbowButton} mt-3`}>
             Log Out
           </button>
         </div>
@@ -71,6 +71,18 @@ export default function DashboardPage() {
           <p className="mt-4 text-slate-600 text-sm">you’re on fire! keep it going 🔥</p>
         </div>
 
+        {/* POINTS SYSTEM WIDGET */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
+
+          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
+          <p className="text-slate-700"><strong>Today:</strong> +15</p>
+
+          <button className={`${rainbowButton} mt-4`}>
+            Redeem Rewards
+          </button>
+        </div>
+
         {/* JOINED CHALLENGES */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 md:col-span-2">
           <h2 className="text-xl font-bold text-slate-800 mb-4">Joined Challenges</h2>
@@ -84,9 +96,9 @@ export default function DashboardPage() {
                 <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
               </div>
 
-              {/* Progress Ring (slightly larger) */}
-              <div className="w-20 h-20 rounded-full bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)] flex items-center justify-center">
-                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-slate-700 text-sm font-semibold">
+              {/* Larger Progress Ring */}
+              <div className="w-24 h-24 rounded-full bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)] flex items-center justify-center">
+                <div className="w-18 h-18 bg-white rounded-full flex items-center justify-center text-slate-700 text-base font-semibold">
                   75%
                 </div>
               </div>
