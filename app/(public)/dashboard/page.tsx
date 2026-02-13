@@ -71,7 +71,21 @@ export default function DashboardPage() {
           <p className="mt-4 text-slate-600 text-sm">you’re on fire! keep it going 🔥</p>
         </div>
 
-        {/* POINTS SYSTEM WIDGET */}
+        {/* TEAM POINTS WIDGET */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points</h2>
+
+          <p className="text-slate-700"><strong>Team:</strong> Glitter Goblins</p>
+          <p className="text-slate-700"><strong>Today:</strong> 2 points</p>
+          <p className="text-slate-700"><strong>Total:</strong> 18 points</p>
+
+          <div className="flex gap-3 mt-4">
+            <button className={whiteButton}>View Team</button>
+            <button className={rainbowButton}>Leaderboard</button>
+          </div>
+        </div>
+
+        {/* POINTS & REWARDS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
 
