@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
 
-        {/* PROFILE WIDGET */}
+        {/* PROFILE */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Your Profile</h2>
 
@@ -39,7 +39,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* STREAK WIDGET */}
+        {/* STREAK */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 flex flex-col items-center">
           <div
             className="text-5xl mb-2"
@@ -71,10 +71,23 @@ export default function DashboardPage() {
           <p className="mt-4 text-slate-600 text-sm">you’re on fire! keep it going 🔥</p>
         </div>
 
-        {/* TEAM POINTS WIDGET */}
+        {/* POINTS & REWARDS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
 
+          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
+          <p className="text-slate-700"><strong>Today:</strong> +15</p>
+
+          <button className={`${rainbowButton} mt-4`}>
+            Redeem Rewards
+          </button>
+        </div>
+
+        {/* CURRENT TEAM CHALLENGE POINTS */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points (Current Challenge)</h2>
+
+          <p className="text-slate-700"><strong>Challenge:</strong> Sprint Ladder</p>
           <p className="text-slate-700"><strong>Team:</strong> Glitter Goblins</p>
           <p className="text-slate-700"><strong>Today:</strong> 2 points</p>
           <p className="text-slate-700"><strong>Total:</strong> 18 points</p>
@@ -85,15 +98,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* POINTS & REWARDS */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
+        {/* MESSAGES (DM PREVIEW) */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 md:col-span-2">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Messages</h2>
 
-          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
-          <p className="text-slate-700"><strong>Today:</strong> +15</p>
+          <div className="space-y-3 text-slate-700">
+            <p>💬 Alex → You: “Killed my workout today!”</p>
+            <p>💬 Jordan → You: “Hydration check 💧”</p>
+            <p>💬 Sam → You: “Anyone doing Flex Friday?”</p>
+          </div>
 
           <button className={`${rainbowButton} mt-4`}>
-            Redeem Rewards
+            Open Inbox
           </button>
         </div>
 
@@ -110,9 +126,9 @@ export default function DashboardPage() {
                 <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
               </div>
 
-              {/* Larger Progress Ring */}
-              <div className="w-24 h-24 rounded-full bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)] flex items-center justify-center">
-                <div className="w-18 h-18 bg-white rounded-full flex items-center justify-center text-slate-700 text-base font-semibold">
+              {/* Thinner Progress Ring */}
+              <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)]">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-slate-700 text-base font-semibold">
                   75%
                 </div>
               </div>
@@ -145,21 +161,6 @@ export default function DashboardPage() {
 
           <button className={`${rainbowButton} mt-4`}>
             Create New Challenge
-          </button>
-        </div>
-
-        {/* MESSAGE BOARD */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 md:col-span-2">
-          <h2 className="text-xl font-bold text-slate-800 mb-4">Message Board</h2>
-
-          <div className="space-y-3 text-slate-700">
-            <p>💬 Alex: “Killed my workout today!”</p>
-            <p>💬 Jordan: “Hydration check 💧”</p>
-            <p>💬 Sam: “Anyone doing Flex Friday?”</p>
-          </div>
-
-          <button className={`${rainbowButton} mt-4`}>
-            Post Message
           </button>
         </div>
 
