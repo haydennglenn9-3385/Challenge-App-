@@ -37,25 +37,68 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* PROGRESS + STREAKS */}
+      {/* STREAK COUNTER */}
+      <div className="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full border border-slate-200 mb-10">
+        <h2 className="text-2xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <span className="text-3xl">🔥</span>
+          3‑Day Streak
+        </h2>
+
+        <div className="flex justify-between text-center mt-4">
+          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+            <div key={i} className="flex flex-col items-center">
+              <span className="text-slate-600">{d}</span>
+              <div className={`w-6 h-6 mt-1 rounded-full border-2 ${
+                i < 3 ? "border-rainbow animate-pulse" : "border-slate-300"
+              }`}></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PROGRESS RINGS */}
       <div className="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full border border-slate-200 mb-10">
         <h2 className="text-2xl font-semibold text-slate-800 mb-4">Your Progress</h2>
-        <p className="text-slate-600">Progress rings or bars will go here.</p>
 
-        <h2 className="text-2xl font-semibold text-slate-800 mt-8 mb-4">Your Streaks</h2>
-        <p className="text-slate-600">Daily streaks will go here.</p>
+        <div className="flex justify-center">
+          <div className="w-32 h-32 rounded-full border-[10px] border-transparent bg-[conic-gradient(red,orange,yellow,green,blue,indigo,violet)] flex items-center justify-center">
+            <span className="text-slate-700 font-semibold">75%</span>
+          </div>
+        </div>
       </div>
 
       {/* JOINED CHALLENGES */}
       <div className="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full border border-slate-200 mb-10">
         <h2 className="text-2xl font-semibold text-slate-800 mb-4">Joined Challenges</h2>
-        <p className="text-slate-600">List of challenges the user joined, with join codes.</p>
+
+        <div className="space-y-4">
+          <div className="p-4 border rounded-xl flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-slate-800">Sprint Ladder</p>
+              <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
+            </div>
+            <button className="px-3 py-1 bg-slate-800 text-white rounded-lg">View</button>
+          </div>
+        </div>
       </div>
 
       {/* CREATED CHALLENGES */}
       <div className="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full border border-slate-200">
         <h2 className="text-2xl font-semibold text-slate-800 mb-4">Your Created Challenges</h2>
-        <p className="text-slate-600">List of challenges the user created, with join codes.</p>
+
+        <div className="space-y-4">
+          <div className="p-4 border rounded-xl flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-slate-800">Flex Friday</p>
+              <p className="text-slate-500 text-sm">Join code: <strong>xyz789</strong></p>
+            </div>
+            <button className="px-3 py-1 bg-slate-800 text-white rounded-lg">View</button>
+          </div>
+        </div>
+
+        <button className="mt-6 w-full py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition">
+          Create New Challenge
+        </button>
       </div>
 
     </div>
