@@ -1,18 +1,37 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
+export async function POST(req: Request) {
+  const body = await req.json();
 
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  const { wixId, email, name } = body;
+
+  if (!wixId || !email) {
+    return NextResponse.json({ error: "Missing wixId or email" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  // Check if user exists
+  const { data: existingUser } = await supabase
     .from("users")
     .select("*")
-    .eq("id", userId)
+    .eq("id", wixId)
+    .single();
+
+  if (existingUser) {
+    return NextResponse.json(existingUser);
+  }
+
+  // Create new user
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      id: wixId,
+      email,
+      name,
+      streak: 0,
+      total_points: 0
+    })
+    .select()
     .single();
 
   if (error) {
