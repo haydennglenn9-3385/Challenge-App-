@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const name = searchParams.get("name") || "friend";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-200 via-pink-200 to-indigo-200 px-6 pt-20 pb-20 flex flex-col items-center">
+    <div className="min-h-screen px-6 pt-20 pb-20 flex flex-col items-center bg-[linear-gradient(to_bottom_right,#DDE7FF,#FFF7CC,#FAD2E1,#DFFFE2)]">
 
       <div className="bg-white shadow-xl rounded-2xl p-10 max-w-xl w-full text-center border border-slate-200">
         <h1 className="text-3xl font-bold text-slate-800 mb-4">
