@@ -14,10 +14,10 @@ function DashboardContent() {
   const name = searchParams.get("name") || "friend";
 
   const rainbowButton =
-    "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
+    "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)]";
 
   const whiteButton =
-    "px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 font-semibold inline-block";
+    "px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 font-semibold";
 
   // Sync user to Supabase using wix_id
   useEffect(() => {
@@ -65,7 +65,7 @@ function DashboardContent() {
           <p className="text-slate-700"><strong>Password:</strong> ••••••••</p>
 
           {/* BUTTONS MATCHING VIEW TEAM + LEADERBOARD */}
-          <div className="flex flex-col gap-4 mt-4">
+          <div className="flex flex-col gap-3 mt-4 w-fit">
             <button
               onClick={() => (window.location.href = "/profile")}
               className={whiteButton}
