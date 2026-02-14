@@ -79,7 +79,7 @@ function DashboardContent() {
             Update Profile
           </button>
 
-          <button className={`${rainbowButton} mt-3`}>
+          <button className={`${rainbowButton} mt-6`}>
             Log Out
           </button>
         </div>
