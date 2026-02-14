@@ -9,18 +9,17 @@ import { useSearchParams } from "next/navigation";
 function DashboardContent() {
   const searchParams = useSearchParams();
 
-  const userId = searchParams.get("userId");   // Wix ID
+  const userId = searchParams.get("userId"); // Wix ID
   const email = searchParams.get("email");
   const name = searchParams.get("name") || "friend";
 
-  // 🌈 BUTTON STYLES
   const rainbowButton =
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   const whiteButton =
     "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium inline-block";
 
-  // 🌟 SYNC USER TO SUPABASE (using wix_id)
+  // Sync user to Supabase using wix_id
   useEffect(() => {
     console.log("WIX PARAMS:", { userId, email, name });
 
@@ -37,7 +36,7 @@ function DashboardContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wixId: userId,   // IMPORTANT: use wixId, not id
+            wixId: userId,
             email,
             name,
           }),
@@ -53,25 +52,80 @@ function DashboardContent() {
     syncUser();
   }, [userId, email, name]);
 
+  async function handleSaveName() {
+    if (!userId) {
+      alert("Missing user ID");
+      return;
+    }
+
+    const input = document.getElementById("displayNameInput") as HTMLInputElement | null;
+    if (!input) return;
+
+    const newName = input.value.trim();
+    if (!newName) {
+      alert("Please enter a name");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/user/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wixId: userId,
+          name: newName,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        alert("Error updating name: " + data.error);
+      } else {
+        alert("Name updated successfully");
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Error updating name:", err);
+      alert("Something went wrong updating your name.");
+    }
+  }
+
   return (
     <div className="min-h-screen px-6 py-16 flex flex-col items-center bg-[linear-gradient(to_bottom_right,#BAE3EF,#DFF58C,#FDD3EC,#FFE4B6)]">
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-
         {/* PROFILE */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Your Profile</h2>
 
-          <p className="text-slate-700"><strong>Name:</strong> {name}</p>
-          <p className="text-slate-700"><strong>Email:</strong> {email}</p>
+          <p className="text-slate-700">
+            <strong>Name:</strong> {name}
+          </p>
+          <p className="text-slate-700">
+            <strong>Email:</strong> {email}
+          </p>
+
+          {/* UPDATE DISPLAY NAME */}
+          <div className="mt-4">
+            <label className="text-slate-700 font-medium" htmlFor="displayNameInput">
+              Update Display Name
+            </label>
+            <input
+              id="displayNameInput"
+              type="text"
+              placeholder="Enter new name"
+              className="mt-2 w-full px-3 py-2 border rounded-lg text-slate-800"
+              defaultValue={name !== "friend" ? name : ""}
+            />
+            <button onClick={handleSaveName} className={`${rainbowButton} mt-3`}>
+              Save Name
+            </button>
+          </div>
 
           <a href="#" className="text-slate-600 underline mt-4 block">
             Change Password
           </a>
 
-          <button className={`${rainbowButton} mt-3`}>
-            Log Out
-          </button>
+          <button className={`${rainbowButton} mt-3`}>Log Out</button>
         </div>
 
         {/* STREAK */}
@@ -91,7 +145,7 @@ function DashboardContent() {
           <h2 className="text-xl font-bold text-slate-800 mb-2">3‑Day Streak</h2>
 
           <div className="flex justify-between w-full mt-3">
-            {["M","T","W","T","F","S","S"].map((d,i)=>(
+            {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
               <div key={i} className="flex flex-col items-center">
                 <span className="text-slate-600">{d}</span>
                 <div
@@ -110,22 +164,34 @@ function DashboardContent() {
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
 
-          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
-          <p className="text-slate-700"><strong>Today:</strong> +15</p>
+          <p className="text-slate-700">
+            <strong>Total Points:</strong> 120
+          </p>
+          <p className="text-slate-700">
+            <strong>Today:</strong> +15
+          </p>
 
-          <button className={`${rainbowButton} mt-4`}>
-            Redeem Rewards
-          </button>
+          <button className={`${rainbowButton} mt-4`}>Redeem Rewards</button>
         </div>
 
         {/* CURRENT TEAM CHALLENGE POINTS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points (Current Challenge)</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-3">
+            Team Points (Current Challenge)
+          </h2>
 
-          <p className="text-slate-700"><strong>Challenge:</strong> Sprint Ladder</p>
-          <p className="text-slate-700"><strong>Team:</strong> Glitter Goblins</p>
-          <p className="text-slate-700"><strong>Today:</strong> 2 points</p>
-          <p className="text-slate-700"><strong>Total:</strong> 18 points</p>
+          <p className="text-slate-700">
+            <strong>Challenge:</strong> Sprint Ladder
+          </p>
+          <p className="text-slate-700">
+            <strong>Team:</strong> Glitter Goblins
+          </p>
+          <p className="text-slate-700">
+            <strong>Today:</strong> 2 points
+          </p>
+          <p className="text-slate-700">
+            <strong>Total:</strong> 18 points
+          </p>
 
           <div className="flex gap-3 mt-4">
             <button className={whiteButton}>View Team</button>
@@ -143,9 +209,7 @@ function DashboardContent() {
             <p>💬 Sam → You: “Anyone doing Flex Friday?”</p>
           </div>
 
-          <button className={`${rainbowButton} mt-4`}>
-            Open Inbox
-          </button>
+          <button className={`${rainbowButton} mt-4`}>Open Inbox</button>
         </div>
 
         {/* JOINED CHALLENGES */}
@@ -156,7 +220,9 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Sprint Ladder</p>
-                <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
+                <p className="text-slate-500 text-sm">
+                  Join code: <strong>abc123</strong>
+                </p>
               </div>
 
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)]">
@@ -167,9 +233,7 @@ function DashboardContent() {
             </div>
           </div>
 
-          <button className={`${rainbowButton} mt-4`}>
-            Join a Challenge
-          </button>
+          <button className={`${rainbowButton} mt-4`}>Join a Challenge</button>
         </div>
 
         {/* CREATED CHALLENGES */}
@@ -180,18 +244,17 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Flex Friday</p>
-                <p className="text-slate-500 text-sm">Join code: <strong>xyz789</strong></p>
+                <p className="text-slate-500 text-sm">
+                  Join code: <strong>xyz789</strong>
+                </p>
               </div>
 
               <button className={whiteButton}>View</button>
             </div>
           </div>
 
-          <button className={`${rainbowButton} mt-4`}>
-            Create New Challenge
-          </button>
+          <button className={`${rainbowButton} mt-4`}>Create New Challenge</button>
         </div>
-
       </div>
     </div>
   );
