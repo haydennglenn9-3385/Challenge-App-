@@ -9,16 +9,18 @@ import { useSearchParams } from "next/navigation";
 function DashboardContent() {
   const searchParams = useSearchParams();
 
-  const userId = searchParams.get("userId");
+  const userId = searchParams.get("userId");   // Wix ID
   const email = searchParams.get("email");
   const name = searchParams.get("name") || "friend";
 
+  // 🌈 BUTTON STYLES
   const rainbowButton =
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   const whiteButton =
     "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium inline-block";
 
+  // 🌟 SYNC USER TO SUPABASE (using wix_id)
   useEffect(() => {
     console.log("WIX PARAMS:", { userId, email, name });
 
@@ -35,7 +37,7 @@ function DashboardContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wixId: userId,
+            wixId: userId,   // IMPORTANT: use wixId, not id
             email,
             name,
           }),
