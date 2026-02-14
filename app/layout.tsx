@@ -1,20 +1,16 @@
-// app/layout.tsx
-import "./globals.css";
-import ClientWrapper from "./client-wrapper";
-
 export const metadata = {
   title: "Challenge App",
-  description: "Fitness challenges for the community",
+  description: "Challenge platform"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
-        <ClientWrapper>
-          {children}
-        </ClientWrapper>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

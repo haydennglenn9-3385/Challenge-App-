@@ -29,7 +29,7 @@ export default function NewChallengePage() {
     }
 
     setSubmitting(false);
-    router.push(`/challenge/${challenge.id}`);
+    router.push(`/embed/challenge/${challenge.id}`);
   };
 
   return (

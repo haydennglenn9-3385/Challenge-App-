@@ -21,7 +21,7 @@ export default function ChallengesPage() {
           <h2 className="text-3xl font-display">All Challenges</h2>
         </div>
         <button
-          onClick={() => router.push("/challenges/new")}
+          onClick={() => router.push("/embed/challenges/new")}
           className="rounded-full px-4 py-2 font-semibold rainbow-cta"
         >
           New challenge
@@ -32,7 +32,7 @@ export default function ChallengesPage() {
         {challenges.map((challenge) => (
           <button
             key={challenge.id}
-            onClick={() => router.push(`/challenge/${challenge.id}`)}
+            onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
             className="neon-card rounded-2xl px-5 py-5 text-left hover:-translate-y-0.5 transition"
           >
             <p className="text-lg font-semibold">{challenge.title}</p>

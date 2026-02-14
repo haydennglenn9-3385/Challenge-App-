@@ -1,0 +1,11 @@
+{
+  "typescript.tsserver.exclude": [
+    "**/.next"
+  ],
+  "files.watcherExclude": {
+    "**/.next/**": true
+  },
+  "search.exclude": {
+    "**/.next": true
+  }
+}

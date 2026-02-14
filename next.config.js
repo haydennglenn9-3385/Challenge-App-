@@ -1,3 +1,11 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
-module.exports = nextConfig
+const nextConfig = {
+  experimental: {
+    typedRoutes: false,
+    serverActions: {
+      allowedOrigins: ["*"]
+    }
+  }
+};
+
+module.exports = nextConfig;
