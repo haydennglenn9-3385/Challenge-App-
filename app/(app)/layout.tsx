@@ -30,8 +30,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // ⭐ ALLOW /dashboard TO LOAD EVEN BEFORE WIX USER ARRIVES
-  if (!wixUser && pathname !== "/dashboard") {
+  // ⭐ ALLOW ALL ROUTES TO LOAD EVEN BEFORE WIX USER ARRIVES
+  // (This fixes the infinite "Loading your account..." issue)
+  if (!wixUser && pathname === "/") {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
         Loading your account...
