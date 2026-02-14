@@ -3,24 +3,22 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const searchParams = useSearchParams();
 
   const userId = searchParams.get("userId");
   const email = searchParams.get("email");
   const name = searchParams.get("name") || "friend";
 
-  // 🌈 BUTTON STYLES
   const rainbowButton =
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   const whiteButton =
     "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium inline-block";
 
-  // 🌟 SYNC USER TO SUPABASE
   useEffect(() => {
     console.log("WIX PARAMS:", { userId, email, name });
 
@@ -133,7 +131,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* MESSAGES (DM PREVIEW) */}
+        {/* MESSAGES */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200 md:col-span-2">
           <h2 className="text-xl font-bold text-slate-800 mb-4">Messages</h2>
 
@@ -153,22 +151,18 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold text-slate-800 mb-4">Joined Challenges</h2>
 
           <div className="space-y-4">
-
-            {/* Example challenge */}
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Sprint Ladder</p>
                 <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
               </div>
 
-              {/* Thinner Progress Ring */}
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)]">
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-slate-700 text-base font-semibold">
                   75%
                 </div>
               </div>
             </div>
-
           </div>
 
           <button className={`${rainbowButton} mt-4`}>
@@ -181,8 +175,6 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold text-slate-800 mb-4">Your Created Challenges</h2>
 
           <div className="space-y-4">
-
-            {/* Example created challenge */}
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Flex Friday</p>
@@ -191,7 +183,6 @@ export default function DashboardPage() {
 
               <button className={whiteButton}>View</button>
             </div>
-
           </div>
 
           <button className={`${rainbowButton} mt-4`}>
@@ -201,5 +192,13 @@ export default function DashboardPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Loading dashboard…</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
