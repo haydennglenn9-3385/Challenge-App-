@@ -3,15 +3,21 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 function DashboardContent() {
   const searchParams = useSearchParams();
 
-  const userId = searchParams.get("userId"); // Wix ID
-  const email = searchParams.get("email");
-  const name = searchParams.get("name") || "friend";
+  // Wix → iframe params
+  const wixId = searchParams.get("userId");
+  const wixEmail = searchParams.get("email");
+  const wixName = searchParams.get("name");
+
+  // Actual Supabase profile
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const rainbowButton =
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)]";
@@ -19,38 +25,63 @@ function DashboardContent() {
   const whiteButton =
     "px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 font-semibold";
 
-  // Sync user to Supabase using wix_id
+  // ⭐ Sync user to Supabase (create if missing)
   useEffect(() => {
-    console.log("WIX PARAMS:", { userId, email, name });
-
-    if (!userId || !email) {
-      console.log("Missing userId or email — skipping sync");
+    if (!wixId || !wixEmail) {
+      console.log("Missing wixId or email — skipping sync");
       return;
     }
 
     async function syncUser() {
-      console.log("SYNCING USER TO SUPABASE:", { userId, email, name });
+      console.log("SYNCING USER:", { wixId, wixEmail, wixName });
 
-      try {
-        const res = await fetch("/api/user/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wixId: userId,
-            email,
-            name,
-          }),
-        });
-
-        const data = await res.json();
-        console.log("SYNC RESPONSE:", data);
-      } catch (err) {
-        console.error("User sync failed:", err);
-      }
+      await fetch("/api/user/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wixId,
+          email: wixEmail,
+          name: wixName || "friend",
+        }),
+      });
     }
 
     syncUser();
-  }, [userId, email, name]);
+  }, [wixId, wixEmail, wixName]);
+
+  // ⭐ Load REAL profile from Supabase
+  useEffect(() => {
+    if (!wixId) return;
+
+    async function loadProfile() {
+      console.log("LOADING PROFILE FOR wixId:", wixId);
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("wix_id", wixId)
+        .single();
+
+      if (error) {
+        console.error("Failed to load profile:", error);
+      } else {
+        console.log("PROFILE LOADED:", data);
+        setProfile(data);
+      }
+
+      setLoading(false);
+    }
+
+    loadProfile();
+  }, [wixId]);
+
+  if (loading) {
+    return (
+      <div className="p-10 text-center">
+        Loading your dashboard…
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen px-6 py-16 flex flex-col items-center bg-[linear-gradient(to_bottom_right,#BAE3EF,#DFF58C,#FDD3EC,#FFE4B6)]">
@@ -60,11 +91,18 @@ function DashboardContent() {
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Your Profile</h2>
 
-          <p className="text-slate-700"><strong>Name:</strong> {name}</p>
-          <p className="text-slate-700"><strong>Email:</strong> {email}</p>
-          <p className="text-slate-700"><strong>Password:</strong> ••••••••</p>
+          <p className="text-slate-700">
+            <strong>Name:</strong> {profile?.name || "friend"}
+          </p>
 
-          {/* BUTTONS MATCHING VIEW TEAM + LEADERBOARD */}
+          <p className="text-slate-700">
+            <strong>Email:</strong> {profile?.email || "unknown"}
+          </p>
+
+          <p className="text-slate-700">
+            <strong>Password:</strong> ••••••••
+          </p>
+
           <div className="flex flex-col gap-3 mt-4 w-fit">
             <button
               onClick={() => (window.location.href = "/profile")}
@@ -93,7 +131,9 @@ function DashboardContent() {
             🔥
           </div>
 
-          <h2 className="text-xl font-bold text-slate-800 mb-2">3‑Day Streak</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            {profile?.streak || 0}-Day Streak
+          </h2>
 
           <div className="flex justify-between w-full mt-3">
             {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
@@ -101,29 +141,38 @@ function DashboardContent() {
                 <span className="text-slate-600">{d}</span>
                 <div
                   className={`w-3 h-3 mt-1 rounded-full ${
-                    i < 3 ? "bg-black" : "bg-slate-300"
+                    i < (profile?.streak || 0)
+                      ? "bg-black"
+                      : "bg-slate-300"
                   }`}
                 ></div>
               </div>
             ))}
           </div>
 
-          <p className="mt-4 text-slate-600 text-sm">you’re on fire! keep it going 🔥</p>
+          <p className="mt-4 text-slate-600 text-sm">
+            you’re on fire! keep it going 🔥
+          </p>
         </div>
 
-        {/* POINTS & REWARDS */}
+        {/* POINTS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
 
-          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
-          <p className="text-slate-700"><strong>Today:</strong> +15</p>
+          <p className="text-slate-700">
+            <strong>Total Points:</strong> {profile?.total_points || 0}
+          </p>
 
-          <button className={`${rainbowButton} mt-4`}>Redeem Rewards</button>
+          <button className={`${rainbowButton} mt-4`}>
+            Redeem Rewards
+          </button>
         </div>
 
-        {/* CURRENT TEAM CHALLENGE POINTS */}
+        {/* TEAM POINTS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points (Current Challenge)</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-3">
+            Team Points (Current Challenge)
+          </h2>
 
           <p className="text-slate-700"><strong>Challenge:</strong> Sprint Ladder</p>
           <p className="text-slate-700"><strong>Team:</strong> Glitter Goblins</p>
@@ -157,7 +206,9 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Sprint Ladder</p>
-                <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
+                <p className="text-slate-500 text-sm">
+                  Join code: <strong>abc123</strong>
+                </p>
               </div>
 
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)]">
@@ -179,14 +230,18 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Flex Friday</p>
-                <p className="text-slate-500 text-sm">Join code: <strong>xyz789</strong></p>
+                <p className="text-slate-500 text-sm">
+                  Join code: <strong>xyz789</strong>
+                </p>
               </div>
 
               <button className={whiteButton}>View</button>
             </div>
           </div>
 
-          <button className={`${rainbowButton} mt-4`}>Create New Challenge</button>
+          <button className={`${rainbowButton} mt-4`}>
+            Create New Challenge
+          </button>
         </div>
 
       </div>
