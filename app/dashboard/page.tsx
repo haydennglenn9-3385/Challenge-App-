@@ -52,47 +52,10 @@ function DashboardContent() {
     syncUser();
   }, [userId, email, name]);
 
-  async function handleSaveName() {
-    if (!userId) {
-      alert("Missing user ID");
-      return;
-    }
-
-    const input = document.getElementById("displayNameInput") as HTMLInputElement | null;
-    if (!input) return;
-
-    const newName = input.value.trim();
-    if (!newName) {
-      alert("Please enter a name");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/user/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wixId: userId,
-          name: newName,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.error) {
-        alert("Error updating name: " + data.error);
-      } else {
-        alert("Name updated successfully");
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error("Error updating name:", err);
-      alert("Something went wrong updating your name.");
-    }
-  }
-
   return (
     <div className="min-h-screen px-6 py-16 flex flex-col items-center bg-[linear-gradient(to_bottom_right,#BAE3EF,#DFF58C,#FDD3EC,#FFE4B6)]">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+
         {/* PROFILE */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Your Profile</h2>
@@ -100,32 +63,25 @@ function DashboardContent() {
           <p className="text-slate-700">
             <strong>Name:</strong> {name}
           </p>
+
           <p className="text-slate-700">
             <strong>Email:</strong> {email}
           </p>
 
-          {/* UPDATE DISPLAY NAME */}
-          <div className="mt-4">
-            <label className="text-slate-700 font-medium" htmlFor="displayNameInput">
-              Update Display Name
-            </label>
-            <input
-              id="displayNameInput"
-              type="text"
-              placeholder="Enter new name"
-              className="mt-2 w-full px-3 py-2 border rounded-lg text-slate-800"
-              defaultValue={name !== "friend" ? name : ""}
-            />
-            <button onClick={handleSaveName} className={`${rainbowButton} mt-3`}>
-              Save Name
-            </button>
-          </div>
+          <p className="text-slate-700">
+            <strong>Password:</strong> ••••••••
+          </p>
 
-          <a href="#" className="text-slate-600 underline mt-4 block">
-            Change Password
-          </a>
+          <button
+            onClick={() => (window.location.href = "/profile")}
+            className={`${rainbowButton} mt-4`}
+          >
+            Update Profile
+          </button>
 
-          <button className={`${rainbowButton} mt-3`}>Log Out</button>
+          <button className={`${rainbowButton} mt-3`}>
+            Log Out
+          </button>
         </div>
 
         {/* STREAK */}
