@@ -3,24 +3,16 @@ import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { name, email, password } = body;
+  const { wixId, name, email, password } = body;
 
-  // 1. Get the current authenticated user
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  if (!wixId) {
     return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 }
+      { error: "Missing wixId" },
+      { status: 400 }
     );
   }
 
-  const wixId = user.id; // This is your real user identifier
-
-  // 2. Update name or email in your public.users table
+  // Update name/email in your public.users table
   if (name || email) {
     const updates: any = {};
     if (name) updates.name = name;
@@ -29,7 +21,7 @@ export async function POST(req: Request) {
     const { error: updateError } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", wixId);
+      .eq("wix_id", wixId);
 
     if (updateError) {
       return NextResponse.json(
@@ -39,7 +31,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // 3. Update password in Supabase Auth (optional)
+  // Update password in Supabase Auth (optional)
   if (password) {
     const { error: pwError } = await supabase.auth.updateUser({
       password,
