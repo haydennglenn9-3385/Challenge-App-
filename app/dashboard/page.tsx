@@ -60,28 +60,23 @@ function DashboardContent() {
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Your Profile</h2>
 
-          <p className="text-slate-700">
-            <strong>Name:</strong> {name}
-          </p>
+          <p className="text-slate-700"><strong>Name:</strong> {name}</p>
+          <p className="text-slate-700"><strong>Email:</strong> {email}</p>
+          <p className="text-slate-700"><strong>Password:</strong> ••••••••</p>
 
-          <p className="text-slate-700">
-            <strong>Email:</strong> {email}
-          </p>
+          {/* BUTTONS WITH PROPER SPACING */}
+          <div className="flex flex-col gap-4 mt-4">
+            <button
+              onClick={() => (window.location.href = "/profile")}
+              className={rainbowButton}
+            >
+              Update Profile
+            </button>
 
-          <p className="text-slate-700">
-            <strong>Password:</strong> ••••••••
-          </p>
-
-          <button
-            onClick={() => (window.location.href = "/profile")}
-            className={`${rainbowButton} mt-4`}
-          >
-            Update Profile
-          </button>
-
-          <button className={`${rainbowButton} mt-6`}>
-            Log Out
-          </button>
+            <button className={rainbowButton}>
+              Log Out
+            </button>
+          </div>
         </div>
 
         {/* STREAK */}
@@ -120,34 +115,20 @@ function DashboardContent() {
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-3">Points & Rewards</h2>
 
-          <p className="text-slate-700">
-            <strong>Total Points:</strong> 120
-          </p>
-          <p className="text-slate-700">
-            <strong>Today:</strong> +15
-          </p>
+          <p className="text-slate-700"><strong>Total Points:</strong> 120</p>
+          <p className="text-slate-700"><strong>Today:</strong> +15</p>
 
           <button className={`${rainbowButton} mt-4`}>Redeem Rewards</button>
         </div>
 
         {/* CURRENT TEAM CHALLENGE POINTS */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">
-            Team Points (Current Challenge)
-          </h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Team Points (Current Challenge)</h2>
 
-          <p className="text-slate-700">
-            <strong>Challenge:</strong> Sprint Ladder
-          </p>
-          <p className="text-slate-700">
-            <strong>Team:</strong> Glitter Goblins
-          </p>
-          <p className="text-slate-700">
-            <strong>Today:</strong> 2 points
-          </p>
-          <p className="text-slate-700">
-            <strong>Total:</strong> 18 points
-          </p>
+          <p className="text-slate-700"><strong>Challenge:</strong> Sprint Ladder</p>
+          <p className="text-slate-700"><strong>Team:</strong> Glitter Goblins</p>
+          <p className="text-slate-700"><strong>Today:</strong> 2 points</p>
+          <p className="text-slate-700"><strong>Total:</strong> 18 points</p>
 
           <div className="flex gap-3 mt-4">
             <button className={whiteButton}>View Team</button>
@@ -176,9 +157,7 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Sprint Ladder</p>
-                <p className="text-slate-500 text-sm">
-                  Join code: <strong>abc123</strong>
-                </p>
+                <p className="text-slate-500 text-sm">Join code: <strong>abc123</strong></p>
               </div>
 
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[conic-gradient(#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF,#FD80AB)]">
@@ -200,9 +179,7 @@ function DashboardContent() {
             <div className="p-4 border rounded-xl flex justify-between items-center">
               <div>
                 <p className="font-semibold text-slate-800">Flex Friday</p>
-                <p className="text-slate-500 text-sm">
-                  Join code: <strong>xyz789</strong>
-                </p>
+                <p className="text-slate-500 text-sm">Join code: <strong>xyz789</strong></p>
               </div>
 
               <button className={whiteButton}>View</button>
@@ -211,6 +188,7 @@ function DashboardContent() {
 
           <button className={`${rainbowButton} mt-4`}>Create New Challenge</button>
         </div>
+
       </div>
     </div>
   );
