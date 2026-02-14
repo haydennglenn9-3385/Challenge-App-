@@ -13,7 +13,7 @@ function DashboardContent() {
   // Wix → iframe params
   const wixId = searchParams.get("userId");
   const wixEmail = searchParams.get("email");
-  const wixName = searchParams.get("name");
+  const wixName = searchParams.get("name") || "friend";
 
   // Actual Supabase profile
   const [profile, setProfile] = useState<any>(null);
@@ -41,7 +41,7 @@ function DashboardContent() {
         body: JSON.stringify({
           wixId,
           email: wixEmail,
-          name: wixName || "friend",
+          name: wixName,
         }),
       });
     }
@@ -49,9 +49,12 @@ function DashboardContent() {
     syncUser();
   }, [wixId, wixEmail, wixName]);
 
-  // ⭐ Load REAL profile from Supabase
+  // ⭐ Load REAL profile from Supabase with fallback
   useEffect(() => {
-    if (!wixId) return;
+    if (!wixId) {
+      console.log("No wixId yet — waiting for Wix to send user info");
+      return;
+    }
 
     async function loadProfile() {
       console.log("LOADING PROFILE FOR wixId:", wixId);
@@ -60,15 +63,34 @@ function DashboardContent() {
         .from("users")
         .select("*")
         .eq("wix_id", wixId)
-        .single();
+        .maybeSingle(); // ⭐ prevents crashes
 
       if (error) {
         console.error("Failed to load profile:", error);
-      } else {
-        console.log("PROFILE LOADED:", data);
-        setProfile(data);
+        setLoading(false);
+        return;
       }
 
+      if (!data) {
+        console.log("No profile found — creating one now");
+
+        const res = await fetch("/api/user/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wixId,
+            email: wixEmail,
+            name: wixName,
+          }),
+        });
+
+        const newUser = await res.json();
+        setProfile(newUser);
+        setLoading(false);
+        return;
+      }
+
+      setProfile(data);
       setLoading(false);
     }
 
