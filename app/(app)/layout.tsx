@@ -31,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ⭐ ALLOW ALL ROUTES TO LOAD EVEN BEFORE WIX USER ARRIVES
-  // (This fixes the infinite "Loading your account..." issue)
+  // Only block the root "/" — not dashboard, challenges, etc.
   if (!wixUser && pathname === "/") {
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-500">
@@ -59,16 +59,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-6 text-slate-600">
-            <Link href="/dashboard" className={pathname === "/dashboard" ? "font-bold text-slate-900" : ""}>
+            <Link
+              href="/dashboard"
+              className={pathname === "/dashboard" ? "font-bold text-slate-900" : ""}
+            >
               Dashboard
             </Link>
-            <Link href="/challenges" className={pathname === "/challenges" ? "font-bold text-slate-900" : ""}>
+            <Link
+              href="/challenges"
+              className={pathname === "/challenges" ? "font-bold text-slate-900" : ""}
+            >
               Challenges
             </Link>
-            <Link href="/leaderboard" className={pathname === "/leaderboard" ? "font-bold text-slate-900" : ""}>
+            <Link
+              href="/leaderboard"
+              className={pathname === "/leaderboard" ? "font-bold text-slate-900" : ""}
+            >
               Leaderboard
             </Link>
-            <Link href="/messages" className={pathname === "/messages" ? "font-bold text-slate-900" : ""}>
+            <Link
+              href="/messages"
+              className={pathname === "/messages" ? "font-bold text-slate-900" : ""}
+            >
               Messages
             </Link>
 
