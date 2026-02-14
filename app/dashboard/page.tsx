@@ -17,7 +17,7 @@ function DashboardContent() {
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   const whiteButton =
-    "px-3 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-medium inline-block";
+    "px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 font-semibold inline-block";
 
   // Sync user to Supabase using wix_id
   useEffect(() => {
@@ -64,11 +64,11 @@ function DashboardContent() {
           <p className="text-slate-700"><strong>Email:</strong> {email}</p>
           <p className="text-slate-700"><strong>Password:</strong> ••••••••</p>
 
-          {/* BUTTONS WITH PROPER SPACING */}
+          {/* BUTTONS MATCHING VIEW TEAM + LEADERBOARD */}
           <div className="flex flex-col gap-4 mt-4">
             <button
               onClick={() => (window.location.href = "/profile")}
-              className={rainbowButton}
+              className={whiteButton}
             >
               Update Profile
             </button>
