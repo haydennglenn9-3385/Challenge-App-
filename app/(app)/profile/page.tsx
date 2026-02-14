@@ -4,13 +4,14 @@ import { useState } from "react";
 
 export default function ProfileSettingsPage() {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const rainbowButton =
     "px-4 py-2 rounded-xl text-black font-semibold shadow-md bg-[linear-gradient(90deg,#FD80AB,#FFCE71,#A4FC95,#65EBE4,#719FFF)] inline-block";
 
   async function handleSave() {
-    if (!name && !password) {
+    if (!name && !email && !password) {
       alert("Please update at least one field");
       return;
     }
@@ -21,6 +22,7 @@ export default function ProfileSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name || undefined,
+          email: email || undefined,
           password: password || undefined,
         }),
       });
@@ -52,6 +54,16 @@ export default function ProfileSettingsPage() {
           className="mt-2 mb-4 w-full px-3 py-2 border rounded-lg text-slate-800"
           value={name}
           onChange={(e) => setName(e.target.value)}
+        />
+
+        {/* EMAIL */}
+        <label className="text-slate-700 font-medium">Email</label>
+        <input
+          type="email"
+          placeholder="Enter new email"
+          className="mt-2 mb-4 w-full px-3 py-2 border rounded-lg text-slate-800"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         {/* PASSWORD */}
