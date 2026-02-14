@@ -8,11 +8,17 @@ export default function ProfileSettingsPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // ⭐ Request user info from Wix when page loads
+  useEffect(() => {
+    window.parent.postMessage("REQUEST_USER_INFO", "*");
+  }, []);
+
   // ⭐ Receive Wix user info
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (event.data?.type === "USER_INFO") {
         const user = event.data.user;
+
         setWixId(user.id);
         setName(user.name || "");
         setEmail(user.email || "");
