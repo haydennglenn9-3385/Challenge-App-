@@ -1,6 +1,5 @@
-// app/layout.tsx
+// archive/layout.tsx
 import "./globals.css";
-import ClientWrapper from "./client-wrapper";
 
 export const metadata = {
   title: "Challenge App",
@@ -11,9 +10,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <ClientWrapper>
-          {children}
-        </ClientWrapper>
+        {children}
       </body>
     </html>
   );
