@@ -91,7 +91,7 @@ export default function JoinWithCodePage() {
 
             <button
               type="submit"
-              className="w-full rainbow-cta rounded-full px-6 py-4 font-semibold text-lg hover:shadow-xl transition-shadow"
+              className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow"
             >
               Join Challenge
             </button>
