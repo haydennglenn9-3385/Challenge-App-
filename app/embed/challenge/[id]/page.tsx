@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
   addMessage,
   ensureSeedData,
@@ -55,24 +56,47 @@ export default function ChallengeDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Navigation Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <Link href="/embed/challenges">
+          <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+            ← Back to Challenges
+          </button>
+        </Link>
+        
+        <div className="flex gap-3">
+          <Link href="/">
+            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+              Home
+            </button>
+          </Link>
+          <Link href="/embed/profile">
+            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+              Profile
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Challenge Info Card */}
       <div className="neon-card rounded-3xl p-6">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Challenge</p>
-        <h2 className="text-3xl font-display">{challenge.title}</h2>
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">CHALLENGE</p>
+        <h2 className="text-3xl font-display mb-2">{challenge.title}</h2>
         {challenge.description && <p className="text-slate-600 mt-2">{challenge.description}</p>}
 
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
-            <p className="text-xs text-slate-400">Current streak</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Current streak</p>
             <p className="text-lg font-semibold">{streak} days</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
-            <p className="text-xs text-slate-400">Progress</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Progress</p>
             <p className="text-lg font-semibold">{Math.round(progress * 100)}%</p>
           </div>
           <button
             onClick={handleCheckIn}
-            className="rounded-full px-5 py-3 font-semibold rainbow-cta"
+            className="rainbow-cta rounded-full px-5 py-3 font-semibold hover:shadow-xl transition-shadow"
           >
             Check in today
           </button>
@@ -80,8 +104,9 @@ export default function ChallengeDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        {/* Live Chat */}
         <div className="neon-card rounded-3xl p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold">Live chat</h3>
             <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">Streak squad</span>
           </div>
@@ -108,16 +133,17 @@ export default function ChallengeDetailPage() {
             />
             <button
               type="submit"
-              className="rounded-full px-4 py-2 font-semibold rainbow-cta"
+              className="rainbow-cta rounded-full px-4 py-2 font-semibold"
             >
               Send
             </button>
           </form>
         </div>
 
+        {/* Challenge Crew */}
         <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold">Challenge crew</h3>
-          <div className="mt-4 space-y-3">
+          <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
+          <div className="space-y-3">
             {members.map((member) => (
               <div key={member.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3">
                 <div>

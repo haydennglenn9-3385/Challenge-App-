@@ -4,8 +4,8 @@ export default function EmbedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen px-16 py-10">
-      <div className="w-full max-w-5xl mx-auto">
+    <div className="min-h-screen px-12 py-12">
+      <div className="w-full max-w-6xl mx-auto">
         {children}
       </div>
     </div>

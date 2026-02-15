@@ -1,16 +1,23 @@
+import "./globals.css";
+import ClientWrapper from "./client-wrapper";
+
 export const metadata = {
   title: "Challenge App",
-  description: "Challenge platform"
+  description: "Fitness challenges for the community",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
+export default function RootLayout({ 
+  children 
+}: { 
+  children: React.ReactNode 
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClientWrapper>
+          {children}
+        </ClientWrapper>
+      </body>
     </html>
   );
 }
