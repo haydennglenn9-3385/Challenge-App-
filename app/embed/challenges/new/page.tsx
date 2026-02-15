@@ -65,8 +65,8 @@ export default function NewChallengePage() {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="neon-card rounded-3xl p-6 space-y-5">
-        <div className="space-y-2">
+      <form onSubmit={handleSubmit} className="neon-card rounded-3xl p-8 space-y-6">
+        <div className="space-y-3">
           <label className="text-sm font-semibold text-slate-700">Challenge name</label>
           <input
             type="text"
@@ -79,7 +79,7 @@ export default function NewChallengePage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Duration (days)</label>
             <input
               type="number"
@@ -90,7 +90,7 @@ export default function NewChallengePage() {
               required
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Invite emails</label>
             <input
               type="text"
@@ -102,7 +102,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="text-sm font-semibold text-slate-700">Focus</label>
           <textarea
             value={description}
@@ -115,7 +115,7 @@ export default function NewChallengePage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rainbow-cta rounded-full px-5 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50"
+          className="w-full rainbow-cta rounded-full px-6 py-4 font-semibold text-lg hover:shadow-xl transition-shadow disabled:opacity-50"
         >
           {submitting ? "Launching..." : "Launch Challenge"}
         </button>
