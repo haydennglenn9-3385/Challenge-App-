@@ -1,13 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ensureSeedData, getChallenges, Challenge } from "@/lib/storage";
 import Link from "next/link";
 
 export default function ChallengesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [wixUser, setWixUser] = useState<{ userId?: string; email?: string; name?: string } | null>(null);
+
+  // Get Wix user data from URL params
+  useEffect(() => {
+    const userId = searchParams.get('userId');
+    const email = searchParams.get('email');
+    const name = searchParams.get('name');
+
+    if (userId && email) {
+      setWixUser({ userId, email, name: name || 'Member' });
+      
+      // Sync user to Supabase
+      fetch('/api/user/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wixId: userId,
+          email: email,
+          name: name || 'Member',
+        }),
+      }).catch(err => console.error('Failed to sync user:', err));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     ensureSeedData();
@@ -43,6 +67,15 @@ export default function ChallengesPage() {
           </Link>
         </div>
       </div>
+
+      {/* Debug: Show if user is logged in */}
+      {wixUser && (
+        <div className="neon-card rounded-2xl p-4 bg-green-50 border border-green-200">
+          <p className="text-sm text-green-800">
+            ✅ Logged in as: {wixUser.name} ({wixUser.email})
+          </p>
+        </div>
+      )}
 
       {/* Page Header */}
       <div>
