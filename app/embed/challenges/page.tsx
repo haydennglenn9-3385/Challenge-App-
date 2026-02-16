@@ -1,37 +1,15 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ensureSeedData, getChallenges, Challenge } from "@/lib/storage";
 import Link from "next/link";
+import { useUser } from "@/contexts/UserContext";
 
-function ChallengesContent() {
+export default function ChallengesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { user } = useUser();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [wixUser, setWixUser] = useState<{ userId?: string; email?: string; name?: string } | null>(null);
-
-  // Get Wix user data from URL params
-  useEffect(() => {
-    const userId = searchParams.get('userId');
-    const email = searchParams.get('email');
-    const name = searchParams.get('name');
-
-    if (userId && email) {
-      setWixUser({ userId, email, name: name || 'Member' });
-      
-      // Sync user to Supabase
-      fetch('/api/user/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wixId: userId,
-          email: email,
-          name: name || 'Member',
-        }),
-      }).catch(err => console.error('Failed to sync user:', err));
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     ensureSeedData();
@@ -68,19 +46,13 @@ function ChallengesContent() {
         </div>
       </div>
 
-      {/* Debug: Show if user is logged in */}
-      {wixUser && (
-        <div className="neon-card rounded-2xl p-4 bg-green-50 border border-green-200">
-          <p className="text-sm text-green-800">
-            ✅ Logged in as: {wixUser.name} ({wixUser.email})
-          </p>
-        </div>
-      )}
-
       {/* Page Header */}
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">CHALLENGES</p>
         <h2 className="text-4xl font-display">All Challenges</h2>
+        {user && (
+          <p className="text-sm text-slate-600 mt-1">Welcome back, {user.name}! 👋</p>
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -115,19 +87,5 @@ function ChallengesContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function ChallengesPage() {
-  return (
-    <Suspense fallback={
-      <div className="space-y-8">
-        <div className="flex items-center justify-center p-12">
-          <p className="text-slate-500">Loading challenges...</p>
-        </div>
-      </div>
-    }>
-      <ChallengesContent />
-    </Suspense>
   );
 }

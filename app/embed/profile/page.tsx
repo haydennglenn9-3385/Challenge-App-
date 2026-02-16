@@ -1,32 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@/contexts/UserContext";
 
 export default function ProfilePage() {
-  const [wixId, setWixId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user, isLoading } = useUser();
 
-  // Request user info from Wix when page loads
-  useEffect(() => {
-    window.parent.postMessage("REQUEST_USER_INFO", "*");
-  }, []);
-
-  // Receive Wix user info
-  useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      if (event.data?.type === "USER_INFO") {
-        const user = event.data.user;
-        setWixId(user.id);
-        setName(user.name || "Guest");
-        setEmail(user.email || "");
-      }
-    }
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-center p-12">
+          <p className="text-slate-500">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -60,30 +48,41 @@ export default function ProfilePage() {
 
       {/* Profile Card */}
       <div className="neon-card rounded-3xl p-8 max-w-2xl">
-        <div className="space-y-6">
-          <div>
-            <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Name</label>
-            <p className="text-xl font-semibold">{name || "Loading..."}</p>
-          </div>
+        {user ? (
+          <div className="space-y-6">
+            <div>
+              <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Name</label>
+              <p className="text-xl font-semibold">{user.name}</p>
+            </div>
 
-          <div>
-            <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Email</label>
-            <p className="text-lg text-slate-700">{email || "Loading..."}</p>
-          </div>
+            <div>
+              <label className="text-xs uppercase tracking-wider text-slate-500 mb-2 block">Email</label>
+              <p className="text-lg text-slate-700">{user.email}</p>
+            </div>
 
-          <div className="pt-4 border-t border-slate-200">
-            <p className="text-sm text-slate-600 mb-4">
-              Your account is managed through Wix. To update your name, email, or password, 
-              please use your Wix account settings.
+            <div className="pt-4 border-t border-slate-200">
+              <p className="text-sm text-slate-600 mb-4">
+                Your account is managed through Wix Members. To update your name, email, or password, 
+                please use your Wix account settings.
+              </p>
+              <a 
+                href="https://www.wix.com/my-account" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block px-6 py-3 rounded-full font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition"
+              >
+                Manage Wix Account →
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-slate-600 mb-4">You need to be logged in to view your profile.</p>
+            <p className="text-sm text-slate-500">
+              When viewing this page through your Wix site while logged in, your profile information will appear here.
             </p>
-            <button
-              onClick={() => window.parent.postMessage({ type: "OPEN_WIX_ACCOUNT" }, "*")}
-              className="px-6 py-3 rounded-full font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition"
-            >
-              Manage Wix Account
-            </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
