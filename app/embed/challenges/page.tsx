@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ensureSeedData, getChallenges, Challenge } from "@/lib/storage";
 import Link from "next/link";
 
-export default function ChallengesPage() {
+function ChallengesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -115,5 +115,19 @@ export default function ChallengesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ChallengesPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-8">
+        <div className="flex items-center justify-center p-12">
+          <p className="text-slate-500">Loading challenges...</p>
+        </div>
+      </div>
+    }>
+      <ChallengesContent />
+    </Suspense>
   );
 }
