@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ensureSeedData, getChallenges, Challenge } from "@/lib/storage";
 import Link from "next/link";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/lib/UserContext";
 
 export default function ChallengesPage() {
   const router = useRouter();
