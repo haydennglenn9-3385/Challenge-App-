@@ -1,59 +1,122 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  addMessage,
-  ensureSeedData,
   getChallengeById,
-  getMembers,
+  getTeamMembers,
   getMessages,
-  getStreak,
-  incrementStreak,
-  ChallengeMember,
-  ChallengeMessage,
+  sendMessage,
+  recordCheckIn,
+  getUserStreak,
+  Challenge,
+  User,
+  Message,
 } from "@/lib/storage";
+import { useUser } from "@/lib/UserContext";
 
 export default function ChallengeDetailPage() {
   const params = useParams<{ id: string }>();
   const challengeId = typeof params?.id === "string" ? params.id : "";
-  const [streak, setStreak] = useState(0);
+  const { user: wixUser } = useUser();
+  
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
-  const [messages, setMessages] = useState<ChallengeMessage[]>([]);
-  const [members, setMembers] = useState<ChallengeMember[]>([]);
-
-  const challenge = useMemo(() => getChallengeById(challengeId), [challengeId]);
+  const [streak, setStreak] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string>("");
 
   useEffect(() => {
-    ensureSeedData();
-    setStreak(getStreak(challengeId));
-    setMessages(getMessages(challengeId));
-    setMembers(getMembers(challengeId));
-  }, [challengeId]);
+    async function loadData() {
+      if (!challengeId) return;
 
-  if (!challenge) {
+      // Load challenge
+      const challengeData = await getChallengeById(challengeId);
+      setChallenge(challengeData);
+
+      if (challengeData) {
+        // Load team members
+        const teamMembersData = await getTeamMembers(challengeData.team_id);
+        setMembers(teamMembersData);
+
+        // Load messages
+        const messagesData = await getMessages(challengeData.team_id);
+        setMessages(messagesData);
+      }
+
+      // Get user's Supabase ID
+      if (wixUser) {
+        const userResponse = await fetch(`/api/user/get?wixId=${wixUser.userId}`);
+        const userData = await userResponse.json();
+        if (userData && userData.id) {
+          setUserId(userData.id);
+          
+          // Load user's streak for this challenge
+          const userStreak = await getUserStreak(userData.id, challengeId);
+          setStreak(userStreak);
+        }
+      }
+
+      setLoading(false);
+    }
+
+    loadData();
+  }, [challengeId, wixUser]);
+
+  const handleCheckIn = async () => {
+    if (!userId || !challengeId) {
+      alert("Please log in to check in");
+      return;
+    }
+
+    const success = await recordCheckIn(userId, challengeId);
+    if (success) {
+      const newStreak = await getUserStreak(userId, challengeId);
+      setStreak(newStreak);
+    }
+  };
+
+  const handleSendMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!messageText.trim() || !userId || !challenge) return;
+
+    const success = await sendMessage(challenge.team_id, userId, messageText.trim());
+    if (success) {
+      const updatedMessages = await getMessages(challenge.team_id);
+      setMessages(updatedMessages);
+      setMessageText("");
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="neon-card rounded-3xl p-8">
-        <p className="text-slate-600">Challenge not found.</p>
+      <div className="space-y-8">
+        <div className="flex items-center justify-center p-12">
+          <p className="text-slate-500">Loading challenge...</p>
+        </div>
       </div>
     );
   }
 
-  const progress = challenge.duration > 0 ? streak / challenge.duration : 0;
+  if (!challenge) {
+    return (
+      <div className="space-y-8">
+        <div className="neon-card rounded-3xl p-8">
+          <p className="text-slate-600">Challenge not found.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleCheckIn = () => {
-    incrementStreak(challengeId);
-    setStreak(getStreak(challengeId));
-  };
-
-  const handleSendMessage = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!messageText.trim()) return;
-    addMessage({ challengeId, sender: "You", text: messageText.trim() });
-    setMessages(getMessages(challengeId));
-    setMessageText("");
-  };
+  // Calculate progress
+  const startDate = new Date(challenge.start_date);
+  const endDate = new Date(challenge.end_date);
+  const today = new Date();
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const progress = totalDays > 0 ? (streak / totalDays) * 100 : 0;
 
   return (
     <div className="space-y-8">
@@ -82,8 +145,16 @@ export default function ChallengeDetailPage() {
       {/* Challenge Info Card */}
       <div className="neon-card rounded-3xl p-6">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">CHALLENGE</p>
-        <h2 className="text-3xl font-display mb-2">{challenge.title}</h2>
-        {challenge.description && <p className="text-slate-600 mt-2">{challenge.description}</p>}
+        <h2 className="text-3xl font-display mb-2">{challenge.name}</h2>
+        
+        <div className="flex items-center gap-2 mt-4 mb-4">
+          <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
+            Join Code: {challenge.join_code}
+          </span>
+          <span className="text-sm text-slate-600">
+            • {totalDays} days
+          </span>
+        </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
@@ -92,11 +163,12 @@ export default function ChallengeDetailPage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
             <p className="text-xs text-slate-500 uppercase tracking-wider">Progress</p>
-            <p className="text-lg font-semibold">{Math.round(progress * 100)}%</p>
+            <p className="text-lg font-semibold">{Math.round(progress)}%</p>
           </div>
           <button
             onClick={handleCheckIn}
             className="rainbow-cta rounded-full px-5 py-3 font-semibold hover:shadow-xl transition-shadow"
+            disabled={!userId}
           >
             Check in today
           </button>
@@ -117,7 +189,7 @@ export default function ChallengeDetailPage() {
             )}
             {messages.map((message) => (
               <div key={message.id} className="rounded-2xl border border-slate-100 bg-white/80 p-3">
-                <p className="text-sm font-semibold">{message.sender}</p>
+                <p className="text-sm font-semibold">{message.author?.name || 'Unknown'}</p>
                 <p className="text-sm text-slate-600">{message.text}</p>
               </div>
             ))}
@@ -130,10 +202,12 @@ export default function ChallengeDetailPage() {
               onChange={(event) => setMessageText(event.target.value)}
               placeholder="Cheer them on..."
               className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2"
+              disabled={!userId}
             />
             <button
               type="submit"
               className="rainbow-cta rounded-full px-4 py-2 font-semibold"
+              disabled={!userId}
             >
               Send
             </button>
@@ -148,9 +222,9 @@ export default function ChallengeDetailPage() {
               <div key={member.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3">
                 <div>
                   <p className="font-semibold">{member.name}</p>
-                  <p className="text-xs text-slate-500">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-slate-500">{member.total_points || 0} points</p>
                 </div>
-                <span className="text-sm font-semibold">{member.streak} day streak</span>
+                <span className="text-sm font-semibold">{member.streak || 0} day streak</span>
               </div>
             ))}
             {members.length === 0 && (

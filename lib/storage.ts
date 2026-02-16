@@ -1,272 +1,388 @@
-export type Challenge = {
+import { supabase } from './supabase';
+
+// Types
+export interface User {
   id: string;
-  title: string;
+  wix_id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+  streak: number;
+  total_points: number;
+  created_at: string;
+}
+
+export interface Challenge {
+  id: string;
+  name: string;
+  join_code: string;
+  creator_id: string;
+  team_id: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+}
+
+export interface DailyLog {
+  id: string;
+  user_id: string;
+  challenge_id: string;
+  date: string;
+  reps_completed: number;
+  reps_target: number;
+  points_earned: number;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  team_id: string;
+  author_id: string;
+  text: string;
+  created_at: string;
+  author?: User; // Joined data
+}
+
+// ============ USERS ============
+
+export async function getUser(wixId: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('wix_id', wixId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function createOrUpdateUser(userData: {
+  wixId: string;
+  email: string;
+  name: string;
+}): Promise<User | null> {
+  // Check if user exists
+  const existing = await getUser(userData.wixId);
+
+  if (existing) {
+    // Update existing user
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        email: userData.email,
+        name: userData.name,
+      })
+      .eq('wix_id', userData.wixId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating user:', error);
+      return null;
+    }
+
+    return data;
+  } else {
+    // Create new user
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        wix_id: userData.wixId,
+        email: userData.email,
+        name: userData.name,
+        streak: 0,
+        total_points: 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating user:', error);
+      return null;
+    }
+
+    return data;
+  }
+}
+
+// ============ CHALLENGES ============
+
+export async function getChallenges(): Promise<Challenge[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching challenges:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getChallengeById(id: string): Promise<Challenge | null> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching challenge:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function createChallenge(challengeData: {
+  name: string;
   duration: number;
   description?: string;
-  createdAt?: string;
-};
+  creatorId: string;
+}): Promise<Challenge | null> {
+  // Generate unique join code
+  const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-export type ChallengeMember = {
-  id: string;
-  name: string;
-  streak: number;
-  joinedAt: string;
-};
+  // Calculate dates
+  const startDate = new Date().toISOString().split('T')[0];
+  const endDate = new Date(Date.now() + challengeData.duration * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
 
-export type ChallengeMessage = {
-  id: string;
-  challengeId: string;
-  sender: string;
-  text: string;
-  createdAt: string;
-};
+  // First create a team for this challenge
+  const { data: team, error: teamError } = await supabase
+    .from('teams')
+    .insert({
+      name: `${challengeData.name} Team`,
+    })
+    .select()
+    .single();
 
-export type ChallengeInvite = {
-  id: string;
-  challengeId: string;
-  email: string;
-  status: "pending" | "accepted";
-  createdAt: string;
-};
-
-export type LeaderboardEntry = {
-  id: string;
-  name: string;
-  streak: number;
-  challengeId: string;
-  challengeTitle: string;
-};
-
-type ChallengeStreaks = Record<string, number>;
-type ChallengeMembers = Record<string, ChallengeMember[]>;
-type ChallengeMessages = Record<string, ChallengeMessage[]>;
-
-const CHALLENGES_KEY = "challenges";
-const STREAKS_KEY = "challengeStreaks";
-const MEMBERS_KEY = "challengeMembers";
-const MESSAGES_KEY = "challengeMessages";
-const INVITES_KEY = "challengeInvites";
-const INVITE_ALLOWLIST_KEY = "inviteAllowlist";
-const INVITE_ENV_ALLOWLIST = "NEXT_PUBLIC_INVITE_ALLOWLIST";
-
-function isBrowser() {
-  return typeof window !== "undefined";
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  if (!isBrowser()) return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
+  if (teamError) {
+    console.error('Error creating team:', teamError);
+    return null;
   }
-}
 
-function writeJson<T>(key: string, value: T) {
-  if (!isBrowser()) return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
+  // Create the challenge
+  const { data, error } = await supabase
+    .from('challenges')
+    .insert({
+      name: challengeData.name,
+      join_code: joinCode,
+      creator_id: challengeData.creatorId,
+      team_id: team.id,
+      start_date: startDate,
+      end_date: endDate,
+    })
+    .select()
+    .single();
 
-function generateId(prefix: string) {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
+  if (error) {
+    console.error('Error creating challenge:', error);
+    return null;
   }
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
-export function ensureSeedData() {
-  if (!isBrowser()) return;
-  const existing = getChallenges();
-  if (existing.length > 0) return;
-
-  const sampleChallenges: Challenge[] = [
-    {
-      id: "daily-walk",
-      title: "Daily Walk",
-      duration: 30,
-      description: "Hit 20 minutes outside every day.",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "read-20",
-      title: "Read 20 Minutes",
-      duration: 21,
-      description: "Build a nightly reading streak.",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "no-sugar",
-      title: "No Sugar",
-      duration: 14,
-      description: "Skip added sugar for two weeks.",
-      createdAt: new Date().toISOString(),
-    },
-  ];
-  const sampleStreaks: ChallengeStreaks = {
-    "daily-walk": 7,
-    "read-20": 12,
-    "no-sugar": 3,
-  };
-  const sampleMembers: ChallengeMembers = {
-    "daily-walk": [
-      { id: "m-1", name: "Avery", streak: 7, joinedAt: new Date().toISOString() },
-      { id: "m-2", name: "Jordan", streak: 5, joinedAt: new Date().toISOString() },
-    ],
-    "read-20": [
-      { id: "m-3", name: "Riley", streak: 12, joinedAt: new Date().toISOString() },
-      { id: "m-4", name: "Sam", streak: 9, joinedAt: new Date().toISOString() },
-    ],
-    "no-sugar": [
-      { id: "m-5", name: "Casey", streak: 3, joinedAt: new Date().toISOString() },
-    ],
-  };
-  const sampleMessages: ChallengeMessages = {
-    "daily-walk": [
-      {
-        id: generateId("msg"),
-        challengeId: "daily-walk",
-        sender: "Avery",
-        text: "Sunrise loop done. Who's next?",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  };
-
-  writeJson(CHALLENGES_KEY, sampleChallenges);
-  writeJson(STREAKS_KEY, sampleStreaks);
-  writeJson(MEMBERS_KEY, sampleMembers);
-  writeJson(MESSAGES_KEY, sampleMessages);
-}
-
-export function getChallenges(): Challenge[] {
-  const parsed = readJson<Challenge[]>(CHALLENGES_KEY, []);
-  return Array.isArray(parsed) ? parsed : [];
-}
-
-export function createChallenge(input: { title: string; duration: number; description?: string }) {
-  const challenges = getChallenges();
-  const newChallenge: Challenge = {
-    id: generateId("challenge"),
-    title: input.title,
-    duration: input.duration,
-    description: input.description,
-    createdAt: new Date().toISOString(),
-  };
-  const next = [newChallenge, ...challenges];
-  writeJson(CHALLENGES_KEY, next);
-  return newChallenge;
-}
-
-export function getChallengeById(id: string) {
-  return getChallenges().find((challenge) => challenge.id === id) || null;
-}
-
-export function getStreak(challengeId: string): number {
-  const parsed = readJson<ChallengeStreaks>(STREAKS_KEY, {});
-  const value = parsed?.[challengeId];
-  return typeof value === "number" ? value : 0;
-}
-
-export function setStreak(challengeId: string, streak: number) {
-  const parsed = readJson<ChallengeStreaks>(STREAKS_KEY, {});
-  const next = { ...parsed, [challengeId]: streak };
-  writeJson(STREAKS_KEY, next);
-}
-
-export function incrementStreak(challengeId: string) {
-  const current = getStreak(challengeId);
-  setStreak(challengeId, current + 1);
-}
-
-export function getMembers(challengeId: string) {
-  const parsed = readJson<ChallengeMembers>(MEMBERS_KEY, {});
-  return parsed?.[challengeId] || [];
-}
-
-export function addMember(challengeId: string, member: ChallengeMember) {
-  const parsed = readJson<ChallengeMembers>(MEMBERS_KEY, {});
-  const next = { ...parsed, [challengeId]: [...(parsed[challengeId] || []), member] };
-  writeJson(MEMBERS_KEY, next);
-}
-
-export function getMessages(challengeId: string) {
-  const parsed = readJson<ChallengeMessages>(MESSAGES_KEY, {});
-  return parsed?.[challengeId] || [];
-}
-
-export function addMessage(input: Omit<ChallengeMessage, "id" | "createdAt">) {
-  const parsed = readJson<ChallengeMessages>(MESSAGES_KEY, {});
-  const nextMessage: ChallengeMessage = {
-    id: generateId("msg"),
-    createdAt: new Date().toISOString(),
-    ...input,
-  };
-  const next = {
-    ...parsed,
-    [input.challengeId]: [...(parsed[input.challengeId] || []), nextMessage],
-  };
-  writeJson(MESSAGES_KEY, next);
-  return nextMessage;
-}
-
-export function getInvites() {
-  return readJson<ChallengeInvite[]>(INVITES_KEY, []);
-}
-
-export function addInvites(challengeId: string, emails: string[]) {
-  const invites = getInvites();
-  const next = [
-    ...emails.map((email) => ({
-      id: generateId("invite"),
-      challengeId,
-      email,
-      status: "pending" as const,
-      createdAt: new Date().toISOString(),
-    })),
-    ...invites,
-  ];
-  writeJson(INVITES_KEY, next);
-  return next;
-}
-
-export function getInviteAllowlist() {
-  const envList = (process.env[INVITE_ENV_ALLOWLIST] || "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-  const localList = readJson<string[]>(INVITE_ALLOWLIST_KEY, []).map((item) => item.toLowerCase());
-  return Array.from(new Set([...envList, ...localList]));
-}
-
-export function addToInviteAllowlist(emails: string[]) {
-  const next = Array.from(new Set([...(readJson<string[]>(INVITE_ALLOWLIST_KEY, [])), ...emails]));
-  writeJson(INVITE_ALLOWLIST_KEY, next);
-  return next;
-}
-
-export function isEmailInvited(email: string) {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return false;
-  const allowlist = getInviteAllowlist();
-  if (allowlist.includes(normalized)) return true;
-  const invites = getInvites();
-  return invites.some((invite) => invite.email.toLowerCase() === normalized);
-}
-
-export function getLeaderboard(limit = 10): LeaderboardEntry[] {
-  const challenges = getChallenges();
-  const entries = challenges.flatMap((challenge) => {
-    const members = getMembers(challenge.id);
-    return members.map((member) => ({
-      id: member.id,
-      name: member.name,
-      streak: member.streak,
-      challengeId: challenge.id,
-      challengeTitle: challenge.title,
-    }));
+  // Add creator as team member
+  await supabase.from('team_members').insert({
+    team_id: team.id,
+    user_id: challengeData.creatorId,
   });
 
-  return entries.sort((a, b) => b.streak - a.streak).slice(0, limit);
+  // Add creator as challenge member
+  await supabase.from('challenge_members').insert({
+    challenge_id: data.id,
+    user_id: challengeData.creatorId,
+  });
+
+  return data;
 }
+
+export async function joinChallenge(joinCode: string, userId: string): Promise<boolean> {
+  // Find challenge by join code
+  const { data: challenge, error: challengeError } = await supabase
+    .from('challenges')
+    .select('*')
+    .eq('join_code', joinCode)
+    .single();
+
+  if (challengeError || !challenge) {
+    console.error('Challenge not found:', challengeError);
+    return false;
+  }
+
+  // Add user to team
+  const { error: teamError } = await supabase
+    .from('team_members')
+    .insert({
+      team_id: challenge.team_id,
+      user_id: userId,
+    });
+
+  if (teamError) {
+    console.error('Error joining team:', teamError);
+    return false;
+  }
+
+  // Add user to challenge
+  const { error: memberError } = await supabase
+    .from('challenge_members')
+    .insert({
+      challenge_id: challenge.id,
+      user_id: userId,
+    });
+
+  if (memberError) {
+    console.error('Error joining challenge:', memberError);
+    return false;
+  }
+
+  return true;
+}
+
+// ============ CHECK-INS / DAILY LOGS ============
+
+export async function recordCheckIn(
+  userId: string,
+  challengeId: string,
+  repsCompleted: number = 1,
+  repsTarget: number = 1
+): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0];
+  const pointsEarned = Math.round((repsCompleted / repsTarget) * 10);
+
+  const { error } = await supabase
+    .from('daily_logs')
+    .insert({
+      user_id: userId,
+      challenge_id: challengeId,
+      date: today,
+      reps_completed: repsCompleted,
+      reps_target: repsTarget,
+      points_earned: pointsEarned,
+    });
+
+  if (error) {
+    console.error('Error recording check-in:', error);
+    return false;
+  }
+
+  // Update user's total points and streak
+  const { data: user } = await supabase
+    .from('users')
+    .select('total_points, streak')
+    .eq('id', userId)
+    .single();
+
+  if (user) {
+    await supabase
+      .from('users')
+      .update({
+        total_points: (user.total_points || 0) + pointsEarned,
+        streak: (user.streak || 0) + 1,
+      })
+      .eq('id', userId);
+  }
+
+  return true;
+}
+
+export async function getUserStreak(userId: string, challengeId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('daily_logs')
+    .select('date')
+    .eq('user_id', userId)
+    .eq('challenge_id', challengeId)
+    .order('date', { ascending: false });
+
+  if (error || !data) {
+    return 0;
+  }
+
+  return data.length;
+}
+
+// ============ MESSAGES ============
+
+export async function getMessages(teamId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select(`
+      *,
+      author:users!messages_author_id_fkey (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .eq('team_id', teamId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching messages:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function sendMessage(
+  teamId: string,
+  authorId: string,
+  text: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('messages')
+    .insert({
+      team_id: teamId,
+      author_id: authorId,
+      text: text,
+    });
+
+  if (error) {
+    console.error('Error sending message:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// ============ TEAM MEMBERS ============
+
+export async function getTeamMembers(teamId: string): Promise<User[]> {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select(`
+      user:users (
+        id,
+        name,
+        avatar_url,
+        streak,
+        total_points
+      )
+    `)
+    .eq('team_id', teamId);
+
+  if (error) {
+    console.error('Error fetching team members:', error);
+    return [];
+  }
+
+  return (data || []).map((item: any) => item.user);
+}
+
+// ============ BACKWARD COMPATIBILITY (for now) ============
+// Keep these so existing code doesn't break
+
+export function ensureSeedData() {
+  // No-op now - data comes from Supabase
+}
+
+// Legacy type exports for compatibility
+export type { Challenge as ChallengeMember };
+export type { Message as ChallengeMessage };

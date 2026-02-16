@@ -3,35 +3,69 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addInvites, addToInviteAllowlist, createChallenge, ensureSeedData } from "@/lib/storage";
+import { createChallenge } from "@/lib/storage";
+import { useUser } from "@/lib/UserContext";
 
 export default function NewChallengePage() {
   const router = useRouter();
+  const { user } = useUser();
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState(21);
   const [description, setDescription] = useState("");
   const [inviteEmails, setInviteEmails] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setSubmitting(true);
-    ensureSeedData();
-
-    const challenge = createChallenge({ title, duration, description });
-    const emails = inviteEmails
-      .split(",")
-      .map((email) => email.trim())
-      .filter(Boolean);
-
-    if (emails.length > 0) {
-      addInvites(challenge.id, emails);
-      addToInviteAllowlist(emails);
+    
+    if (!user) {
+      setError("You must be logged in to create a challenge");
+      return;
     }
 
-    setSubmitting(false);
-    router.push(`/embed/challenge/${challenge.id}`);
+    setSubmitting(true);
+    setError("");
+
+    // Get user's actual ID from Supabase
+    const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
+    const userData = await userResponse.json();
+    
+    if (!userData || !userData.id) {
+      setError("Could not find your user account");
+      setSubmitting(false);
+      return;
+    }
+
+    const challenge = await createChallenge({
+      name: title,
+      duration: duration,
+      description: description,
+      creatorId: userData.id,
+    });
+
+    if (challenge) {
+      router.push(`/embed/challenge/${challenge.id}`);
+    } else {
+      setError("Failed to create challenge. Please try again.");
+      setSubmitting(false);
+    }
   };
+
+  if (!user) {
+    return (
+      <div className="space-y-8">
+        <div className="neon-card rounded-3xl p-8 text-center">
+          <p className="text-slate-600 mb-4">You need to be logged in to create a challenge.</p>
+          <Link href="/embed/challenges">
+            <button className="rainbow-cta rounded-full px-6 py-3 font-semibold">
+              Back to Challenges
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -67,6 +101,12 @@ export default function NewChallengePage() {
           </div>
 
           <form onSubmit={handleSubmit} className="neon-card rounded-3xl p-8 space-y-5">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Challenge name</label>
               <input
@@ -100,6 +140,7 @@ export default function NewChallengePage() {
                   placeholder="alex@club.com, jamie@club.com"
                   className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
+                <p className="text-xs text-slate-500">Coming soon: email invites!</p>
               </div>
             </div>
 
@@ -146,8 +187,8 @@ export default function NewChallengePage() {
               <div className="flex gap-3">
                 <span className="text-2xl">1️⃣</span>
                 <div>
-                  <p className="font-semibold">Share your code</p>
-                  <p className="text-sm text-slate-600">Invite friends with your unique challenge code</p>
+                  <p className="font-semibold">Get your join code</p>
+                  <p className="text-sm text-slate-600">Share it with friends to invite them</p>
                 </div>
               </div>
               <div className="flex gap-3">
