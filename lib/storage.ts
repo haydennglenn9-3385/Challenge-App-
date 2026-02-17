@@ -40,7 +40,7 @@ export interface Message {
   author_id: string;
   text: string;
   created_at: string;
-  author?: User; // Joined data
+  author?: User;
 }
 
 // ============ USERS ============
@@ -65,11 +65,9 @@ export async function createOrUpdateUser(userData: {
   email: string;
   name: string;
 }): Promise<User | null> {
-  // Check if user exists
   const existing = await getUser(userData.wixId);
 
   if (existing) {
-    // Update existing user
     const { data, error } = await supabase
       .from('users')
       .update({
@@ -87,7 +85,6 @@ export async function createOrUpdateUser(userData: {
 
     return data;
   } else {
-    // Create new user
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -146,16 +143,12 @@ export async function createChallenge(challengeData: {
   description?: string;
   creatorId: string;
 }): Promise<Challenge | null> {
-  // Generate unique join code
   const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-  // Calculate dates
   const startDate = new Date().toISOString().split('T')[0];
   const endDate = new Date(Date.now() + challengeData.duration * 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0];
 
-  // First create a team for this challenge
   const { data: team, error: teamError } = await supabase
     .from('teams')
     .insert({
@@ -169,7 +162,6 @@ export async function createChallenge(challengeData: {
     return null;
   }
 
-  // Create the challenge
   const { data, error } = await supabase
     .from('challenges')
     .insert({
@@ -188,13 +180,11 @@ export async function createChallenge(challengeData: {
     return null;
   }
 
-  // Add creator as team member
   await supabase.from('team_members').insert({
     team_id: team.id,
     user_id: challengeData.creatorId,
   });
 
-  // Add creator as challenge member
   await supabase.from('challenge_members').insert({
     challenge_id: data.id,
     user_id: challengeData.creatorId,
@@ -216,11 +206,52 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
     return false;
   }
 
-  // Add user to team
+  // Check if user is already in this challenge
+  const { data: existing } = await supabase
+    .from('challenge_members')
+    .select('id')
+    .eq('challenge_id', challenge.id)
+    .eq('user_id', userId)
+    .single();
+
+  if (existing) {
+    console.log('User already in challenge');
+    return false;
+  }
+
+  // For New Year's challenge (NYF2026), auto-balance across the 3 teams
+  let assignedTeamId = challenge.team_id; // Default to challenge's team
+
+  if (joinCode === 'NYF2026') {
+    // Get the 3 New Year's teams
+    const { data: teams } = await supabase
+      .from('teams')
+      .select('id, name')
+      .in('name', ['Team Hayden', 'Team Aria', 'Team Tiffany']);
+
+    if (teams && teams.length === 3) {
+      // Count members in each team
+      const teamCounts = await Promise.all(
+        teams.map(async (team) => {
+          const { count } = await supabase
+            .from('team_members')
+            .select('id', { count: 'exact', head: true })
+            .eq('team_id', team.id);
+          return { teamId: team.id, count: count || 0 };
+        })
+      );
+
+      // Find team with least members
+      teamCounts.sort((a, b) => a.count - b.count);
+      assignedTeamId = teamCounts[0].teamId;
+    }
+  }
+
+  // Add user to assigned team
   const { error: teamError } = await supabase
     .from('team_members')
     .insert({
-      team_id: challenge.team_id,
+      team_id: assignedTeamId,
       user_id: userId,
     });
 
@@ -272,7 +303,6 @@ export async function recordCheckIn(
     return false;
   }
 
-  // Update user's total points and streak
   const { data: user } = await supabase
     .from('users')
     .select('total_points, streak')
@@ -376,13 +406,11 @@ export async function getTeamMembers(teamId: string): Promise<User[]> {
   return (data || []).map((item: any) => item.user);
 }
 
-// ============ BACKWARD COMPATIBILITY (for now) ============
-// Keep these so existing code doesn't break
+// ============ BACKWARD COMPATIBILITY ============
 
 export function ensureSeedData() {
-  // No-op now - data comes from Supabase
+  // No-op
 }
 
-// Legacy type exports for compatibility
 export type { Challenge as ChallengeMember };
 export type { Message as ChallengeMessage };
