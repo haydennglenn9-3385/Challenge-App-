@@ -26,50 +26,74 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<WixUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const saveUser = (userData: WixUser) => {
+    setUser(userData);
+    try {
+      sessionStorage.setItem('wixUser', JSON.stringify(userData));
+      localStorage.setItem('wixUser', JSON.stringify(userData));
+    } catch(e) {}
+
+    // Sync to Supabase
+    fetch('/api/user/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        wixId: userData.userId,
+        email: userData.email,
+        name: userData.name,
+      }),
+    }).catch(err => console.error('Failed to sync user:', err));
+  };
+
   useEffect(() => {
+    // 1. Check URL params first
     const userId = searchParams.get('userId');
     const email = searchParams.get('email');
     const name = searchParams.get('name');
 
     if (userId && email) {
-      const userData = {
-        userId,
-        email,
-        name: name || 'Member'
-      };
-      setUser(userData);
+      saveUser({ userId, email, name: name || 'Member' });
+      setIsLoading(false);
+      return;
+    }
 
-      // Store in both sessionStorage and localStorage for redundancy
+    // 2. Check localStorage/sessionStorage
+    try {
+      const stored = sessionStorage.getItem('wixUser') || localStorage.getItem('wixUser');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        setIsLoading(false);
+        return;
+      }
+    } catch(e) {}
+
+    // 3. Listen for postMessage from Wix parent
+    const handleMessage = (event: MessageEvent) => {
       try {
-        sessionStorage.setItem('wixUser', JSON.stringify(userData));
-        localStorage.setItem('wixUser', JSON.stringify(userData));
-      } catch(e) {}
-
-      // Sync user to Supabase
-      fetch('/api/user/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wixId: userId,
-          email: email,
-          name: name || 'Member',
-        }),
-      }).catch(err => console.error('Failed to sync user:', err));
-
-    } else {
-      // Try sessionStorage first, then localStorage
-      try {
-        const stored = sessionStorage.getItem('wixUser') || localStorage.getItem('wixUser');
-        if (stored) {
-          setUser(JSON.parse(stored));
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.type === 'WIX_USER' && data.userId && data.email) {
+          saveUser({
+            userId: data.userId,
+            email: data.email,
+            name: data.name || 'Member',
+          });
         }
       } catch(e) {}
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Tell parent we're ready to receive user data
+    if (typeof window !== 'undefined' && window.parent !== window) {
+      window.parent.postMessage('READY', '*');
     }
 
     setIsLoading(false);
+
+    return () => window.removeEventListener('message', handleMessage);
   }, [searchParams]);
 
-  // Helper to append user params to any URL
   const getUserParams = () => {
     if (!user) return "";
     return `?userId=${user.userId}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`;
