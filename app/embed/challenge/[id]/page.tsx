@@ -230,7 +230,7 @@ export default function ChallengeDetailPage() {
           </button>
           <button onClick={() => navigate("/embed/profile")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-            Profile
+            Dashboard
           </button>
         </div>
       </div>
