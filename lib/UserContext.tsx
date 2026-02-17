@@ -12,11 +12,13 @@ interface WixUser {
 interface UserContextType {
   user: WixUser | null;
   isLoading: boolean;
+  getUserParams: () => string;
 }
 
 const UserContext = createContext<UserContextType>({
   user: null,
   isLoading: true,
+  getUserParams: () => "",
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -25,24 +27,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // First check if user data is in URL params
     const userId = searchParams.get('userId');
     const email = searchParams.get('email');
     const name = searchParams.get('name');
 
     if (userId && email) {
-      const userData = { 
-        userId, 
-        email, 
-        name: name || 'Member' 
+      const userData = {
+        userId,
+        email,
+        name: name || 'Member'
       };
-      
       setUser(userData);
-      
-      // Store in sessionStorage so it persists across navigation
-      if (typeof window !== 'undefined') {
+
+      // Store in both sessionStorage and localStorage for redundancy
+      try {
         sessionStorage.setItem('wixUser', JSON.stringify(userData));
-      }
+        localStorage.setItem('wixUser', JSON.stringify(userData));
+      } catch(e) {}
 
       // Sync user to Supabase
       fetch('/api/user/sync', {
@@ -54,21 +55,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
           name: name || 'Member',
         }),
       }).catch(err => console.error('Failed to sync user:', err));
+
     } else {
-      // Try to load from sessionStorage if not in URL
-      if (typeof window !== 'undefined') {
-        const stored = sessionStorage.getItem('wixUser');
+      // Try sessionStorage first, then localStorage
+      try {
+        const stored = sessionStorage.getItem('wixUser') || localStorage.getItem('wixUser');
         if (stored) {
           setUser(JSON.parse(stored));
         }
-      }
+      } catch(e) {}
     }
 
     setIsLoading(false);
   }, [searchParams]);
 
+  // Helper to append user params to any URL
+  const getUserParams = () => {
+    if (!user) return "";
+    return `?userId=${user.userId}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}`;
+  };
+
   return (
-    <UserContext.Provider value={{ user, isLoading }}>
+    <UserContext.Provider value={{ user, isLoading, getUserParams }}>
       {children}
     </UserContext.Provider>
   );

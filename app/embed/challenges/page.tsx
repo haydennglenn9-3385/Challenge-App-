@@ -8,7 +8,7 @@ import { useUser } from "@/lib/UserContext";
 
 export default function ChallengesPage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, getUserParams } = useUser();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
 
   useEffect(() => {
@@ -19,18 +19,21 @@ export default function ChallengesPage() {
     loadChallenges();
   }, []);
 
-  // Calculate duration from start/end dates
   const getDuration = (challenge: Challenge) => {
     const start = new Date(challenge.start_date);
     const end = new Date(challenge.end_date);
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  const navigate = (path: string) => {
+    router.push(path + getUserParams());
+  };
+
   return (
     <div className="space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <Link href="/">
+        <Link href={"/" + getUserParams()}>
           <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
             ← Home
           </button>
@@ -38,21 +41,23 @@ export default function ChallengesPage() {
         
         <div className="flex gap-3">
           <button
-            onClick={() => router.push("/embed/challenges/new")}
+            onClick={() => navigate("/embed/challenges/new")}
             className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
           >
             New challenge
           </button>
-          <Link href="/embed/profile">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              Profile
-            </button>
-          </Link>
-          <Link href="/embed/leaderboard">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              Leaderboard
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate("/embed/profile")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => navigate("/embed/leaderboard")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Leaderboard
+          </button>
         </div>
       </div>
 
@@ -69,7 +74,7 @@ export default function ChallengesPage() {
         {challenges.map((challenge) => (
           <button
             key={challenge.id}
-            onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
+            onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
             className="neon-card rounded-3xl px-6 py-6 text-left hover:-translate-y-1 hover:shadow-2xl transition-all duration-200"
           >
             <div className="flex items-start justify-between gap-3 mb-3">
@@ -89,7 +94,7 @@ export default function ChallengesPage() {
         <div className="neon-card rounded-3xl p-12 text-center">
           <p className="text-slate-500 mb-4">No challenges yet. Start your first one!</p>
           <button
-            onClick={() => router.push("/embed/challenges/new")}
+            onClick={() => navigate("/embed/challenges/new")}
             className="rainbow-cta rounded-full px-6 py-3 font-semibold"
           >
             Create Challenge

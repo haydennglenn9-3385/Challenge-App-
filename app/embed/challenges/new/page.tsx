@@ -8,7 +8,7 @@ import { useUser } from "@/lib/UserContext";
 
 export default function NewChallengePage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, getUserParams } = useUser();
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState(21);
   const [description, setDescription] = useState("");
@@ -18,7 +18,7 @@ export default function NewChallengePage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     if (!user) {
       setError("You must be logged in to create a challenge");
       return;
@@ -27,12 +27,12 @@ export default function NewChallengePage() {
     setSubmitting(true);
     setError("");
 
-    // Get user's actual ID from Supabase
+    // Get user's Supabase ID
     const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
     const userData = await userResponse.json();
-    
+
     if (!userData || !userData.id) {
-      setError("Could not find your user account");
+      setError("Could not find your user account. Please try refreshing the page.");
       setSubmitting(false);
       return;
     }
@@ -45,7 +45,7 @@ export default function NewChallengePage() {
     });
 
     if (challenge) {
-      router.push(`/embed/challenge/${challenge.id}`);
+      router.push(`/embed/challenge/${challenge.id}${getUserParams()}`);
     } else {
       setError("Failed to create challenge. Please try again.");
       setSubmitting(false);
@@ -55,13 +55,22 @@ export default function NewChallengePage() {
   if (!user) {
     return (
       <div className="space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
+          <button
+            onClick={() => router.push(`/embed/challenges${getUserParams()}`)}
+            className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm"
+          >
+            ← Back to Challenges
+          </button>
+        </div>
         <div className="neon-card rounded-3xl p-8 text-center">
-          <p className="text-slate-600 mb-4">You need to be logged in to create a challenge.</p>
-          <Link href="/embed/challenges">
+          <p className="text-slate-600 mb-2 font-semibold">You need to be logged in to create a challenge.</p>
+          <p className="text-sm text-slate-500 mb-6">Please log in through the Wix member portal first.</p>
+          <a href="https://www.queersandalliesfitness.com/account/member">
             <button className="rainbow-cta rounded-full px-6 py-3 font-semibold">
-              Back to Challenges
+              Log in / Sign up
             </button>
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -71,23 +80,26 @@ export default function NewChallengePage() {
     <div className="space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <Link href="/embed/challenges">
-          <button className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow">
-            ← Back to Challenges
-          </button>
-        </Link>
-        
+        <button
+          onClick={() => router.push(`/embed/challenges${getUserParams()}`)}
+          className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
+        >
+          ← Back to Challenges
+        </button>
+
         <div className="flex gap-3">
-          <Link href="/">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              Home
-            </button>
-          </Link>
-          <Link href="/embed/profile">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              Profile
-            </button>
-          </Link>
+          <button
+            onClick={() => router.push(`/${getUserParams()}`)}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Home
+          </button>
+          <button
+            onClick={() => router.push(`/embed/profile${getUserParams()}`)}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Profile
+          </button>
         </div>
       </div>
 
@@ -112,7 +124,7 @@ export default function NewChallengePage() {
               <input
                 type="text"
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Morning Mobility"
                 className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 required
@@ -126,7 +138,7 @@ export default function NewChallengePage() {
                   type="number"
                   min={7}
                   value={duration}
-                  onChange={(event) => setDuration(Number(event.target.value))}
+                  onChange={(e) => setDuration(Number(e.target.value))}
                   className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   required
                 />
@@ -136,7 +148,7 @@ export default function NewChallengePage() {
                 <input
                   type="text"
                   value={inviteEmails}
-                  onChange={(event) => setInviteEmails(event.target.value)}
+                  onChange={(e) => setInviteEmails(e.target.value)}
                   placeholder="alex@club.com, jamie@club.com"
                   className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
@@ -148,7 +160,7 @@ export default function NewChallengePage() {
               <label className="text-sm font-semibold text-slate-700">Focus</label>
               <textarea
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the daily win you want to track."
                 className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-slate-300"
               />
@@ -170,19 +182,19 @@ export default function NewChallengePage() {
             <h3 className="text-xl font-semibold mb-4">💡 Tips for success</h3>
             <div className="space-y-3 text-slate-700">
               <p className="text-sm leading-relaxed">
-                <strong>Keep it simple:</strong> Choose one specific action you can do daily, like "10 minutes of stretching" or "drink 8 glasses of water."
+                <strong>Keep it simple:</strong> Choose one specific action you can do daily, like "10 minutes of stretching."
               </p>
               <p className="text-sm leading-relaxed">
-                <strong>Set realistic duration:</strong> Start with 21 days - long enough to build a habit, short enough to stay motivated!
+                <strong>Set realistic duration:</strong> Start with 21 days - long enough to build a habit!
               </p>
               <p className="text-sm leading-relaxed">
-                <strong>Invite your crew:</strong> Having friends join increases your success rate by 65%. Accountability works!
+                <strong>Invite your crew:</strong> Having friends join increases your success rate by 65%!
               </p>
             </div>
           </div>
 
           <div className="neon-card rounded-3xl p-8 space-y-4">
-            <h3 className="text-xl font-semibold mb-4">✨ After you launch</h3>
+            <h3 className="text-xl font-semibold mb-2">✨ After you launch</h3>
             <div className="space-y-3 text-slate-700">
               <div className="flex gap-3">
                 <span className="text-2xl">1️⃣</span>
