@@ -3,63 +3,95 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { joinChallenge } from "@/lib/storage";
+import { useUser } from "@/lib/UserContext";
 
 const LGBTQ_FITNESS_FACTS = [
   "🏳️‍🌈 The first gay softball league was founded in 1977 in San Francisco - now there are over 40 leagues across North America!",
   "💪 Studies show LGBTQ+ folks who participate in community sports report 50% higher life satisfaction than those who don't.",
-  "🏃 The first openly gay Olympic athlete was Tom Waddell, who founded the Gay Games in 1982. Now it's the world's largest sports event!",
+  "🏃 Tom Waddell founded the Gay Games in 1982. Now it attracts over 10,000 athletes from 70+ countries!",
   "⚽ Lesbian soccer teams have been organizing since the 1970s - before Title IX even existed!",
   "🎾 Billie Jean King came out in 1981 and became one of the first major athletes to champion LGBTQ+ rights in sports.",
   "🏋️ Research shows that LGBTQ-inclusive gyms see 30% higher member retention - community matters!",
-  "🌟 The Gay Games attract over 10,000 athletes from 70+ countries - making it one of the largest sporting events in the world!",
   "💃 Queer folks invented voguing in the 1960s ballroom scene - a full-body workout disguised as fabulous performance art!",
 ];
 
 export default function JoinWithCodePage() {
   const router = useRouter();
+  const { user, getUserParams } = useUser();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [joining, setJoining] = useState(false);
   const [randomFact, setRandomFact] = useState("");
 
-  // Set random fact only on client side to avoid hydration mismatch
   useEffect(() => {
     setRandomFact(LGBTQ_FITNESS_FACTS[Math.floor(Math.random() * LGBTQ_FITNESS_FACTS.length)]);
   }, []);
 
-  const handleJoin = (e: React.FormEvent) => {
+  const navigate = (path: string) => {
+    router.push(path + getUserParams());
+  };
+
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!code.trim()) {
       setError("Please enter a challenge code");
       return;
     }
 
-    // TODO: Validate code and join challenge
-    // For now, just redirect to challenges
-    router.push("/embed/challenges");
+    if (!user) {
+      setError("You need to be logged in to join a challenge");
+      return;
+    }
+
+    setJoining(true);
+    setError("");
+
+    // Get user's Supabase ID
+    const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
+    const userData = await userResponse.json();
+
+    if (!userData || !userData.id) {
+      setError("Could not find your account. Please try refreshing.");
+      setJoining(false);
+      return;
+    }
+
+    const success = await joinChallenge(code.trim().toUpperCase(), userData.id);
+
+    if (success) {
+      // Redirect to challenges page with success
+      navigate("/embed/challenges");
+    } else {
+      setError("Invalid code or you're already in this challenge. Please check and try again.");
+      setJoining(false);
+    }
   };
 
   return (
     <div className="space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <Link href="/">
-          <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-            ← Home
-          </button>
-        </Link>
-        
+        <button
+          onClick={() => router.push("/")}
+          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+        >
+          ← Home
+        </button>
         <div className="flex gap-3">
-          <Link href="/embed/challenges">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              All Challenges
-            </button>
-          </Link>
-          <Link href="/embed/profile">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-              Profile
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate("/embed/challenges")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            All Challenges
+          </button>
+          <button
+            onClick={() => navigate("/embed/profile")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Profile
+          </button>
         </div>
       </div>
 
@@ -73,6 +105,17 @@ export default function JoinWithCodePage() {
           </div>
 
           <form onSubmit={handleJoin} className="neon-card rounded-3xl p-8 space-y-6">
+            {!user && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <p className="text-sm text-amber-700 font-semibold mb-2">You need to be logged in to join</p>
+                <a href="https://www.queersandalliesfitness.com/account/member">
+                  <button type="button" className="rainbow-cta rounded-full px-4 py-2 text-sm font-semibold">
+                    Log in / Sign up
+                  </button>
+                </a>
+              </div>
+            )}
+
             <div className="space-y-3">
               <label className="text-sm font-semibold text-slate-700">Challenge Code</label>
               <input
@@ -91,35 +134,38 @@ export default function JoinWithCodePage() {
 
             <button
               type="submit"
-              className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow"
+              disabled={joining || !user}
+              className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50"
             >
-              Join Challenge
+              {joining ? "Joining..." : "Join Challenge"}
             </button>
 
-            <div className="pt-4 border-t border-slate-200 text-center">
+            <div className="pt-2 border-t border-slate-200 text-center">
               <p className="text-sm text-slate-600 mb-3">Don't have a code?</p>
-              <Link href="/embed/challenges">
-                <button className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline">
-                  Browse public challenges
-                </button>
-              </Link>
+              <button
+                type="button"
+                onClick={() => navigate("/embed/challenges")}
+                className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline"
+              >
+                Browse public challenges
+              </button>
             </div>
           </form>
         </div>
 
-        {/* Right: Fun Facts */}
+        {/* Right: Fun Facts + Steps */}
         <div className="space-y-6">
           <div className="neon-card rounded-3xl p-8">
             <h3 className="text-xl font-semibold mb-4">💡 Did you know?</h3>
             {randomFact ? (
-              <p className="text-lg text-slate-700 leading-relaxed">{randomFact}</p>
+              <p className="text-slate-700 leading-relaxed">{randomFact}</p>
             ) : (
-              <p className="text-lg text-slate-700 leading-relaxed">Loading fun fact...</p>
+              <p className="text-slate-400">Loading fun fact...</p>
             )}
           </div>
 
           <div className="neon-card rounded-3xl p-8 space-y-4">
-            <h3 className="text-xl font-semibold mb-4">✨ What happens next?</h3>
+            <h3 className="text-xl font-semibold mb-2">✨ What happens next?</h3>
             <div className="space-y-3 text-slate-700">
               <div className="flex gap-3">
                 <span className="text-2xl">1️⃣</span>
