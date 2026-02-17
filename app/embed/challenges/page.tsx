@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ensureSeedData, getChallenges, Challenge } from "@/lib/storage";
+import { getChallenges, Challenge } from "@/lib/storage";
 import Link from "next/link";
 import { useUser } from "@/lib/UserContext";
 
@@ -12,9 +12,19 @@ export default function ChallengesPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
 
   useEffect(() => {
-    ensureSeedData();
-    setChallenges(getChallenges());
+    async function loadChallenges() {
+      const data = await getChallenges();
+      setChallenges(data);
+    }
+    loadChallenges();
   }, []);
+
+  // Calculate duration from start/end dates
+  const getDuration = (challenge: Challenge) => {
+    const start = new Date(challenge.start_date);
+    const end = new Date(challenge.end_date);
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   return (
     <div className="space-y-8">
@@ -63,14 +73,14 @@ export default function ChallengesPage() {
             className="neon-card rounded-3xl px-6 py-6 text-left hover:-translate-y-1 hover:shadow-2xl transition-all duration-200"
           >
             <div className="flex items-start justify-between gap-3 mb-3">
-              <h3 className="text-xl font-semibold text-slate-900">{challenge.title}</h3>
+              <h3 className="text-xl font-semibold text-slate-900">{challenge.name}</h3>
               <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap">
-                {challenge.duration} days
+                {getDuration(challenge)} days
               </span>
             </div>
-            {challenge.description && (
-              <p className="text-sm text-slate-600 leading-relaxed">{challenge.description}</p>
-            )}
+            <p className="text-sm text-slate-600">
+              Join code: <span className="font-semibold">{challenge.join_code}</span>
+            </p>
           </button>
         ))}
       </div>
