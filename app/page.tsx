@@ -24,8 +24,14 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Link href="/embed/challenges">
+            <a href="https://www.queersandalliesfitness.com/account/member">
               <button className="rainbow-cta px-6 py-3 rounded-full font-semibold text-base">
+                Sign up / Log in
+              </button>
+            </a>
+
+            <Link href="/embed/challenges">
+              <button className="px-6 py-3 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition">
                 View Challenges
               </button>
             </Link>
@@ -36,16 +42,6 @@ export default function HomePage() {
               </button>
             </Link>
           </div>
-
-          <p className="text-sm text-slate-500">
-            Already a member? Log in through the{" "}
-            <a 
-              href="https://www.queersandalliesfitness.com/member-portal"
-              className="underline hover:text-slate-700"
-            >
-              Member Portal
-            </a>
-          </p>
         </div>
 
         {/* RIGHT SIDE */}
