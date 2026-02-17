@@ -58,23 +58,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 2. No URL params - check if we're on the initial load page
-    // If we're on /embed/challenges with no params, user is NOT logged in
-    // Clear any stale data
-    const isInitialChallengesPage = window.location.pathname === '/embed/challenges';
-    
-    if (isInitialChallengesPage) {
-      // Clear stale user data - Wix didn't pass params so user isn't logged in
-      try {
-        sessionStorage.removeItem('wixUser');
-        localStorage.removeItem('wixUser');
-      } catch(e) {}
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
-    // 3. On other pages (like /embed/profile), try localStorage
+    // 2. Try sessionStorage/localStorage (for navigation)
     try {
       const stored = sessionStorage.getItem('wixUser') || localStorage.getItem('wixUser');
       if (stored) {
