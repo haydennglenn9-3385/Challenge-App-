@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getChallenges, Challenge } from "@/lib/storage";
-import Link from "next/link";
 import { useUser } from "@/lib/UserContext";
 
 export default function ChallengesPage() {
@@ -33,12 +32,13 @@ export default function ChallengesPage() {
     <div className="space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <Link href={"/" + getUserParams()}>
-          <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-            ← Home
-          </button>
-        </Link>
-        
+        <button
+          onClick={() => router.push("/")}
+          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+        >
+          ← Home
+        </button>
+
         <div className="flex gap-3">
           <button
             onClick={() => navigate("/embed/challenges/new")}
@@ -47,16 +47,16 @@ export default function ChallengesPage() {
             New challenge
           </button>
           <button
-            onClick={() => navigate("/embed/profile")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-          >
-            Profile
-          </button>
-          <button
             onClick={() => navigate("/embed/leaderboard")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             Leaderboard
+          </button>
+          <button
+            onClick={() => navigate("/embed/profile")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Profile
           </button>
         </div>
       </div>
