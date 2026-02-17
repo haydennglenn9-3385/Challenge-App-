@@ -24,11 +24,11 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <a href="https://www.queersandalliesfitness.com/account/member">
+            <Link href="/embed/dashboard">
               <button className="rainbow-cta px-6 py-3 rounded-full font-semibold text-base">
-                Sign up / Log in
+                Dashboard
               </button>
-            </a>
+            </Link>
 
             <Link href="/embed/challenges">
               <button className="px-6 py-3 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition">

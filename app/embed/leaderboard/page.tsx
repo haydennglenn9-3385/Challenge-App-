@@ -24,7 +24,7 @@ interface TeamStanding {
 
 export default function LeaderboardPage() {
   const router = useRouter();
-  const { getUserParams } = useUser();
+  const { user, getUserParams } = useUser();
   const [individuals, setIndividuals] = useState<LeaderboardUser[]>([]);
   const [teams, setTeams] = useState<TeamStanding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,6 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     async function loadLeaderboard() {
-      // Load individual rankings
       const { data: users } = await supabase
         .from('users')
         .select('id, name, streak, total_points')
@@ -43,7 +42,6 @@ export default function LeaderboardPage() {
 
       if (users) setIndividuals(users);
 
-      // Load team standings - average points per member, rounded up
       const { data: teamData } = await supabase
         .from('teams')
         .select(`
@@ -78,7 +76,6 @@ export default function LeaderboardPage() {
           };
         });
 
-        // Sort by avg points descending
         standings.sort((a, b) => b.avg_points - a.avg_points);
         setTeams(standings);
       }
@@ -96,15 +93,6 @@ export default function LeaderboardPage() {
     return null;
   };
 
-  const getTeamColor = (color: string) => {
-    const colorMap: Record<string, string> = {
-      '#f43f5e': 'bg-rose-100 text-rose-700 border-rose-200',
-      '#8b5cf6': 'bg-violet-100 text-violet-700 border-violet-200',
-      '#06b6d4': 'bg-cyan-100 text-cyan-700 border-cyan-200',
-    };
-    return colorMap[color] || 'bg-slate-100 text-slate-700 border-slate-200';
-  };
-
   return (
     <div className="space-y-8">
       {/* Nav */}
@@ -118,17 +106,19 @@ export default function LeaderboardPage() {
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
             Home
           </button>
-          <button onClick={() => navigate("/embed/profile")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-            Profile
-          </button>
+          {user && (
+            <button onClick={() => navigate("/embed/dashboard")}
+              className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow">
+              Dashboard
+            </button>
+          )}
         </div>
       </div>
 
       {/* Header */}
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">LEADERBOARD</p>
-        <h2 className="text-4xl font-display">standings</h2>
+        <h2 className="text-4xl font-display">Standings</h2>
       </div>
 
       {/* Tabs */}
@@ -160,7 +150,6 @@ export default function LeaderboardPage() {
           <p className="text-slate-500">Loading standings...</p>
         </div>
       ) : tab === 'teams' ? (
-        // TEAM STANDINGS
         <div className="space-y-4">
           {teams.length === 0 ? (
             <div className="neon-card rounded-3xl p-12 text-center">
@@ -205,7 +194,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       ) : (
-        // INDIVIDUAL STANDINGS
         <div className="neon-card rounded-3xl p-6">
           <div className="space-y-3">
             {individuals.length === 0 ? (
