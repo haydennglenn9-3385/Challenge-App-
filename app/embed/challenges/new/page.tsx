@@ -27,8 +27,8 @@ const SCORING_SYSTEMS = [
   },
   {
     value: 'tiered',
-    label: 'Tiered Completion (0%, 50%, 100%)',
-    description: 'Points based on completion tier - simple and predictable'
+    label: 'Tiered Completion',
+    description: 'Different point values for 0%, 50%, or 100% completion levels'
   },
   {
     value: 'streak',
@@ -41,9 +41,9 @@ const SCORING_SYSTEMS = [
     description: 'Points for completing specific tasks'
   },
   {
-    value: 'ny_challenge',
-    label: 'New Year\'s Style',
-    description: 'Daily exercises, 50% = 1pt, 100% = 2pts, progressive reps'
+    value: 'progressive',
+    label: 'Progressive Exercise Challenge',
+    description: 'Daily exercises with increasing difficulty (50% = 1pt, 100% = 2pts)'
   },
 ];
 
@@ -289,19 +289,23 @@ export default function NewChallengePage() {
             <div className="space-y-4 text-sm">
               <div>
                 <p className="font-semibold text-slate-900">Total Points</p>
-                <p className="text-slate-600">All member points added together</p>
+                <p className="text-slate-600">Sum all team members' points together</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Average Points</p>
-                <p className="text-slate-600">Fair for teams of different sizes</p>
+                <p className="text-slate-600">Fair for teams of different sizes - divides total by member count</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Tiered Completion</p>
-                <p className="text-slate-600">0%, 50%, 100% completion levels</p>
+                <p className="text-slate-600">Award different points for partial (50%) vs full (100%) completion</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Streak-Based</p>
-                <p className="text-slate-600">Rewards daily consistency</p>
+                <p className="text-slate-600">Rewards daily consistency with bonus points for streaks</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Progressive Exercise</p>
+                <p className="text-slate-600">Difficulty increases weekly - great for fitness challenges</p>
               </div>
             </div>
           </div>

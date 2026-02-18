@@ -228,7 +228,7 @@ export default function ChallengeDetailPage() {
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
             Leaderboard
           </button>
-          <button onClick={() => navigate("/embed/profile")}
+          <button onClick={() => navigate("/embed/dashboard")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
             Dashboard
           </button>
