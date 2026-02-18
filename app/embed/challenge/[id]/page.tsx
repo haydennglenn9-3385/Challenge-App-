@@ -507,15 +507,22 @@ export default function ChallengeDetailPage() {
         </div>
       </div>
 
-      {/* Leave Challenge Button */}
-      <div className="pt-4">
-        <button
-          onClick={() => setShowLeaveConfirm(true)}
-          className="px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition text-sm"
-        >
-          Leave Challenge
-        </button>
-      </div>
+      {/* Bottom Buttons */}
+<div className="pt-4 flex gap-3">
+  <button
+    onClick={() => navigate(`/embed/challenge/${challengeId}/edit`)}
+    className="px-4 py-2 rounded-full border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition text-sm"
+  >
+    Edit
+  </button>
+
+  <button
+    onClick={() => setShowLeaveConfirm(true)}
+    className="px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition text-sm"
+  >
+    Leave Challenge
+  </button>
+</div>
 
       {/* Leave Confirmation Modal */}
       {showLeaveConfirm && (
