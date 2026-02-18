@@ -284,7 +284,7 @@ function DashboardContent() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                        onClick={() => navigate(`/embed/challenge/${challenge.id}/manage`)}
                         className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
                         View
                       </button>
