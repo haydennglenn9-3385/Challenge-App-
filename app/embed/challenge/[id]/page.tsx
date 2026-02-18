@@ -2,30 +2,33 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+
 import {
   getChallengeById,
   getTeamMembers,
   getMessages,
   sendMessage,
+  leaveChallenge,   // ⭐ NEW IMPORT
   Challenge,
   User,
   Message,
 } from "@/lib/storage";
+
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase";
 
 // Exercise schedule by day of week
 const EXERCISES: Record<number, { name: string; emoji: string }> = {
-  0: { name: "Jumping Jacks", emoji: "⭐" },   // Sunday
-  1: { name: "Lunges", emoji: "🦵" },            // Monday
-  2: { name: "Push-ups", emoji: "💪" },          // Tuesday
-  3: { name: "Glute Bridges", emoji: "🍑" },     // Wednesday
-  4: { name: "Crunches", emoji: "🔥" },          // Thursday
-  5: { name: "Squats", emoji: "🏋️" },            // Friday
-  6: { name: "Bird Dogs", emoji: "🐦" },         // Saturday
+  0: { name: "Jumping Jacks", emoji: "⭐" },
+  1: { name: "Lunges", emoji: "🦵" },
+  2: { name: "Push-ups", emoji: "💪" },
+  3: { name: "Glute Bridges", emoji: "🍑" },
+  4: { name: "Crunches", emoji: "🔥" },
+  5: { name: "Squats", emoji: "🏋️" },
+  6: { name: "Bird Dogs", emoji: "🐦" },
 };
 
-const CHALLENGE_START = new Date('2026-01-04');
+const CHALLENGE_START = new Date("2026-01-04");
 const BASE_REPS = 5;
 const REPS_INCREMENT = 5;
 const BASE_CARDIO = 5;
@@ -52,26 +55,36 @@ export default function ChallengeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const challengeId = typeof params?.id === "string" ? params.id : "";
+
   const { user: wixUser, getUserParams } = useUser();
 
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [members, setMembers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [todayPoints, setTodayPoints] = useState(0);
+
   const [userId, setUserId] = useState<string>("");
   const [userTeam, setUserTeam] = useState<string>("");
+
   const [successMessage, setSuccessMessage] = useState("");
   const [userStreak, setUserStreak] = useState(0);
   const [userTotalPoints, setUserTotalPoints] = useState(0);
+
   const [cardioChecked, setCardioChecked] = useState(false);
+
+  // ⭐ NEW STATE
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const today = new Date();
   const dayOfWeek = today.getDay();
   const todayExercise = EXERCISES[dayOfWeek];
+
   const currentWeek = getCurrentWeek();
   const currentReps = getCurrentReps();
   const currentCardio = getCurrentCardio();
@@ -90,6 +103,7 @@ export default function ChallengeDetailPage() {
           getTeamMembers(challengeData.team_id),
           getMessages(challengeData.team_id),
         ]);
+
         setMembers(teamMembersData);
         setMessages(messagesData);
       }
@@ -97,20 +111,20 @@ export default function ChallengeDetailPage() {
       if (wixUser) {
         const userResponse = await fetch(`/api/user/get?wixId=${wixUser.userId}`);
         const userData = await userResponse.json();
-        
+
         if (userData?.id) {
           setUserId(userData.id);
           setUserStreak(userData.streak || 0);
           setUserTotalPoints(userData.total_points || 0);
 
-          // Check today's log
-          const todayStr = today.toISOString().split('T')[0];
+          const todayStr = today.toISOString().split("T")[0];
+
           const { data: todayLog } = await supabase
-            .from('daily_logs')
-            .select('*')
-            .eq('user_id', userData.id)
-            .eq('challenge_id', challengeId)
-            .eq('date', todayStr)
+            .from("daily_logs")
+            .select("*")
+            .eq("user_id", userData.id)
+            .eq("challenge_id", challengeId)
+            .eq("date", todayStr)
             .single();
 
           if (todayLog) {
@@ -118,11 +132,10 @@ export default function ChallengeDetailPage() {
             setTodayPoints(todayLog.points_earned);
           }
 
-          // Get user's team
           const { data: teamMember } = await supabase
-            .from('team_members')
-            .select('team_id, teams(name)')
-            .eq('user_id', userData.id)
+            .from("team_members")
+            .select("team_id, teams(name)")
+            .eq("user_id", userData.id)
             .single();
 
           if (teamMember?.teams) {
@@ -137,51 +150,54 @@ export default function ChallengeDetailPage() {
     loadData();
   }, [challengeId, wixUser]);
 
-  const handleCheckIn = async (completionLevel: '50' | '100') => {
+  const handleCheckIn = async (completionLevel: "50" | "100") => {
     if (!userId || !challengeId || checkedInToday) return;
+
     setCheckingIn(true);
 
-    const points = completionLevel === '100' ? 2 : 1;
-    const todayStr = today.toISOString().split('T')[0];
+    const points = completionLevel === "100" ? 2 : 1;
+    const todayStr = today.toISOString().split("T")[0];
 
-    const { error } = await supabase
-      .from('daily_logs')
-      .insert({
-        user_id: userId,
-        challenge_id: challengeId,
-        date: todayStr,
-        exercise: todayExercise.name,
-        completion_level: completionLevel,
-        reps_completed: completionLevel === '100' ? currentReps : Math.ceil(currentReps * 0.5),
-        reps_target: currentReps,
-        points_earned: points,
-      });
+    const { error } = await supabase.from("daily_logs").insert({
+      user_id: userId,
+      challenge_id: challengeId,
+      date: todayStr,
+      exercise: todayExercise.name,
+      completion_level: completionLevel,
+      reps_completed:
+        completionLevel === "100"
+          ? currentReps
+          : Math.ceil(currentReps * 0.5),
+      reps_target: currentReps,
+      points_earned: points,
+    });
 
     if (!error) {
-      // Update user streak and points
       const { data: userData } = await supabase
-        .from('users')
-        .select('streak, total_points')
-        .eq('id', userId)
+        .from("users")
+        .select("streak, total_points")
+        .eq("id", userId)
         .single();
 
       const newStreak = (userData?.streak || 0) + 1;
       const newPoints = (userData?.total_points || 0) + points;
 
       await supabase
-        .from('users')
+        .from("users")
         .update({ streak: newStreak, total_points: newPoints })
-        .eq('id', userId);
+        .eq("id", userId);
 
       setCheckedInToday(true);
       setTodayPoints(points);
       setUserStreak(newStreak);
       setUserTotalPoints(newPoints);
+
       setSuccessMessage(
-        completionLevel === '100'
+        completionLevel === "100"
           ? `🔥 100%+ done! You earned 2 points! Streak: ${newStreak} days!`
           : `✅ 50%+ done! You earned 1 point! Streak: ${newStreak} days!`
       );
+
       setTimeout(() => setSuccessMessage(""), 5000);
     }
 
@@ -191,11 +207,33 @@ export default function ChallengeDetailPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !userId || !challenge) return;
-    const success = await sendMessage(challenge.team_id, userId, messageText.trim());
+
+    const success = await sendMessage(
+      challenge.team_id,
+      userId,
+      messageText.trim()
+    );
+
     if (success) {
       const updated = await getMessages(challenge.team_id);
       setMessages(updated);
       setMessageText("");
+    }
+  };
+
+  // ⭐ NEW LEAVE HANDLER
+  const handleLeaveChallenge = async () => {
+    if (!userId || !challengeId) return;
+    setLeaving(true);
+
+    const success = await leaveChallenge(challengeId, userId);
+
+    if (success) {
+      navigate("/embed/challenges");
+    } else {
+      alert("Failed to leave challenge. Please try again.");
+      setLeaving(false);
+      setShowLeaveConfirm(false);
     }
   };
 
@@ -208,28 +246,44 @@ export default function ChallengeDetailPage() {
   }
 
   if (!challenge) {
-    return <div className="neon-card rounded-3xl p-8"><p>Challenge not found.</p></div>;
+    return (
+      <div className="neon-card rounded-3xl p-8">
+        <p>Challenge not found.</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+
       {/* Nav */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <button onClick={() => navigate("/embed/challenges")}
-          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+        <button
+          onClick={() => navigate("/embed/challenges")}
+          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+        >
           ← Back to Challenges
         </button>
+
         <div className="flex gap-3">
-          <button onClick={() => router.push("/")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+          <button
+            onClick={() => router.push("/")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
             Home
           </button>
-          <button onClick={() => navigate("/embed/leaderboard")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+
+          <button
+            onClick={() => navigate("/embed/leaderboard")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
             Leaderboard
           </button>
-          <button onClick={() => navigate("/embed/dashboard")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
+
+          <button
+            onClick={() => navigate("/embed/dashboard")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
             Dashboard
           </button>
         </div>
@@ -238,23 +292,31 @@ export default function ChallengeDetailPage() {
       {/* Success Message */}
       {successMessage && (
         <div className="neon-card rounded-2xl p-4 border border-green-200 bg-green-50">
-          <p className="text-sm font-semibold text-green-800">{successMessage}</p>
+          <p className="text-sm font-semibold text-green-800">
+            {successMessage}
+          </p>
         </div>
       )}
 
       {/* Challenge Header */}
       <div className="neon-card rounded-3xl p-6">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">CHALLENGE</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
+          CHALLENGE
+        </p>
+
         <h2 className="text-3xl font-display mb-1">{challenge.name}</h2>
+
         <div className="flex items-center gap-3 mt-2 flex-wrap">
           <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
             Code: {challenge.join_code}
           </span>
+
           {userTeam && (
             <span className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
               {userTeam}
             </span>
           )}
+
           <span className="text-sm text-slate-500">Week {currentWeek}</span>
         </div>
 
@@ -264,10 +326,12 @@ export default function ChallengeDetailPage() {
             <p className="text-2xl font-bold">🔥 {userStreak}</p>
             <p className="text-xs text-slate-500 mt-1">Day Streak</p>
           </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
             <p className="text-2xl font-bold">⭐ {userTotalPoints}</p>
             <p className="text-xs text-slate-500 mt-1">Total Points</p>
           </div>
+
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
             <p className="text-2xl font-bold">{currentReps}</p>
             <p className="text-xs text-slate-500 mt-1">Reps Target</p>
@@ -279,17 +343,25 @@ export default function ChallengeDetailPage() {
       <div className="neon-card rounded-3xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">TODAY'S EXERCISE</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
+              TODAY'S EXERCISE
+            </p>
+
             <h3 className="text-2xl font-semibold">
               {todayExercise.emoji} {todayExercise.name}
             </h3>
+
             <p className="text-sm text-slate-600 mt-1">
-              Target: <strong>{currentReps} reps</strong> • 50% = {Math.ceil(currentReps * 0.5)} reps
+              Target: <strong>{currentReps} reps</strong> • 50% ={" "}
+              {Math.ceil(currentReps * 0.5)} reps
             </p>
           </div>
+
           {checkedInToday && (
             <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">+{todayPoints}</p>
+              <p className="text-3xl font-bold text-green-600">
+                +{todayPoints}
+              </p>
               <p className="text-xs text-slate-500">pts earned</p>
             </div>
           )}
@@ -297,7 +369,9 @@ export default function ChallengeDetailPage() {
 
         {checkedInToday ? (
           <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
-            <p className="text-green-700 font-semibold">✅ Checked in today! Come back tomorrow 💪</p>
+            <p className="text-green-700 font-semibold">
+              ✅ Checked in today! Come back tomorrow 💪
+            </p>
           </div>
         ) : !userId ? (
           <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center">
@@ -306,17 +380,22 @@ export default function ChallengeDetailPage() {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => handleCheckIn('50')}
+              onClick={() => handleCheckIn("50")}
               disabled={checkingIn}
               className="rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-400 hover:shadow-md transition-all p-4 text-left disabled:opacity-50"
             >
               <p className="text-2xl mb-1">🌗</p>
               <p className="font-bold text-lg">50%+</p>
-              <p className="text-sm text-slate-600">{Math.ceil(currentReps * 0.5)}+ reps</p>
-              <p className="text-xs font-semibold text-slate-500 mt-2">+1 point</p>
+              <p className="text-sm text-slate-600">
+                {Math.ceil(currentReps * 0.5)}+ reps
+              </p>
+              <p className="text-xs font-semibold text-slate-500 mt-2">
+                +1 point
+              </p>
             </button>
+
             <button
-              onClick={() => handleCheckIn('100')}
+              onClick={() => handleCheckIn("100")}
               disabled={checkingIn}
               className="rainbow-cta rounded-2xl p-4 text-left hover:shadow-xl transition-all disabled:opacity-50"
             >
@@ -333,8 +412,11 @@ export default function ChallengeDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold">🏃 Weekly Cardio Goal</p>
-              <p className="text-sm text-slate-600">{currentCardio} minutes this week</p>
+              <p className="text-sm text-slate-600">
+                {currentCardio} minutes this week
+              </p>
             </div>
+
             <button
               onClick={() => setCardioChecked(!cardioChecked)}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
@@ -354,30 +436,40 @@ export default function ChallengeDetailPage() {
         <div className="neon-card rounded-3xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold">Live chat</h3>
-            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">Streak squad</span>
+            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
+              Streak squad
+            </span>
           </div>
+
           <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
             {messages.length === 0 && (
-              <p className="text-sm text-slate-500">No messages yet. Start the hype! 🎉</p>
+              <p className="text-sm text-slate-500">
+                No messages yet. Start the hype! 🎉
+              </p>
             )}
+
             {messages.map((message) => (
-              <div key={message.id} className="rounded-2xl border border-slate-100 bg-white/80 p-3">
-                <p className="text-sm font-semibold">{message.author?.name || 'Unknown'}</p>
+              <div
+                key={message.id}
+                className="rounded-2xl border border-slate-100 bg-white/80 p-3"
+              >
+                <p className="text-sm font-semibold">
+                  {message.author?.name || "Unknown"}
+                </p>
                 <p className="text-sm text-slate-600">{message.text}</p>
               </div>
             ))}
           </div>
+
           <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
             <input
-              type="text"
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder={userId ? "Cheer them on..." : "Log in to chat"}
-              className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-              disabled={!userId}
             />
-            <button type="submit" disabled={!userId || !messageText.trim()}
-              className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm disabled:opacity-50">
+
+            <button
+              type="submit"
+              disabled={!userId || !messageText.trim()}
+              className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm disabled:opacity-50"
+            >
               Send
             </button>
           </form>
@@ -386,25 +478,74 @@ export default function ChallengeDetailPage() {
         {/* Challenge Crew */}
         <div className="neon-card rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
+
           <div className="space-y-3">
             {members.length === 0 && (
               <p className="text-sm text-slate-500">
                 Invite members with code: <strong>{challenge.join_code}</strong>
               </p>
             )}
+
             {members.map((member) => (
-              <div key={member.id}
-                className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3">
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
+              >
                 <div>
                   <p className="font-semibold text-sm">{member.name}</p>
-                  <p className="text-xs text-slate-500">⭐ {member.total_points || 0} pts</p>
+                  <p className="text-xs text-slate-500">
+                    ⭐ {member.total_points || 0} pts
+                  </p>
                 </div>
-                <span className="text-sm font-semibold">🔥 {member.streak || 0}</span>
+
+                <span className="text-sm font-semibold">
+                  🔥 {member.streak || 0}
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* Leave Challenge Button */}
+      <div className="pt-4">
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          className="w-full rounded-2xl border border-red-300 bg-red-50 text-red-700 font-semibold py-3 hover:bg-red-100 transition"
+        >
+          Leave Challenge
+        </button>
+      </div>
+
+      {/* Leave Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">
+          <div className="neon-card rounded-3xl p-6 max-w-sm w-full">
+            <h3 className="text-xl font-semibold mb-2">Leave Challenge?</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Are you sure you want to leave this challenge? Your streak and
+              points will remain, but you won’t be part of this team anymore.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 rounded-xl border border-slate-300 bg-white py-2 font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleLeaveChallenge}
+                disabled={leaving}
+                className="flex-1 rounded-xl bg-red-600 text-white py-2 font-semibold disabled:opacity-50"
+              >
+                {leaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
