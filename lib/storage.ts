@@ -20,6 +20,8 @@ export interface Challenge {
   team_id: string;
   start_date: string;
   end_date: string;
+  is_public?: boolean;
+  scoring_type?: string;
   created_at: string;
 }
 
@@ -142,6 +144,8 @@ export async function createChallenge(challengeData: {
   duration: number;
   description?: string;
   creatorId: string;
+  isPublic?: boolean;
+  scoringType?: 'simple' | 'ny_challenge';
 }): Promise<Challenge | null> {
   const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   const startDate = new Date().toISOString().split('T')[0];
@@ -171,6 +175,8 @@ export async function createChallenge(challengeData: {
       team_id: team.id,
       start_date: startDate,
       end_date: endDate,
+      is_public: challengeData.isPublic ?? true,
+      scoring_type: challengeData.scoringType ?? 'simple',
     })
     .select()
     .single();

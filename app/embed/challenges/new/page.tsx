@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createChallenge } from "@/lib/storage";
 import { useUser } from "@/lib/UserContext";
 
@@ -12,7 +11,8 @@ export default function NewChallengePage() {
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState(21);
   const [description, setDescription] = useState("");
-  const [inviteEmails, setInviteEmails] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [scoringType, setScoringType] = useState<'simple' | 'ny_challenge'>('simple');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,7 +27,6 @@ export default function NewChallengePage() {
     setSubmitting(true);
     setError("");
 
-    // Get user's Supabase ID
     const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
     const userData = await userResponse.json();
 
@@ -42,6 +41,8 @@ export default function NewChallengePage() {
       duration: duration,
       description: description,
       creatorId: userData.id,
+      isPublic: isPublic,
+      scoringType: scoringType,
     });
 
     if (challenge) {
@@ -95,10 +96,10 @@ export default function NewChallengePage() {
             Home
           </button>
           <button
-            onClick={() => router.push(`/embed/profile${getUserParams()}`)}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+            onClick={() => router.push(`/embed/dashboard${getUserParams()}`)}
+            className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
           >
-            Profile
+            Dashboard
           </button>
         </div>
       </div>
@@ -131,38 +132,87 @@ export default function NewChallengePage() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Duration (days)</label>
-                <input
-                  type="number"
-                  min={7}
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                  required
-                />
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Duration (days)</label>
+              <input
+                type="number"
+                min={7}
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                required
+              />
+            </div>
+
+            {/* Visibility */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Visibility</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(true)}
+                  className={`flex-1 px-4 py-3 rounded-2xl border-2 transition ${
+                    isPublic
+                      ? 'border-slate-700 bg-slate-50'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="font-semibold">🌍 Public</p>
+                  <p className="text-xs text-slate-600">Anyone can join with code</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(false)}
+                  className={`flex-1 px-4 py-3 rounded-2xl border-2 transition ${
+                    !isPublic
+                      ? 'border-slate-700 bg-slate-50'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="font-semibold">🔒 Private</p>
+                  <p className="text-xs text-slate-600">Invite-only</p>
+                </button>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Invite emails</label>
-                <input
-                  type="text"
-                  value={inviteEmails}
-                  onChange={(e) => setInviteEmails(e.target.value)}
-                  placeholder="alex@club.com, jamie@club.com"
-                  className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
-                <p className="text-xs text-slate-500">Coming soon: email invites!</p>
+            </div>
+
+            {/* Scoring Type */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Scoring System</label>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => setScoringType('simple')}
+                  className={`px-4 py-3 rounded-2xl border-2 transition text-left ${
+                    scoringType === 'simple'
+                      ? 'border-slate-700 bg-slate-50'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="font-semibold">✅ Simple (1 point per day)</p>
+                  <p className="text-xs text-slate-600">One check-in button, 1 point per day</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoringType('ny_challenge')}
+                  className={`px-4 py-3 rounded-2xl border-2 transition text-left ${
+                    scoringType === 'ny_challenge'
+                      ? 'border-slate-700 bg-slate-50'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="font-semibold">🏋️ New Year's Style (1-2 points)</p>
+                  <p className="text-xs text-slate-600">Daily exercises, 50% = 1pt, 100% = 2pts</p>
+                </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Focus</label>
+              <label className="text-sm font-semibold text-slate-700">Description (optional)</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the daily win you want to track."
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-slate-300"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-slate-300"
               />
             </div>
 
@@ -179,16 +229,31 @@ export default function NewChallengePage() {
         {/* Right: Tips */}
         <div className="space-y-6">
           <div className="neon-card rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-4">💡 Tips for success</h3>
+            <h3 className="text-xl font-semibold mb-4">💡 Scoring Systems</h3>
+            <div className="space-y-4 text-slate-700">
+              <div>
+                <p className="font-semibold mb-1">Simple Scoring</p>
+                <p className="text-sm leading-relaxed">
+                  Perfect for habit tracking. Just one "Check in" button per day = 1 point. Great for meditation, journaling, or any daily practice.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">New Year's Style</p>
+                <p className="text-sm leading-relaxed">
+                  Progressive exercise challenge with daily exercises (Lunges, Squats, etc.). 50% completion = 1pt, 100% = 2pts. Reps increase weekly!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="neon-card rounded-3xl p-8">
+            <h3 className="text-xl font-semibold mb-4">🔒 Public vs Private</h3>
             <div className="space-y-3 text-slate-700">
               <p className="text-sm leading-relaxed">
-                <strong>Keep it simple:</strong> Choose one specific action you can do daily, like "10 minutes of stretching."
+                <strong>Public:</strong> Your join code will be visible to everyone. Great for open community challenges!
               </p>
               <p className="text-sm leading-relaxed">
-                <strong>Set realistic duration:</strong> Start with 21 days - long enough to build a habit!
-              </p>
-              <p className="text-sm leading-relaxed">
-                <strong>Invite your crew:</strong> Having friends join increases your success rate by 65%!
+                <strong>Private:</strong> Join code only visible to members. Perfect for close friend groups or team challenges.
               </p>
             </div>
           </div>
@@ -199,8 +264,8 @@ export default function NewChallengePage() {
               <div className="flex gap-3">
                 <span className="text-2xl">1️⃣</span>
                 <div>
-                  <p className="font-semibold">Get your join code</p>
-                  <p className="text-sm text-slate-600">Share it with friends to invite them</p>
+                  <p className="font-semibold">Share your code</p>
+                  <p className="text-sm text-slate-600">Invite friends to join your challenge</p>
                 </div>
               </div>
               <div className="flex gap-3">
