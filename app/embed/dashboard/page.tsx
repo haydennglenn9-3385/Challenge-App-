@@ -228,7 +228,7 @@ function DashboardContent() {
 
         {/* Joined Challenges */}
         <div className="neon-card rounded-3xl p-6 md:col-span-2">
-          <h3 className="text-xl font-semibold mb-4">Your Challenges</h3>
+          <h3 className="text-xl font-semibold mb-4">Active Challenges</h3>
           {joinedChallenges.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-slate-500 mb-4">You haven't joined any challenges yet!</p>

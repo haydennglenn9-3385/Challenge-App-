@@ -289,11 +289,11 @@ export default function NewChallengePage() {
             <div className="space-y-4 text-sm">
               <div>
                 <p className="font-semibold text-slate-900">Total Points</p>
-                <p className="text-slate-600">Sum all team members' points together</p>
+                <p className="text-slate-600">Sum of all team members' points together</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Average Points</p>
-                <p className="text-slate-600">Fair for teams of different sizes - divides total by member count</p>
+                <p className="text-slate-600">Fair for teams of different sizes - divides total points by member count</p>
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Tiered Completion</p>
