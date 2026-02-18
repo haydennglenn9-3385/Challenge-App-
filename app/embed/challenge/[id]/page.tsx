@@ -8,7 +8,6 @@ import {
   getTeamMembers,
   getMessages,
   sendMessage,
-  leaveChallenge,   // ⭐ NEW IMPORT
   Challenge,
   User,
   Message,
@@ -51,6 +50,29 @@ function getCurrentCardio(): number {
   return BASE_CARDIO + (week - 1) * CARDIO_INCREMENT;
 }
 
+// ⭐ NEW: compute per‑challenge streak
+function computeChallengeStreak(logs: any[]) {
+  if (!logs || logs.length === 0) return 0;
+
+  let streak = 1;
+
+  for (let i = logs.length - 1; i > 0; i--) {
+    const today = new Date(logs[i].date);
+    const yesterday = new Date(logs[i - 1].date);
+
+    const diff =
+      (today.getTime() - yesterday.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diff === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export default function ChallengeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -72,14 +94,14 @@ export default function ChallengeDetailPage() {
   const [userTeam, setUserTeam] = useState<string>("");
 
   const [successMessage, setSuccessMessage] = useState("");
-  const [userStreak, setUserStreak] = useState(0);
+
   const [userTotalPoints, setUserTotalPoints] = useState(0);
 
-  const [cardioChecked, setCardioChecked] = useState(false);
+  // ⭐ NEW: logs for per‑challenge streak
+  const [challengeLogs, setChallengeLogs] = useState<any[]>([]);
+  const [challengeStreak, setChallengeStreak] = useState(0);
 
-  // ⭐ NEW STATE
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  const [cardioChecked, setCardioChecked] = useState(false);
 
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -109,14 +131,27 @@ export default function ChallengeDetailPage() {
       }
 
       if (wixUser) {
-        const userResponse = await fetch(`/api/user/get?wixId=${wixUser.userId}`);
+        const userResponse = await fetch(
+          `/api/user/get?wixId=${wixUser.userId}`
+        );
         const userData = await userResponse.json();
 
         if (userData?.id) {
           setUserId(userData.id);
-          setUserStreak(userData.streak || 0);
           setUserTotalPoints(userData.total_points || 0);
 
+          // ⭐ NEW: fetch logs for this challenge
+          const { data: logsData } = await supabase
+            .from("daily_logs")
+            .select("date")
+            .eq("user_id", userData.id)
+            .eq("challenge_id", challengeId)
+            .order("date", { ascending: true });
+
+          setChallengeLogs(logsData || []);
+          setChallengeStreak(computeChallengeStreak(logsData || []));
+
+          // Check today's log
           const todayStr = today.toISOString().split("T")[0];
 
           const { data: todayLog } = await supabase
@@ -132,6 +167,7 @@ export default function ChallengeDetailPage() {
             setTodayPoints(todayLog.points_earned);
           }
 
+          // Get user's team
           const { data: teamMember } = await supabase
             .from("team_members")
             .select("team_id, teams(name)")
@@ -149,7 +185,6 @@ export default function ChallengeDetailPage() {
 
     loadData();
   }, [challengeId, wixUser]);
-
   const handleCheckIn = async (completionLevel: "50" | "100") => {
     if (!userId || !challengeId || checkedInToday) return;
 
@@ -173,32 +208,42 @@ export default function ChallengeDetailPage() {
     });
 
     if (!error) {
+      // Update user points (global)
       const { data: userData } = await supabase
         .from("users")
-        .select("streak, total_points")
+        .select("total_points")
         .eq("id", userId)
         .single();
 
-      const newStreak = (userData?.streak || 0) + 1;
       const newPoints = (userData?.total_points || 0) + points;
 
       await supabase
         .from("users")
-        .update({ streak: newStreak, total_points: newPoints })
+        .update({ total_points: newPoints })
         .eq("id", userId);
 
       setCheckedInToday(true);
       setTodayPoints(points);
-      setUserStreak(newStreak);
       setUserTotalPoints(newPoints);
 
       setSuccessMessage(
         completionLevel === "100"
-          ? `🔥 100%+ done! You earned 2 points! Streak: ${newStreak} days!`
-          : `✅ 50%+ done! You earned 1 point! Streak: ${newStreak} days!`
+          ? `🔥 100%+ done! You earned 2 points!`
+          : `✅ 50%+ done! You earned 1 point!`
       );
 
       setTimeout(() => setSuccessMessage(""), 5000);
+
+      // ⭐ Recompute streak after check‑in
+      const { data: logsData } = await supabase
+        .from("daily_logs")
+        .select("date")
+        .eq("user_id", userId)
+        .eq("challenge_id", challengeId)
+        .order("date", { ascending: true });
+
+      setChallengeLogs(logsData || []);
+      setChallengeStreak(computeChallengeStreak(logsData || []));
     }
 
     setCheckingIn(false);
@@ -206,6 +251,7 @@ export default function ChallengeDetailPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!messageText.trim() || !userId || !challenge) return;
 
     const success = await sendMessage(
@@ -218,22 +264,6 @@ export default function ChallengeDetailPage() {
       const updated = await getMessages(challenge.team_id);
       setMessages(updated);
       setMessageText("");
-    }
-  };
-
-  // ⭐ NEW LEAVE HANDLER
-  const handleLeaveChallenge = async () => {
-    if (!userId || !challengeId) return;
-    setLeaving(true);
-
-    const success = await leaveChallenge(challengeId, userId);
-
-    if (success) {
-      navigate("/embed/challenges");
-    } else {
-      alert("Failed to leave challenge. Please try again.");
-      setLeaving(false);
-      setShowLeaveConfirm(false);
     }
   };
 
@@ -255,7 +285,6 @@ export default function ChallengeDetailPage() {
 
   return (
     <div className="space-y-6">
-
       {/* Nav */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <button
@@ -285,6 +314,14 @@ export default function ChallengeDetailPage() {
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             Dashboard
+          </button>
+
+          {/* ⭐ NEW: Edit button */}
+          <button
+            onClick={() => navigate(`/embed/challenge/${challengeId}/edit`)}
+            className="px-4 py-2 rounded-full font-semibold border border-blue-300 bg-blue-50 hover:bg-blue-100 transition text-sm"
+          >
+            Edit
           </button>
         </div>
       </div>
@@ -322,8 +359,9 @@ export default function ChallengeDetailPage() {
 
         {/* User Stats */}
         <div className="grid grid-cols-3 gap-3 mt-5">
+          {/* ⭐ UPDATED: per‑challenge streak */}
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
-            <p className="text-2xl font-bold">🔥 {userStreak}</p>
+            <p className="text-2xl font-bold">🔥 {challengeStreak}</p>
             <p className="text-xs text-slate-500 mt-1">Day Streak</p>
           </div>
 
@@ -338,7 +376,6 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
       </div>
-
       {/* Today's Check-in */}
       <div className="neon-card rounded-3xl p-6">
         <div className="flex items-center justify-between mb-4">
@@ -463,6 +500,12 @@ export default function ChallengeDetailPage() {
 
           <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
             <input
+              type="text"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder={userId ? "Cheer them on..." : "Log in to chat"}
+              className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              disabled={!userId}
             />
 
             <button
@@ -482,7 +525,8 @@ export default function ChallengeDetailPage() {
           <div className="space-y-3">
             {members.length === 0 && (
               <p className="text-sm text-slate-500">
-                Invite members with code: <strong>{challenge.join_code}</strong>
+                Invite members with code:{" "}
+                <strong>{challenge.join_code}</strong>
               </p>
             )}
 
@@ -506,53 +550,6 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
       </div>
-
-      {/* Bottom Buttons */}
-<div className="pt-4 flex gap-3">
-  <button
-    onClick={() => navigate(`/embed/challenge/${challengeId}/edit`)}
-    className="px-4 py-2 rounded-full border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition text-sm"
-  >
-    Edit
-  </button>
-
-  <button
-    onClick={() => setShowLeaveConfirm(true)}
-    className="px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition text-sm"
-  >
-    Leave Challenge
-  </button>
-</div>
-
-      {/* Leave Confirmation Modal */}
-      {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">
-          <div className="neon-card rounded-3xl p-6 max-w-sm w-full">
-            <h3 className="text-xl font-semibold mb-2">Leave Challenge?</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              Are you sure you want to leave this challenge? Your streak and
-              points will remain, but you won’t be part of this team anymore.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 rounded-xl border border-slate-300 bg-white py-2 font-semibold"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleLeaveChallenge}
-                disabled={leaving}
-                className="flex-1 rounded-xl bg-red-600 text-white py-2 font-semibold disabled:opacity-50"
-              >
-                {leaving ? "Leaving..." : "Leave"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
