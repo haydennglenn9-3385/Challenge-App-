@@ -282,6 +282,43 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
   return true;
 }
 
+export async function leaveChallenge(challengeId: string, userId: string): Promise<boolean> {
+  try {
+    // Remove from challenge_members
+    const { error: memberError } = await supabase
+      .from('challenge_members')
+      .delete()
+      .eq('challenge_id', challengeId)
+      .eq('user_id', userId);
+
+    if (memberError) {
+      console.error('Error leaving challenge:', memberError);
+      return false;
+    }
+
+    // Get challenge to find team_id
+    const { data: challenge } = await supabase
+      .from('challenges')
+      .select('team_id')
+      .eq('id', challengeId)
+      .single();
+
+    if (challenge) {
+      // Remove from team_members
+      await supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', challenge.team_id)
+        .eq('user_id', userId);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error leaving challenge:', error);
+    return false;
+  }
+}
+
 // ============ CHECK-INS / DAILY LOGS ============
 
 export async function recordCheckIn(

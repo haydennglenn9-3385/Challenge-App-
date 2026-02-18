@@ -1,6 +1,44 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function HomePage() {
+  const [popularChallenges, setPopularChallenges] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadChallenges() {
+      // Get public challenges with member counts
+      const { data: challenges } = await supabase
+        .from('challenges')
+        .select(`
+          id,
+          name,
+          join_code,
+          start_date,
+          end_date,
+          is_public,
+          challenge_members(count)
+        `)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (challenges) {
+        setPopularChallenges(challenges);
+      }
+    }
+    loadChallenges();
+  }, []);
+
+  const getDaysLeft = (endDate: string) => {
+    const end = new Date(endDate);
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center px-6 py-16">
       <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
@@ -47,25 +85,30 @@ export default function HomePage() {
         {/* RIGHT SIDE */}
         <div className="neon-card rounded-3xl p-8 space-y-6">
           <div className="flex items-center gap-2">
-            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">Public</span>
-            <h2 className="font-semibold text-lg">Featured Challenges</h2>
+            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">Popular</span>
+            <h2 className="font-semibold text-lg">Active Challenges</h2>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-4 shadow">
-              <p className="font-semibold">Sprint Ladder</p>
-              <p className="text-sm text-slate-600">4 members • 12 days left</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-4 shadow">
-              <p className="font-semibold">Core Circuit</p>
-              <p className="text-sm text-slate-600">7 members • 9 days left</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-4 shadow">
-              <p className="font-semibold">Flex Friday</p>
-              <p className="text-sm text-slate-600">5 members • 3 days left</p>
-            </div>
+            {popularChallenges.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-500 text-sm">No public challenges yet. Be the first to create one!</p>
+              </div>
+            ) : (
+              popularChallenges.map((challenge) => {
+                const memberCount = challenge.challenge_members?.[0]?.count || 0;
+                const daysLeft = getDaysLeft(challenge.end_date);
+                
+                return (
+                  <div key={challenge.id} className="bg-white rounded-2xl p-4 shadow hover:shadow-md transition">
+                    <p className="font-semibold">{challenge.name}</p>
+                    <p className="text-sm text-slate-600">
+                      {memberCount} member{memberCount !== 1 ? 's' : ''} • {daysLeft} days left
+                    </p>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-200">
