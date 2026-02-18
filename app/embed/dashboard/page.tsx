@@ -12,7 +12,7 @@ function DashboardContent() {
   const [joinedChallenges, setJoinedChallenges] = useState<any[]>([]);
   const [createdChallenges, setCreatedChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userTeam, setUserTeam] = useState<any>(null);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   const navigate = (path: string) => router.push(path + getUserParams());
 
@@ -44,7 +44,8 @@ function DashboardContent() {
               join_code,
               creator_id,
               start_date,
-              end_date
+              end_date,
+              description
             )
           `)
           .eq('user_id', userData.id);
@@ -58,16 +59,33 @@ function DashboardContent() {
           setCreatedChallenges(created);
         }
 
-        // Get user's team
-        const { data: teamData } = await supabase
+        // Get user's team members
+        const { data: userTeamData } = await supabase
           .from('team_members')
-          .select('team_id, teams(name, color)')
+          .select('team_id')
           .eq('user_id', userData.id)
           .limit(1)
           .single();
 
-        if (teamData?.teams) {
-          setUserTeam(teamData.teams);
+        if (userTeamData) {
+          // Get all members of this team
+          const { data: membersData } = await supabase
+            .from('team_members')
+            .select(`
+              user_id,
+              users (
+                id,
+                name,
+                streak,
+                total_points
+              )
+            `)
+            .eq('team_id', userTeamData.team_id)
+            .limit(5);
+
+          if (membersData) {
+            setTeamMembers(membersData.map((m: any) => m.users));
+          }
         }
       }
 
@@ -176,28 +194,35 @@ function DashboardContent() {
           </button>
         </div>
 
-        {/* Team Card */}
+        {/* Team Members Card */}
         <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Your Team</h3>
-          {userTeam ? (
+          <h3 className="text-xl font-semibold mb-4">Your Teammates</h3>
+          {teamMembers.length === 0 ? (
             <>
-              <p className="text-2xl font-bold mb-2">{(userTeam as any).name}</p>
-              <p className="text-sm text-slate-600 mb-4">New Year's Challenge</p>
-              <button 
-                onClick={() => navigate("/embed/leaderboard")}
-                className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm w-full">
-                View Team Stats
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-slate-600 mb-4">Join a challenge to get on a team!</p>
+              <p className="text-slate-600 mb-4 text-sm">Join a challenge to see your teammates!</p>
               <button 
                 onClick={() => navigate("/embed/join")}
                 className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm w-full">
                 Join with Code
               </button>
             </>
+          ) : (
+            <div className="space-y-2">
+              {teamMembers.slice(0, 4).map((member: any) => (
+                <div key={member.id} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-white">
+                  <div>
+                    <p className="font-semibold text-sm">{member.name}</p>
+                    <p className="text-xs text-slate-500">🔥 {member.streak || 0} streak</p>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">⭐ {member.total_points || 0}</p>
+                </div>
+              ))}
+              {teamMembers.length > 4 && (
+                <p className="text-xs text-slate-500 text-center pt-2">
+                  +{teamMembers.length - 4} more teammates
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -228,7 +253,12 @@ function DashboardContent() {
                     className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:shadow-md transition">
                     <div className="flex-1">
                       <p className="font-semibold">{challenge.name}</p>
-                      <p className="text-sm text-slate-500">Code: {challenge.join_code}</p>
+                      <p className="text-sm text-slate-500">
+                        {challenge.description 
+                          ? challenge.description.substring(0, 60) + (challenge.description.length > 60 ? '...' : '')
+                          : 'Code: ' + challenge.join_code
+                        }
+                      </p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-full relative">

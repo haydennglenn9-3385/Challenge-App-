@@ -5,16 +5,71 @@ import { useRouter } from "next/navigation";
 import { createChallenge } from "@/lib/storage";
 import { useUser } from "@/lib/UserContext";
 
+const DURATION_UNITS = [
+  { value: 'minutes', label: 'Minutes' },
+  { value: 'hours', label: 'Hours' },
+  { value: 'days', label: 'Days' },
+  { value: 'weeks', label: 'Weeks' },
+  { value: 'months', label: 'Months' },
+  { value: 'years', label: 'Years' },
+];
+
+const SCORING_SYSTEMS = [
+  {
+    value: 'total_points',
+    label: 'Total Accumulated Points',
+    description: 'Team score = sum of all member points'
+  },
+  {
+    value: 'average_points',
+    label: 'Average Score Per Member',
+    description: 'Team score = average of member points (fair for different team sizes)'
+  },
+  {
+    value: 'tiered',
+    label: 'Tiered Completion (0%, 50%, 100%)',
+    description: 'Points based on completion tier - simple and predictable'
+  },
+  {
+    value: 'streak',
+    label: 'Streak-Based Scoring',
+    description: 'Points for daily streaks - encourages consistency'
+  },
+  {
+    value: 'task_completion',
+    label: 'Task Completion',
+    description: 'Points for completing specific tasks'
+  },
+  {
+    value: 'ny_challenge',
+    label: 'New Year\'s Style',
+    description: 'Daily exercises, 50% = 1pt, 100% = 2pts, progressive reps'
+  },
+];
+
 export default function NewChallengePage() {
   const router = useRouter();
   const { user, getUserParams } = useUser();
   const [title, setTitle] = useState("");
-  const [duration, setDuration] = useState(21);
+  const [durationValue, setDurationValue] = useState(21);
+  const [durationUnit, setDurationUnit] = useState('days');
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [scoringType, setScoringType] = useState<'simple' | 'ny_challenge'>('simple');
+  const [scoringType, setScoringType] = useState('average_points');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const convertToDays = () => {
+    const conversions: Record<string, number> = {
+      minutes: 1 / (24 * 60),
+      hours: 1 / 24,
+      days: 1,
+      weeks: 7,
+      months: 30,
+      years: 365,
+    };
+    return Math.ceil(durationValue * conversions[durationUnit]);
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -36,9 +91,11 @@ export default function NewChallengePage() {
       return;
     }
 
+    const durationInDays = convertToDays();
+
     const challenge = await createChallenge({
       name: title,
-      duration: duration,
+      duration: durationInDays,
       description: description,
       creatorId: userData.id,
       isPublic: isPublic,
@@ -109,7 +166,7 @@ export default function NewChallengePage() {
         <div className="space-y-6">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">CREATE</p>
-            <h2 className="text-4xl font-display mb-2">Launch a Challenge</h2>
+            <h2 className="text-4xl font-display mb-2">Create a New Challenge</h2>
             <p className="text-slate-600">Start a fresh streak and invite your crew.</p>
           </div>
 
@@ -121,7 +178,7 @@ export default function NewChallengePage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Challenge name</label>
+              <label className="text-sm font-semibold text-slate-700">Challenge Name</label>
               <input
                 type="text"
                 value={title}
@@ -133,15 +190,36 @@ export default function NewChallengePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Duration (days)</label>
-              <input
-                type="number"
-                min={7}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                required
+              <label className="text-sm font-semibold text-slate-700">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Simple description about the challenge"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-slate-300"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Duration</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  value={durationValue}
+                  onChange={(e) => setDurationValue(Number(e.target.value))}
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  required
+                />
+                <select
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value)}
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                >
+                  {DURATION_UNITS.map(unit => (
+                    <option key={unit.value} value={unit.value}>{unit.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Visibility */}
@@ -158,7 +236,7 @@ export default function NewChallengePage() {
                   }`}
                 >
                   <p className="font-semibold">🌍 Public</p>
-                  <p className="text-xs text-slate-600">Anyone can join with code</p>
+                  <p className="text-xs text-slate-600">Anyone can join</p>
                 </button>
                 <button
                   type="button"
@@ -175,45 +253,23 @@ export default function NewChallengePage() {
               </div>
             </div>
 
-            {/* Scoring Type */}
+            {/* Scoring System */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Scoring System</label>
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => setScoringType('simple')}
-                  className={`px-4 py-3 rounded-2xl border-2 transition text-left ${
-                    scoringType === 'simple'
-                      ? 'border-slate-700 bg-slate-50'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <p className="font-semibold">✅ Simple (1 point per day)</p>
-                  <p className="text-xs text-slate-600">One check-in button, 1 point per day</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScoringType('ny_challenge')}
-                  className={`px-4 py-3 rounded-2xl border-2 transition text-left ${
-                    scoringType === 'ny_challenge'
-                      ? 'border-slate-700 bg-slate-50'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <p className="font-semibold">🏋️ New Year's Style (1-2 points)</p>
-                  <p className="text-xs text-slate-600">Daily exercises, 50% = 1pt, 100% = 2pts</p>
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Description (optional)</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe the daily win you want to track."
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-slate-300"
-              />
+              <select
+                value={scoringType}
+                onChange={(e) => setScoringType(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                {SCORING_SYSTEMS.map(system => (
+                  <option key={system.value} value={system.value}>
+                    {system.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-2">
+                {SCORING_SYSTEMS.find(s => s.value === scoringType)?.description}
+              </p>
             </div>
 
             <button
@@ -221,7 +277,7 @@ export default function NewChallengePage() {
               disabled={submitting}
               className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50"
             >
-              {submitting ? "Launching..." : "Launch Challenge"}
+              {submitting ? "Creating..." : "Create Challenge"}
             </button>
           </form>
         </div>
@@ -229,57 +285,49 @@ export default function NewChallengePage() {
         {/* Right: Tips */}
         <div className="space-y-6">
           <div className="neon-card rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-4">💡 Scoring Systems</h3>
-            <div className="space-y-4 text-slate-700">
+            <h3 className="text-xl font-semibold mb-4">💡 Scoring Systems Explained</h3>
+            <div className="space-y-4 text-sm">
               <div>
-                <p className="font-semibold mb-1">Simple Scoring</p>
-                <p className="text-sm leading-relaxed">
-                  Perfect for habit tracking. Just one "Check in" button per day = 1 point. Great for meditation, journaling, or any daily practice.
-                </p>
+                <p className="font-semibold text-slate-900">Total Points</p>
+                <p className="text-slate-600">All member points added together</p>
               </div>
               <div>
-                <p className="font-semibold mb-1">New Year's Style</p>
-                <p className="text-sm leading-relaxed">
-                  Progressive exercise challenge with daily exercises (Lunges, Squats, etc.). 50% completion = 1pt, 100% = 2pts. Reps increase weekly!
-                </p>
+                <p className="font-semibold text-slate-900">Average Points</p>
+                <p className="text-slate-600">Fair for teams of different sizes</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Tiered Completion</p>
+                <p className="text-slate-600">0%, 50%, 100% completion levels</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Streak-Based</p>
+                <p className="text-slate-600">Rewards daily consistency</p>
               </div>
             </div>
           </div>
 
           <div className="neon-card rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-4">🔒 Public vs Private</h3>
-            <div className="space-y-3 text-slate-700">
-              <p className="text-sm leading-relaxed">
-                <strong>Public:</strong> Your join code will be visible to everyone. Great for open community challenges!
-              </p>
-              <p className="text-sm leading-relaxed">
-                <strong>Private:</strong> Join code only visible to members. Perfect for close friend groups or team challenges.
-              </p>
-            </div>
-          </div>
-
-          <div className="neon-card rounded-3xl p-8 space-y-4">
-            <h3 className="text-xl font-semibold mb-2">✨ After you launch</h3>
+            <h3 className="text-xl font-semibold mb-4">✨ After You Create</h3>
             <div className="space-y-3 text-slate-700">
               <div className="flex gap-3">
                 <span className="text-2xl">1️⃣</span>
                 <div>
                   <p className="font-semibold">Share your code</p>
-                  <p className="text-sm text-slate-600">Invite friends to join your challenge</p>
+                  <p className="text-sm text-slate-600">Invite friends to join</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <span className="text-2xl">2️⃣</span>
                 <div>
                   <p className="font-semibold">Check in daily</p>
-                  <p className="text-sm text-slate-600">Build your streak one day at a time</p>
+                  <p className="text-sm text-slate-600">Build your streak</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <span className="text-2xl">3️⃣</span>
                 <div>
                   <p className="font-semibold">Use the chat</p>
-                  <p className="text-sm text-slate-600">Encourage each other and celebrate wins</p>
+                  <p className="text-sm text-slate-600">Encourage each other</p>
                 </div>
               </div>
             </div>
