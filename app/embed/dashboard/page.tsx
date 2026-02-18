@@ -284,7 +284,7 @@ function DashboardContent() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => navigate(`/embed/challenge/${challenge.id}/manage`)}
+                        onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
                         className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
                         View
                       </button>
@@ -309,7 +309,7 @@ function DashboardContent() {
                     <p className="text-sm text-slate-500">Join code: <strong>{challenge.join_code}</strong></p>
                   </div>
                   <button 
-                    onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                    onClick={() => navigate(`/embed/challenge/${challenge.id}/manage`)}
                     className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
                     Manage
                   </button>
