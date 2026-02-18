@@ -511,7 +511,7 @@ export default function ChallengeDetailPage() {
       <div className="pt-4">
         <button
           onClick={() => setShowLeaveConfirm(true)}
-          className="w-full rounded-2xl border border-red-300 bg-red-50 text-red-700 font-semibold py-3 hover:bg-red-100 transition"
+          className="px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition text-sm"
         >
           Leave Challenge
         </button>
