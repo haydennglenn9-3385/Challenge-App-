@@ -470,7 +470,7 @@ return (
           </div>
         </div> // END check-in wrapper div
       )}
-    </div> // END Today's Check-in
+    </div> {/* END Today's Check-in */}
 
     {/* Main Grid */}
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
