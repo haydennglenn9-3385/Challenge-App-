@@ -257,7 +257,7 @@ export default function ManageChallengePage() {
           </button>
         </div>
       </div>
-
+      
       {/* Team Members Management */}
       <div className="neon-card rounded-3xl p-6">
         <h3 className="text-xl font-semibold mb-4">Manage Members ({members.length})</h3>
