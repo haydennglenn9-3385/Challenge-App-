@@ -75,9 +75,36 @@ export default function ChallengesPage() {
                 {getDuration(challenge)} days
               </span>
             </div>
-            <p className="text-sm text-slate-600">
-              Join code: <span className="font-semibold">{challenge.join_code}</span>
-            </p>
+            <div className="text-sm text-slate-600 space-y-1">
+
+  {/* Description preview */}
+  {challenge.description ? (
+    <p>
+      {challenge.description.substring(0, 60)}
+      {challenge.description.length > 60 ? "..." : ""}
+    </p>
+  ) : (
+    <p>Code: {challenge.join_code}</p>
+  )}
+
+  {/* Meta */}
+  <div className="flex items-center gap-3 text-xs text-slate-500">
+    <span>👥 {challenge.member_count || 0} members</span>
+    <span>
+      ⏳ {Math.max(
+        0,
+        Math.ceil(
+          (new Date(challenge.end_date).getTime() -
+            new Date().getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      )}{" "}
+      days left
+    </span>
+  </div>
+
+</div>
+
           </button>
         ))}
       </div>
