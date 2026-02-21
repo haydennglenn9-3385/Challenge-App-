@@ -278,7 +278,8 @@ export default function ChallengeDetailPage() {
       </div>
     );
   }
-
+  const isNewYearsChallenge = challenge.join_code === "NYF2026";
+  
   return (
     <div className="space-y-6">
 
@@ -542,6 +543,47 @@ export default function ChallengeDetailPage() {
           </form>
         </div>
 
+        {/* RULES CARD — always shown */}
+        <div className="neon-card rounded-3xl p-6">
+          <h3 className="text-xl font-semibold mb-4">Challenge Rules</h3>
+
+          <div className="space-y-3 text-sm text-slate-600">
+
+            {/* New Year's Challenge special rules */}
+            {isNewYearsChallenge ? (
+              <>
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">📈 Weekly Progression</p>
+                  <p>Reps increase by <strong>+5 each week</strong>. Stay consistent and watch your strength grow.</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">🔥 Daily Check‑Ins</p>
+                  <p>Earn <strong>1 point</strong> for 50% completion and <strong>2 points</strong> for 100%.</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">🏃 Weekly Cardio Goal</p>
+                  <p>Complete <strong>{currentCardio} minutes</strong> of cardio each week.</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">👥 Team Scoring</p>
+                  <p>Your points contribute to your team’s total. Cheer each other on in the live chat.</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-slate-800 mb-1">⏳ Challenge Duration</p>
+                  <p>Runs from <strong>{challenge.start_date}</strong> to <strong>{challenge.end_date}</strong>.</p>
+                </div>
+              </>
+            ) : (
+              /* Creator-entered rules */
+              <p className="whitespace-pre-line">{challenge.rules || "No rules provided."}</p>
+            )}
+          </div>
+        </div>
+
         {/* Challenge Crew */}
         <div className="neon-card rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
@@ -573,6 +615,52 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* RULES — Only show for New Year's Challenge */}
+      {isNewYearsChallenge && (
+        <div className="neon-card rounded-3xl p-6">
+          <h3 className="text-xl font-semibold mb-4">Challenge Rules</h3>
+
+          <div className="space-y-3 text-sm text-slate-600">
+
+            <div>
+              <p className="font-semibold text-slate-800 mb-1">📈 Weekly Progression</p>
+              <p>
+                Reps increase by <strong>+5 each week</strong>. Stay consistent and watch your strength grow.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-800 mb-1">🔥 Daily Check‑Ins</p>
+              <p>
+                Earn <strong>1 point</strong> for 50% completion and <strong>2 points</strong> for 100%.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-800 mb-1">🏃 Weekly Cardio Goal</p>
+              <p>
+                Complete <strong>{currentCardio} minutes</strong> of cardio each week.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-800 mb-1">👥 Team Scoring</p>
+              <p>
+                Your points contribute to your team’s total. Cheer each other on in the live chat.
+              </p>
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-800 mb-1">⏳ Challenge Duration</p>
+              <p>
+                Runs from <strong>{challenge.start_date}</strong> to <strong>{challenge.end_date}</strong>.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* JOIN BUTTON */}
       {!isMember && wixUser && userId && (

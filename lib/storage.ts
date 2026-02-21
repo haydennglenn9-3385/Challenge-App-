@@ -26,6 +26,7 @@ export interface Challenge {
   is_public?: boolean;
   scoring_type?: string;
   description?: string;
+  rules?: string;
   created_at: string;
 
   // NEW: member count
