@@ -63,10 +63,10 @@ function computeChallengeStreak(logs: any[]) {
 }
 
 function formatShortDate(dateString: string) {
-  const d = new Date(dateString);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(-2);
+  const [year, month, day] = dateString.split("-");
+  const mm = month.padStart(2, "0");
+  const dd = day.padStart(2, "0");
+  const yy = year.slice(-2);
   return `${mm}/${dd}/${yy}`;
 }
 
@@ -352,7 +352,7 @@ export default function ChallengeDetailPage() {
       )}
 
       {/* Challenge Header — Option B with Rules on the Right */}
-      <div className="neon-card rounded-3xl p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="neon-card rounded-3xl p-6 grid grid-cols-1 gap-8 lg:grid-cols-2">
 
         {/* LEFT SIDE — Challenge Info */}
         <div className="space-y-2">
@@ -403,12 +403,12 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
     
-      </div>   // END OF HEADER
+      </div> 
 
 
       {/* Member Stats */}
       {isMember && (
-        <div className="grid grid-cols-3 gap-3 mt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
           <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
             <p className="text-2xl font-bold">🔥 {challengeStreak}</p>
             <p className="text-xs text-slate-500 mt-1">Day Streak</p>
