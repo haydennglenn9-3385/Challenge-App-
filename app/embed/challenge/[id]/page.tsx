@@ -487,7 +487,127 @@ export default function ChallengeDetailPage() {
               </button>
             </div>
           </div>
-        </div>  
-      </div>  
-    )}
-    
+        </div>
+      )}
+
+      {/* Main Grid */}
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+
+        {/* Live Chat */}
+        <div className="neon-card rounded-3xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold">Live chat</h3>
+            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
+              Streak squad
+            </span>
+          </div>
+
+          <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
+            {messages.length === 0 && (
+              <p className="text-sm text-slate-500">
+                No messages yet. Start the hype! 🎉
+              </p>
+            )}
+
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className="rounded-2xl border border-slate-100 bg-white/80 p-3"
+              >
+                <p className="text-sm font-semibold">
+                  {message.author?.name || "Unknown"}
+                </p>
+                <p className="text-sm text-slate-600">{message.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+            <input
+              type="text"
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder={userId ? "Cheer them on..." : "Log in to chat"}
+              className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              disabled={!userId}
+            />
+
+            <button
+              type="submit"
+              disabled={!userId || !messageText.trim()}
+              className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm disabled:opacity-50"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+
+        {/* Challenge Crew */}
+        <div className="neon-card rounded-3xl p-6">
+          <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
+
+          <div className="space-y-3">
+            {members.length === 0 && (
+              <p className="text-sm text-slate-500">
+                Invite members with code: <strong>{challenge.join_code}</strong>
+              </p>
+            )}
+
+            {members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
+              >
+                <div>
+                  <p className="font-semibold text-sm">{member.name}</p>
+                  <p className="text-xs text-slate-500">
+                    ⭐ {member.total_points || 0} pts
+                  </p>
+                </div>
+
+                <span className="text-sm font-semibold">
+                  🔥 {member.streak || 0}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* JOIN BUTTON */}
+      {!isMember && wixUser && userId && (
+        <div className="neon-card rounded-3xl p-6 text-center">
+          <button
+            onClick={async () => {
+              const { joinChallenge } = await import("@/lib/storage");
+              const success = await joinChallenge(challenge.join_code, userId);
+              if (success) window.location.reload();
+              else alert("Failed to join challenge");
+            }}
+            className="rainbow-cta px-6 py-3 rounded-full font-semibold"
+          >
+            Join Challenge
+          </button>
+        </div>
+      )}
+
+      {/* Leave Challenge Button */}
+      {wixUser && userId && isMember && (
+        <div className="neon-card rounded-3xl p-6 text-center">
+          <button
+            onClick={async () => {
+              const { leaveChallenge } = await import("@/lib/storage");
+              const success = await leaveChallenge(challengeId, userId);
+              if (success) window.location.reload();
+              else alert("Failed to leave challenge");
+            }}
+            className="px-6 py-3 rounded-full font-semibold border border-red-300 bg-red-50 hover:bg-red-100 transition"
+          >
+            Leave Challenge
+          </button>
+        </div>
+      )}
+
+    </div>
+  );
+}
