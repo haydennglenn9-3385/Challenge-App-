@@ -99,6 +99,17 @@ export default function ChallengeDetailPage() {
 
   const navigate = (path: string) => router.push(path + getUserParams());
 
+
+  // Calculate days left
+  const getDaysLeft = () => {
+    if (!challenge) return 0;
+    const end = new Date(challenge.end_date);
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+  const daysLeft = getDaysLeft();
+
   // LOAD DATA
   useEffect(() => {
     async function loadData() {
@@ -279,7 +290,7 @@ export default function ChallengeDetailPage() {
     );
   }
   const isNewYearsChallenge = challenge.join_code === "NYF2026";
-  
+
   return (
     <div className="space-y-6">
 
@@ -332,370 +343,334 @@ export default function ChallengeDetailPage() {
         </div>
       )}
 
-      {/* Challenge Header */}
+      {/* Challenge Header — Option B with Rules on the Right */}
+      <div className="neon-card rounded-3xl p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* LEFT SIDE — Challenge Info */}
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">CHALLENGE</p>
+
+          <h2 className="text-3xl font-display">{challenge.name}</h2>
+
+          {challenge.description && (
+            <p className="text-sm text-slate-600 whitespace-pre-line">
+              {challenge.description}
+            </p>
+          )}
+
+          <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+            <span>👥 {members.length} members</span>
+            <span>⏳ {daysLeft} days left</span>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
+              Code: {challenge.join_code}
+            </span>
+
+            {userTeam && (
+              <span className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
+                {userTeam}
+              </span>
+            )}
+
+            <span className="text-sm text-slate-500">Week {currentWeek}</span>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE — RULES CARD */}
+<div className="neon-card rounded-3xl p-4">
+  <h3 className="text-lg font-semibold mb-3">Challenge Rules</h3>
+
+  <p className="text-sm text-slate-600 whitespace-pre-line">
+    {challenge.rules || "No rules provided."}
+  </p>
+</div>
+
+
+      {/* Member Stats */}
+      {isMember && (
+        <div className="grid grid-cols-3 gap-3 mt-5">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
+            <p className="text-2xl font-bold">🔥 {challengeStreak}</p>
+            <p className="text-xs text-slate-500 mt-1">Day Streak</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
+            <p className="text-2xl font-bold">⭐ {userTotalPoints}</p>
+            <p className="text-xs text-slate-500 mt-1">Total Points</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
+            <p className="text-2xl font-bold">{currentReps}</p>
+            <p className="text-xs text-slate-500 mt-1">Reps Target</p>
+          </div>
+        </div>
+      )}
+    </div>
+
+      {/* TODAY'S CHECK-IN — ONLY FOR MEMBERS */} 
+  {
+    isMember && (
       <div className="neon-card rounded-3xl p-6">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
-          CHALLENGE
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
+              TODAY'S EXERCISE
+            </p>
+            <h3 className="text-2xl font-semibold">
+              {todayExercise.emoji} {todayExercise.name}
+            </h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Target: <strong>{currentReps} reps</strong> • 50% ={" "}
+              {Math.ceil(currentReps * 0.5)} reps
+            </p>
+          </div>
 
-        <h2 className="text-3xl font-display mb-1">{challenge.name}</h2>
+          {checkedInToday && (
+            <div className="text-center">
+              <p className="text-3xl font-bold text-green-600">
+                +{todayPoints}
+              </p>
+              <p className="text-xs text-slate-500">pts earned</p>
+            </div>
+          )}
+        </div>
 
-        {/* Description */}
-        {challenge.description && (
-          <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">
-            {challenge.description}
+        {checkedInToday ? (
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
+            <p className="text-green-700 font-semibold">
+              ✅ Checked in today! Come back tomorrow 💪
+            </p>
+          </div>
+        ) : !userId ? (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center">
+            <p className="text-amber-700 text-sm">Log in to check in</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleCheckIn("50")}
+              disabled={checkingIn}
+              className="rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-400 hover:shadow-md transition-all p-4 text-left disabled:opacity-50"
+            >
+              <p className="text-2xl mb-1">🌗</p>
+              <p className="font-bold text-lg">50%+</p>
+              <p className="text-sm text-slate-600">
+                {Math.ceil(currentReps * 0.5)}+ reps
+              </p>
+              <p className="text-xs font-semibold text-slate-500 mt-2">
+                +1 point
+              </p>
+            </button>
+
+            <button
+              onClick={() => handleCheckIn("100")}
+              disabled={checkingIn}
+              className="rainbow-cta rounded-2xl p-4 text-left hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              <p className="text-2xl mb-1">🌕</p>
+              <p className="font-bold text-lg">100%+</p>
+              <p className="text-sm">{currentReps}+ reps</p>
+              <p className="text-xs font-semibold mt-2">+2 points</p>
+            </button>
+          </div>
+        )}
+
+        {/* Weekly Cardio */}
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">🏃 Weekly Cardio Goal</p>
+              <p className="text-sm text-slate-600">
+                {currentCardio} minutes this week
+              </p>
+            </div>
+            <button
+              onClick={() => setCardioChecked(!cardioChecked)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition ${cardioChecked
+                ? "bg-green-100 text-green-700 border border-green-300"
+                : "border border-slate-300 bg-white hover:bg-slate-50"
+                }`}
+            >
+              {cardioChecked ? "✅ Done!" : "Mark done"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Main Grid */ }
+  <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+
+    {/* Live Chat */}
+    <div className="neon-card rounded-3xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold">Live chat</h3>
+        <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
+          Streak squad
+        </span>
+      </div>
+
+      <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
+        {messages.length === 0 && (
+          <p className="text-sm text-slate-500">
+            No messages yet. Start the hype! 🎉
           </p>
         )}
 
-        {/* Meta info */}
-        <div className="flex items-center gap-4 mt-4 text-sm text-slate-500">
-          <span>👥 {members.length} members</span>
-
-          <span>
-            ⏳{" "}
-            {Math.max(
-              0,
-              Math.ceil(
-                (new Date(challenge.end_date).getTime() -
-                  new Date().getTime()) /
-                  (1000 * 60 * 60 * 24)
-              )
-            )}{" "}
-            days left
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 mt-2 flex-wrap">
-          <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
-            Code: {challenge.join_code}
-          </span>
-
-          {userTeam && (
-            <span className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
-              {userTeam}
-            </span>
-          )}
-
-          <span className="text-sm text-slate-500">Week {currentWeek}</span>
-        </div>
-
-        {/* Member Stats */}
-        {isMember && (
-          <div className="grid grid-cols-3 gap-3 mt-5">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
-              <p className="text-2xl font-bold">🔥 {challengeStreak}</p>
-              <p className="text-xs text-slate-500 mt-1">Day Streak</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
-              <p className="text-2xl font-bold">⭐ {userTotalPoints}</p>
-              <p className="text-xs text-slate-500 mt-1">Total Points</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-center">
-              <p className="text-2xl font-bold">{currentReps}</p>
-              <p className="text-xs text-slate-500 mt-1">Reps Target</p>
-            </div>
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className="rounded-2xl border border-slate-100 bg-white/80 p-3"
+          >
+            <p className="text-sm font-semibold">
+              {message.author?.name || "Unknown"}
+            </p>
+            <p className="text-sm text-slate-600">{message.text}</p>
           </div>
-        )}
+        ))}
       </div>
 
-      {/* TODAY'S CHECK-IN — ONLY FOR MEMBERS */}
-      {isMember && (
-        <div className="neon-card rounded-3xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
-                TODAY'S EXERCISE
-              </p>
-              <h3 className="text-2xl font-semibold">
-                {todayExercise.emoji} {todayExercise.name}
-              </h3>
-              <p className="text-sm text-slate-600 mt-1">
-                Target: <strong>{currentReps} reps</strong> • 50% ={" "}
-                {Math.ceil(currentReps * 0.5)} reps
-              </p>
-            </div>
+      <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          placeholder={userId ? "Cheer them on..." : "Log in to chat"}
+          className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+          disabled={!userId}
+        />
 
-            {checkedInToday && (
-              <div className="text-center">
-                <p className="text-3xl font-bold text-green-600">
-                  +{todayPoints}
-                </p>
-                <p className="text-xs text-slate-500">pts earned</p>
-              </div>
-            )}
-          </div>
-
-          {checkedInToday ? (
-            <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
-              <p className="text-green-700 font-semibold">
-                ✅ Checked in today! Come back tomorrow 💪
-              </p>
-            </div>
-          ) : !userId ? (
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center">
-              <p className="text-amber-700 text-sm">Log in to check in</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleCheckIn("50")}
-                disabled={checkingIn}
-                className="rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-400 hover:shadow-md transition-all p-4 text-left disabled:opacity-50"
-              >
-                <p className="text-2xl mb-1">🌗</p>
-                <p className="font-bold text-lg">50%+</p>
-                <p className="text-sm text-slate-600">
-                  {Math.ceil(currentReps * 0.5)}+ reps
-                </p>
-                <p className="text-xs font-semibold text-slate-500 mt-2">
-                  +1 point
-                </p>
-              </button>
-
-              <button
-                onClick={() => handleCheckIn("100")}
-                disabled={checkingIn}
-                className="rainbow-cta rounded-2xl p-4 text-left hover:shadow-xl transition-all disabled:opacity-50"
-              >
-                <p className="text-2xl mb-1">🌕</p>
-                <p className="font-bold text-lg">100%+</p>
-                <p className="text-sm">{currentReps}+ reps</p>
-                <p className="text-xs font-semibold mt-2">+2 points</p>
-              </button>
-            </div>
-          )}
-
-          {/* Weekly Cardio */}
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">🏃 Weekly Cardio Goal</p>
-                <p className="text-sm text-slate-600">
-                  {currentCardio} minutes this week
-                </p>
-              </div>
-              <button
-                onClick={() => setCardioChecked(!cardioChecked)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
-                  cardioChecked
-                    ? "bg-green-100 text-green-700 border border-green-300"
-                    : "border border-slate-300 bg-white hover:bg-slate-50"
-                }`}
-              >
-                {cardioChecked ? "✅ Done!" : "Mark done"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Grid */}
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-
-        {/* Live Chat */}
-        <div className="neon-card rounded-3xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">Live chat</h3>
-            <span className="neon-chip rounded-full px-3 py-1 text-xs font-semibold">
-              Streak squad
-            </span>
-          </div>
-
-          <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1">
-            {messages.length === 0 && (
-              <p className="text-sm text-slate-500">
-                No messages yet. Start the hype! 🎉
-              </p>
-            )}
-
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className="rounded-2xl border border-slate-100 bg-white/80 p-3"
-              >
-                <p className="text-sm font-semibold">
-                  {message.author?.name || "Unknown"}
-                </p>
-                <p className="text-sm text-slate-600">{message.text}</p>
-              </div>
-            ))}
-          </div>
-
-          <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
-            <input
-              type="text"
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder={userId ? "Cheer them on..." : "Log in to chat"}
-              className="flex-1 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-              disabled={!userId}
-            />
-
-            <button
-              type="submit"
-              disabled={!userId || !messageText.trim()}
-              className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm disabled:opacity-50"
-            >
-              Send
-            </button>
-          </form>
-        </div>
-
-        {/* RULES CARD — always shown */}
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Challenge Rules</h3>
-
-          <div className="space-y-3 text-sm text-slate-600">
-
-            {/* New Year's Challenge special rules */}
-            {isNewYearsChallenge ? (
-              <>
-                <div>
-                  <p className="font-semibold text-slate-800 mb-1">📈 Weekly Progression</p>
-                  <p>Reps increase by <strong>+5 each week</strong>. Stay consistent and watch your strength grow.</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-800 mb-1">🔥 Daily Check‑Ins</p>
-                  <p>Earn <strong>1 point</strong> for 50% completion and <strong>2 points</strong> for 100%.</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-800 mb-1">🏃 Weekly Cardio Goal</p>
-                  <p>Complete <strong>{currentCardio} minutes</strong> of cardio each week.</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-800 mb-1">👥 Team Scoring</p>
-                  <p>Your points contribute to your team’s total. Cheer each other on in the live chat.</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-800 mb-1">⏳ Challenge Duration</p>
-                  <p>Runs from <strong>{challenge.start_date}</strong> to <strong>{challenge.end_date}</strong>.</p>
-                </div>
-              </>
-            ) : (
-              /* Creator-entered rules */
-              <p className="whitespace-pre-line">{challenge.rules || "No rules provided."}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Challenge Crew */}
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
-
-          <div className="space-y-3">
-            {members.length === 0 && (
-              <p className="text-sm text-slate-500">
-                Invite members with code: <strong>{challenge.join_code}</strong>
-              </p>
-            )}
-
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
-              >
-                <div>
-                  <p className="font-semibold text-sm">{member.name}</p>
-                  <p className="text-xs text-slate-500">
-                    ⭐ {member.total_points || 0} pts
-                  </p>
-                </div>
-
-                <span className="text-sm font-semibold">
-                  🔥 {member.streak || 0}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* RULES — Only show for New Year's Challenge */}
-      {isNewYearsChallenge && (
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Challenge Rules</h3>
-
-          <div className="space-y-3 text-sm text-slate-600">
-
-            <div>
-              <p className="font-semibold text-slate-800 mb-1">📈 Weekly Progression</p>
-              <p>
-                Reps increase by <strong>+5 each week</strong>. Stay consistent and watch your strength grow.
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold text-slate-800 mb-1">🔥 Daily Check‑Ins</p>
-              <p>
-                Earn <strong>1 point</strong> for 50% completion and <strong>2 points</strong> for 100%.
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold text-slate-800 mb-1">🏃 Weekly Cardio Goal</p>
-              <p>
-                Complete <strong>{currentCardio} minutes</strong> of cardio each week.
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold text-slate-800 mb-1">👥 Team Scoring</p>
-              <p>
-                Your points contribute to your team’s total. Cheer each other on in the live chat.
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold text-slate-800 mb-1">⏳ Challenge Duration</p>
-              <p>
-                Runs from <strong>{challenge.start_date}</strong> to <strong>{challenge.end_date}</strong>.
-              </p>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* JOIN BUTTON */}
-      {!isMember && wixUser && userId && (
-        <div className="neon-card rounded-3xl p-6 text-center">
-          <button
-            onClick={async () => {
-              const { joinChallenge } = await import("@/lib/storage");
-              const success = await joinChallenge(challenge.join_code, userId);
-              if (success) window.location.reload();
-              else alert("Failed to join challenge");
-            }}
-            className="rainbow-cta px-6 py-3 rounded-full font-semibold"
-          >
-            Join Challenge
-          </button>
-        </div>
-      )}
-
-      {/* Leave Challenge Button */}
-      {wixUser && userId && isMember && (
-        <div className="neon-card rounded-3xl p-6 text-center">
-          <button
-            onClick={async () => {
-              const { leaveChallenge } = await import("@/lib/storage");
-              const success = await leaveChallenge(challengeId, userId);
-              if (success) window.location.reload();
-              else alert("Failed to leave challenge");
-            }}
-            className="px-6 py-3 rounded-full font-semibold border border-red-300 bg-red-50 hover:bg-red-100 transition"
-          >
-            Leave Challenge
-          </button>
-        </div>
-      )}
-
+        <button
+          type="submit"
+          disabled={!userId || !messageText.trim()}
+          className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
     </div>
+
+    {/* Challenge Crew */}
+    <div className="neon-card rounded-3xl p-6">
+      <h3 className="text-xl font-semibold mb-4">Challenge crew</h3>
+
+      <div className="space-y-3">
+        {members.length === 0 && (
+          <p className="text-sm text-slate-500">
+            Invite members with code: <strong>{challenge.join_code}</strong>
+          </p>
+        )}
+
+        {members.map((member) => (
+          <div
+            key={member.id}
+            className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
+          >
+            <div>
+              <p className="font-semibold text-sm">{member.name}</p>
+              <p className="text-xs text-slate-500">
+                ⭐ {member.total_points || 0} pts
+              </p>
+            </div>
+
+            <span className="text-sm font-semibold">
+              🔥 {member.streak || 0}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  {/* RULES — Only show for New Year's Challenge */ }
+  {
+    isNewYearsChallenge && (
+      <div className="neon-card rounded-3xl p-6">
+        <h3 className="text-xl font-semibold mb-4">Challenge Rules</h3>
+
+        <div className="space-y-3 text-sm text-slate-600">
+
+          <div>
+            <p className="font-semibold text-slate-800 mb-1">📈 Weekly Progression</p>
+            <p>
+              Reps increase by <strong>+5 each week</strong>. Stay consistent and watch your strength grow.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-800 mb-1">🔥 Daily Check-Ins</p>
+            <p>
+              Earn <strong>1 point</strong> for 50% completion and <strong>2 points</strong> for 100%.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-800 mb-1">🏃 Weekly Cardio Goal</p>
+            <p>
+              Complete <strong>{currentCardio} minutes</strong> of cardio each week.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-800 mb-1">👥 Team Scoring</p>
+            <p>
+              Your points contribute to your team’s total. Cheer each other on in the live chat.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-800 mb-1">⏳ Challenge Duration</p>
+            <p>
+              Runs from <strong>{challenge.start_date}</strong> to <strong>{challenge.end_date}</strong>.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
+  {/* JOIN BUTTON */ }
+  {
+    !isMember && wixUser && userId && (
+      <div className="neon-card rounded-3xl p-6 text-center">
+        <button
+          onClick={async () => {
+            const { joinChallenge } = await import("@/lib/storage");
+            const success = await joinChallenge(challenge.join_code, userId);
+            if (success) window.location.reload();
+            else alert("Failed to join challenge");
+          }}
+          className="rainbow-cta px-6 py-3 rounded-full font-semibold"
+        >
+          Join Challenge
+        </button>
+      </div>
+    )
+  }
+
+  {/* Leave Challenge Button */ }
+  {
+    wixUser && userId && isMember && (
+      <div className="neon-card rounded-3xl p-6 text-center">
+        <button
+          onClick={async () => {
+            const { leaveChallenge } = await import("@/lib/storage");
+            const success = await leaveChallenge(challengeId, userId);
+            if (success) window.location.reload();
+            else alert("Failed to leave challenge");
+          }}
+          className="px-6 py-3 rounded-full font-semibold border border-red-300 bg-red-50 hover:bg-red-100 transition"
+        >
+          Leave Challenge
+        </button>
+      </div>
+    )
+  }
+
+   </div> 
   );
 }
