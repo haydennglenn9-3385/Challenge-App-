@@ -1,6 +1,9 @@
 import { supabase } from './supabase';
 
+// ======================
 // Types
+// ======================
+
 export interface User {
   id: string;
   wix_id: string;
@@ -24,6 +27,9 @@ export interface Challenge {
   scoring_type?: string;
   description?: string;
   created_at: string;
+
+  // NEW: member count
+  member_count?: number;
 }
 
 export interface DailyLog {
@@ -46,7 +52,9 @@ export interface Message {
   author?: User;
 }
 
-// ============ USERS ============
+// ======================
+// USERS
+// ======================
 
 export async function getUser(wixId: string): Promise<User | null> {
   const { data, error } = await supabase
@@ -109,12 +117,18 @@ export async function createOrUpdateUser(userData: {
   }
 }
 
-// ============ CHALLENGES ============
+// ======================
+// CHALLENGES
+// ======================
 
+// ⭐ UPDATED: now includes member_count
 export async function getChallenges(): Promise<Challenge[]> {
   const { data, error } = await supabase
     .from('challenges')
-    .select('*')
+    .select(`
+      *,
+      challenge_members(count)
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -122,13 +136,20 @@ export async function getChallenges(): Promise<Challenge[]> {
     return [];
   }
 
-  return data || [];
+  return (data || []).map((c: any) => ({
+    ...c,
+    member_count: c.challenge_members?.[0]?.count ?? 0,
+  }));
 }
 
+// ⭐ UPDATED: getChallengeById now includes member_count too
 export async function getChallengeById(id: string): Promise<Challenge | null> {
   const { data, error } = await supabase
     .from('challenges')
-    .select('*')
+    .select(`
+      *,
+      challenge_members(count)
+    `)
     .eq('id', id)
     .single();
 
@@ -137,7 +158,10 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
     return null;
   }
 
-  return data;
+  return {
+    ...data,
+    member_count: data.challenge_members?.[0]?.count ?? 0,
+  };
 }
 
 export async function createChallenge(challengeData: {
@@ -150,7 +174,7 @@ export async function createChallenge(challengeData: {
 }): Promise<Challenge | null> {
   const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   const startDate = new Date().toISOString().split('T')[0];
-  const endDate = new Date(Date.now() + challengeData.duration * 24 * 60 * 60 * 1000)
+  const endDate = new Date(Date.now() + challengeData.duration * 86400000)
     .toISOString()
     .split('T')[0];
 
@@ -198,11 +222,13 @@ export async function createChallenge(challengeData: {
     user_id: challengeData.creatorId,
   });
 
-  return data;
+  return {
+    ...data,
+    member_count: 1,
+  };
 }
 
 export async function joinChallenge(joinCode: string, userId: string): Promise<boolean> {
-  // Find challenge by join code
   const { data: challenge, error: challengeError } = await supabase
     .from('challenges')
     .select('*')
@@ -214,7 +240,6 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
     return false;
   }
 
-  // Check if user is already in this challenge
   const { data: existing } = await supabase
     .from('challenge_members')
     .select('id')
@@ -223,22 +248,18 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
     .single();
 
   if (existing) {
-    console.log('User already in challenge');
     return false;
   }
 
-  // For New Year's challenge (NYF2026), auto-balance across the 3 teams
-  let assignedTeamId = challenge.team_id; // Default to challenge's team
+  let assignedTeamId = challenge.team_id;
 
   if (joinCode === 'NYF2026') {
-    // Get the 3 New Year's teams
     const { data: teams } = await supabase
       .from('teams')
       .select('id, name')
       .in('name', ['Team Hayden', 'Team Aria', 'Team Tiffany']);
 
     if (teams && teams.length === 3) {
-      // Count members in each team
       const teamCounts = await Promise.all(
         teams.map(async (team) => {
           const { count } = await supabase
@@ -249,13 +270,11 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
         })
       );
 
-      // Find team with least members
       teamCounts.sort((a, b) => a.count - b.count);
       assignedTeamId = teamCounts[0].teamId;
     }
   }
 
-  // Add user to assigned team
   const { error: teamError } = await supabase
     .from('team_members')
     .insert({
@@ -268,7 +287,6 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
     return false;
   }
 
-  // Add user to challenge
   const { error: memberError } = await supabase
     .from('challenge_members')
     .insert({
@@ -286,7 +304,6 @@ export async function joinChallenge(joinCode: string, userId: string): Promise<b
 
 export async function leaveChallenge(challengeId: string, userId: string): Promise<boolean> {
   try {
-    // Remove from challenge_members
     const { error: memberError } = await supabase
       .from('challenge_members')
       .delete()
@@ -298,7 +315,6 @@ export async function leaveChallenge(challengeId: string, userId: string): Promi
       return false;
     }
 
-    // Get challenge to find team_id
     const { data: challenge } = await supabase
       .from('challenges')
       .select('team_id')
@@ -306,7 +322,6 @@ export async function leaveChallenge(challengeId: string, userId: string): Promi
       .single();
 
     if (challenge) {
-      // Remove from team_members
       await supabase
         .from('team_members')
         .delete()
@@ -321,7 +336,9 @@ export async function leaveChallenge(challengeId: string, userId: string): Promi
   }
 }
 
-// ============ CHECK-INS / DAILY LOGS ============
+// ======================
+// DAILY LOGS
+// ======================
 
 export async function recordCheckIn(
   userId: string,
@@ -382,7 +399,9 @@ export async function getUserStreak(userId: string, challengeId: string): Promis
   return data.length;
 }
 
-// ============ MESSAGES ============
+// ======================
+// MESSAGES
+// ======================
 
 export async function getMessages(teamId: string): Promise<Message[]> {
   const { data, error } = await supabase
@@ -427,7 +446,9 @@ export async function sendMessage(
   return true;
 }
 
-// ============ TEAM MEMBERS ============
+// ======================
+// TEAM MEMBERS
+// ======================
 
 export async function getTeamMembers(teamId: string): Promise<User[]> {
   const { data, error } = await supabase
@@ -451,7 +472,9 @@ export async function getTeamMembers(teamId: string): Promise<User[]> {
   return (data || []).map((item: any) => item.user);
 }
 
-// ============ BACKWARD COMPATIBILITY ============
+// ======================
+// BACKWARD COMPATIBILITY
+// ======================
 
 export function ensureSeedData() {
   // No-op
