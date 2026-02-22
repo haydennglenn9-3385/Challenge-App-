@@ -51,7 +51,7 @@ const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
 const ACTIONS = [
   { icon: "➕", label: "New Challenge", bg: "#fde0ef" },
-  { icon: "🔗", label: "Join with Code", bg: "#fdf6d3" },
+  { icon: "🔗", label: "Join", bg: "#fdf6d3" },
   { icon: "👀", label: "View All", bg: "#d4f5e2" },
   { icon: "🏅", label: "Leaderboard", bg: "#e8d9f7" },
 ] as const;
@@ -708,7 +708,7 @@ export default function HomePage() {
                     className="action-btn"
                     onClick={() => {
                       if (btn.label === "New Challenge") router.push("/embed/challenges/new");
-                      if (btn.label === "Join with Code") router.push("/embed/join");
+                      if (btn.label === "Join") router.push("/embed/join");
                       if (btn.label === "View All") router.push("/embed/challenges");
                       if (btn.label === "Leaderboard") router.push("/embed/leaderboard");
                     }}
