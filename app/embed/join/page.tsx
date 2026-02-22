@@ -1,73 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { joinChallenge } from "@/lib/storage";
-import { useUser } from "@/lib/UserContext";
+import { createClient } from "@supabase/supabase-js";
 
-const LGBTQ_FITNESS_FACTS = [
-  "🏳️‍🌈 The first gay softball league was founded in 1977 in San Francisco - now there are over 40 leagues across North America!",
-  "💪 Studies show LGBTQ+ folks who participate in community sports report 50% higher life satisfaction than those who don't.",
-  "🏃 Tom Waddell founded the Gay Games in 1982. Now it attracts over 10,000 athletes from 70+ countries!",
-  "⚽ Lesbian soccer teams have been organizing since the 1970s - before Title IX even existed!",
-  "🎾 Billie Jean King came out in 1981 and became one of the first major athletes to champion LGBTQ+ rights in sports.",
-  "🏋️ Research shows that LGBTQ-inclusive gyms see 30% higher member retention - community matters!",
-  "💃 Queer folks invented voguing in the 1960s ballroom scene - a full-body workout disguised as fabulous performance art!",
-];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function JoinWithCodePage() {
+export default function SignupPage() {
   const router = useRouter();
-  const { user, getUserParams } = useUser();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [joining, setJoining] = useState(false);
-  const [randomFact, setRandomFact] = useState("");
 
-  useEffect(() => {
-    setRandomFact(LGBTQ_FITNESS_FACTS[Math.floor(Math.random() * LGBTQ_FITNESS_FACTS.length)]);
-  }, []);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const navigate = (path: string) => {
-    router.push(path + getUserParams());
-  };
-
-  const handleJoin = async (e: React.FormEvent) => {
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg("");
 
-    if (!code.trim()) {
-      setError("Please enter a challenge code");
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg("Email and password are required.");
       return;
     }
 
-    if (!user) {
-      setError("You need to be logged in to join a challenge");
+    setLoading(true);
+
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password.trim(),
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
       return;
     }
 
-    setJoining(true);
-    setError("");
-
-    // Get user's Supabase ID
-    const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
-    const userData = await userResponse.json();
-
-    if (!userData || !userData.id) {
-      setError("Could not find your account. Please try refreshing.");
-      setJoining(false);
-      return;
-    }
-
-    const success = await joinChallenge(code.trim().toUpperCase(), userData.id);
-
-    if (success) {
-      // Redirect to challenges page with success
-      navigate("/embed/challenges");
-    } else {
-      setError("Invalid code or you're already in this challenge. Please check and try again.");
-      setJoining(false);
-    }
-  };
+    router.push("/login");
+  }
 
   return (
     <div className="space-y-8">
@@ -81,115 +54,85 @@ export default function JoinWithCodePage() {
         </button>
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/embed/challenges")}
+            onClick={() => router.push("/login")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
-            All Challenges
-          </button>
-          <button
-            onClick={() => navigate("/embed/profile")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-          >
-            Dashboard
+            Log In
           </button>
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2 items-start">
-        {/* Left: Join Form */}
+        {/* Left: Signup Form */}
         <div className="space-y-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">JOIN</p>
-            <h2 className="text-4xl font-display mb-2">Enter Your Code</h2>
-            <p className="text-slate-600">Got an invite from a friend? Join their challenge here!</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">SIGN UP</p>
+            <h2 className="text-4xl font-display mb-2">Create Your Account</h2>
+            <p className="text-slate-600">Join the Queers & Allies Fitness community!</p>
           </div>
 
-          <form onSubmit={handleJoin} className="neon-card rounded-3xl p-8 space-y-6">
-            {!user && (
+          <form onSubmit={handleSignup} className="neon-card rounded-3xl p-8 space-y-6">
+            {errorMsg && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <p className="text-sm text-amber-700 font-semibold mb-2">You need to be logged in to join</p>
-                <a href="https://www.queersandalliesfitness.com/account/member">
-                  <button type="button" className="rainbow-cta rounded-full px-4 py-2 text-sm font-semibold">
-                    Log in / Sign up
-                  </button>
-                </a>
+                <p className="text-sm text-amber-700 font-semibold">{errorMsg}</p>
               </div>
             )}
 
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">Challenge Code</label>
+              <label className="text-sm font-semibold text-slate-700">Email</label>
               <input
-                type="text"
-                value={code}
+                type="email"
+                value={email}
                 onChange={(e) => {
-                  setCode(e.target.value.toUpperCase());
-                  setError("");
+                  setEmail(e.target.value);
+                  setErrorMsg("");
                 }}
-                placeholder="ABC123"
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg font-semibold text-center tracking-wider focus:outline-none focus:ring-2 focus:ring-slate-300 uppercase"
-                maxLength={10}
+                placeholder="you@example.com"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-slate-300"
               />
-              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-slate-700">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMsg("");
+                }}
+                placeholder="••••••••"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
             </div>
 
             <button
               type="submit"
-              disabled={joining || !user}
+              disabled={loading}
               className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50"
             >
-              {joining ? "Joining..." : "Join Challenge"}
+              {loading ? "Creating account..." : "Sign Up"}
             </button>
 
             <div className="pt-2 border-t border-slate-200 text-center">
-              <p className="text-sm text-slate-600 mb-3">Don't have a code?</p>
+              <p className="text-sm text-slate-600 mb-3">Already have an account?</p>
               <button
                 type="button"
-                onClick={() => navigate("/embed/challenges")}
+                onClick={() => router.push("/login")}
                 className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline"
               >
-                Browse public challenges
+                Log in
               </button>
             </div>
           </form>
         </div>
 
-        {/* Right: Fun Facts + Steps */}
-        <div className="space-y-6">
-          <div className="neon-card rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-4">💡 Did you know?</h3>
-            {randomFact ? (
-              <p className="text-slate-700 leading-relaxed">{randomFact}</p>
-            ) : (
-              <p className="text-slate-400">Loading fun fact...</p>
-            )}
-          </div>
-
-          <div className="neon-card rounded-3xl p-8 space-y-4">
-            <h3 className="text-xl font-semibold mb-2">✨ What happens next?</h3>
-            <div className="space-y-3 text-slate-700">
-              <div className="flex gap-3">
-                <span className="text-2xl">1️⃣</span>
-                <div>
-                  <p className="font-semibold">Join the crew</p>
-                  <p className="text-sm text-slate-600">You'll instantly become part of the challenge team</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-2xl">2️⃣</span>
-                <div>
-                  <p className="font-semibold">Start your streak</p>
-                  <p className="text-sm text-slate-600">Check in daily to build momentum</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-2xl">3️⃣</span>
-                <div>
-                  <p className="font-semibold">Cheer each other on</p>
-                  <p className="text-sm text-slate-600">Use the chat to hype up your teammates</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Right: Cute Info Card */}
+        <div className="neon-card rounded-3xl p-8 space-y-4">
+          <h3 className="text-xl font-semibold mb-2">✨ Welcome!</h3>
+          <p className="text-slate-700 leading-relaxed">
+            Create your account to join challenges, track your streak, cheer on teammates, and be part of a joyful, inclusive fitness community.
+          </p>
         </div>
       </div>
     </div>
