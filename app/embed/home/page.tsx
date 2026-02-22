@@ -4,6 +4,7 @@
 
 import { useEffect, useState, CSSProperties } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -328,6 +329,7 @@ function ChallengeCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+  const router = useRouter();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [streak, setStreak] = useState<number | null>(null);
@@ -701,7 +703,16 @@ export default function HomePage() {
               {/* Quick actions */}
               <div className="action-grid">
                 {ACTIONS.map((btn) => (
-                  <div key={btn.label} className="action-btn">
+                  <div
+                    key={btn.label}
+                    className="action-btn"
+                    onClick={() => {
+                      if (btn.label === "New Challenge") router.push("/embed/challenges/new");
+                      if (btn.label === "Join with Code") router.push("/embed/join");
+                      if (btn.label === "View All") router.push("/embed/challenges");
+                      if (btn.label === "Leaderboard") router.push("/embed/leaderboard");
+                    }}
+                  >
                     <div
                       className="action-icon"
                       style={{ background: btn.bg }}
@@ -712,6 +723,7 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+
 
               {/* Featured Challenges */}
               <div
