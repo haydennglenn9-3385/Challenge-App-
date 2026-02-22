@@ -62,7 +62,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="page-padding space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <button
@@ -159,7 +159,7 @@ export default function SignupPage() {
           </form>
         </div>
 
-        {/* RIGHT: FUN FACTS + STEPS (UNCHANGED) */}
+        {/* RIGHT: FUN FACTS + STEPS */}
         <div className="space-y-6">
           <div className="neon-card rounded-3xl p-8">
             <h3 className="text-xl font-semibold mb-4">💡 Did you know?</h3>
@@ -204,6 +204,21 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+      {/* PAGE PADDING CSS */}
+      <style>{`
+        .page-padding {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        @media (min-width: 768px) {
+          .page-padding {
+            padding-left: 24px;
+            padding-right: 24px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
