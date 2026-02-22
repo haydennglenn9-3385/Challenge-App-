@@ -1,63 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 import { createChallenge } from "@/lib/storage";
-import { useUser } from "@/lib/UserContext";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const DURATION_UNITS = [
-  { value: 'minutes', label: 'Minutes' },
-  { value: 'hours', label: 'Hours' },
-  { value: 'days', label: 'Days' },
-  { value: 'weeks', label: 'Weeks' },
-  { value: 'months', label: 'Months' },
-  { value: 'years', label: 'Years' },
+  { value: "minutes", label: "Minutes" },
+  { value: "hours", label: "Hours" },
+  { value: "days", label: "Days" },
+  { value: "weeks", label: "Weeks" },
+  { value: "months", label: "Months" },
+  { value: "years", label: "Years" },
 ];
 
 const SCORING_SYSTEMS = [
   {
-    value: 'total_points',
-    label: 'Total Accumulated Points',
-    description: 'Team score = sum of all member points'
+    value: "total_points",
+    label: "Total Accumulated Points",
+    description: "Team score = sum of all member points",
   },
   {
-    value: 'average_points',
-    label: 'Average Score Per Member',
-    description: 'Team score = average of member points (fair for different team sizes)'
+    value: "average_points",
+    label: "Average Score Per Member",
+    description: "Team score = average of member points (fair for different team sizes)",
   },
   {
-    value: 'tiered',
-    label: 'Tiered Completion',
-    description: 'Different point values for 0%, 50%, or 100% completion levels'
+    value: "tiered",
+    label: "Tiered Completion",
+    description: "Different point values for 0%, 50%, or 100% completion levels",
   },
   {
-    value: 'streak',
-    label: 'Streak-Based Scoring',
-    description: 'Points for daily streaks - encourages consistency'
+    value: "streak",
+    label: "Streak-Based Scoring",
+    description: "Points for daily streaks - encourages consistency",
   },
   {
-    value: 'task_completion',
-    label: 'Task Completion',
-    description: 'Points for completing specific tasks'
+    value: "task_completion",
+    label: "Task Completion",
+    description: "Points for completing specific tasks",
   },
   {
-    value: 'progressive',
-    label: 'Progressive Exercise Challenge',
-    description: 'Daily exercises with increasing difficulty (50% = 1pt, 100% = 2pts)'
+    value: "progressive",
+    label: "Progressive Exercise Challenge",
+    description: "Daily exercises with increasing difficulty (50% = 1pt, 100% = 2pts)",
   },
 ];
 
 export default function NewChallengePage() {
   const router = useRouter();
-  const { user, getUserParams } = useUser();
+
+  const [session, setSession] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
+
   const [title, setTitle] = useState("");
   const [durationValue, setDurationValue] = useState(21);
-  const [durationUnit, setDurationUnit] = useState('days');
+  const [durationUnit, setDurationUnit] = useState("days");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [scoringType, setScoringType] = useState('average_points');
+  const [scoringType, setScoringType] = useState("average_points");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // ⭐ NEW: Supabase session check
+  useEffect(() => {
+    const load = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/auth");
+      } else {
+        setSession(session);
+      }
+      setLoadingSession(false);
+    };
+    load();
+  }, [router]);
 
   const convertToDays = () => {
     const conversions: Record<string, number> = {
@@ -73,73 +95,51 @@ export default function NewChallengePage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setError("");
 
-    if (!user) {
-      setError("You must be logged in to create a challenge");
+    if (!session) {
+      setError("You must be logged in to create a challenge.");
       return;
     }
 
     setSubmitting(true);
-    setError("");
 
-    const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
-    const userData = await userResponse.json();
-
-    if (!userData || !userData.id) {
-      setError("Could not find your user account. Please try refreshing the page.");
-      setSubmitting(false);
-      return;
-    }
+    const userId = session.user.id;
 
     const durationInDays = convertToDays();
 
     const challenge = await createChallenge({
       name: title,
       duration: durationInDays,
-      description: description,
-      creatorId: userData.id,
-      isPublic: isPublic,
-      scoringType: scoringType,
+      description,
+      creatorId: userId,
+      isPublic,
+      scoringType,
     });
 
     if (challenge) {
-      router.push(`/embed/challenge/${challenge.id}${getUserParams()}`);
+      router.push(`/embed/challenge/${challenge.id}`);
     } else {
       setError("Failed to create challenge. Please try again.");
       setSubmitting(false);
     }
   };
 
-  if (!user) {
+  // ⭐ NEW: Loading state
+  if (loadingSession) {
     return (
-      <div className="space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-          <button
-            onClick={() => router.push(`/embed/challenges${getUserParams()}`)}
-            className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm"
-          >
-            ← Back to Challenges
-          </button>
-        </div>
-        <div className="neon-card rounded-3xl p-8 text-center">
-          <p className="text-slate-600 mb-2 font-semibold">You need to be logged in to create a challenge.</p>
-          <p className="text-sm text-slate-500 mb-6">Please log in through the Wix member portal first.</p>
-          <a href="https://www.queersandalliesfitness.com/account/member">
-            <button className="rainbow-cta rounded-full px-6 py-3 font-semibold">
-              Log in / Sign up
-            </button>
-          </a>
-        </div>
+      <div className="page-padding">
+        <p className="text-center text-slate-600">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="page-padding space-y-8">
       {/* Navigation Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <button
-          onClick={() => router.push(`/embed/challenges${getUserParams()}`)}
+          onClick={() => router.push("/embed/challenges")}
           className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
         >
           ← Back to Challenges
@@ -147,13 +147,14 @@ export default function NewChallengePage() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => router.push(`/${getUserParams()}`)}
+            onClick={() => router.push("/embed/home")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             Home
           </button>
+
           <button
-            onClick={() => router.push(`/embed/dashboard${getUserParams()}`)}
+            onClick={() => router.push("/embed/dashboard")}
             className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
           >
             Dashboard
@@ -210,13 +211,16 @@ export default function NewChallengePage() {
                   className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                   required
                 />
+
                 <select
                   value={durationUnit}
                   onChange={(e) => setDurationUnit(e.target.value)}
                   className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 >
-                  {DURATION_UNITS.map(unit => (
-                    <option key={unit.value} value={unit.value}>{unit.label}</option>
+                  {DURATION_UNITS.map((unit) => (
+                    <option key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -230,21 +234,18 @@ export default function NewChallengePage() {
                   type="button"
                   onClick={() => setIsPublic(true)}
                   className={`flex-1 px-4 py-3 rounded-2xl border-2 transition ${
-                    isPublic
-                      ? 'border-slate-700 bg-slate-50'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                    isPublic ? "border-slate-700 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"
                   }`}
                 >
                   <p className="font-semibold">🌍 Public</p>
                   <p className="text-xs text-slate-600">Anyone can join</p>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setIsPublic(false)}
                   className={`flex-1 px-4 py-3 rounded-2xl border-2 transition ${
-                    !isPublic
-                      ? 'border-slate-700 bg-slate-50'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                    !isPublic ? "border-slate-700 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"
                   }`}
                 >
                   <p className="font-semibold">🔒 Private</p>
@@ -261,14 +262,15 @@ export default function NewChallengePage() {
                 onChange={(e) => setScoringType(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
               >
-                {SCORING_SYSTEMS.map(system => (
+                {SCORING_SYSTEMS.map((system) => (
                   <option key={system.value} value={system.value}>
                     {system.label}
                   </option>
                 ))}
               </select>
+
               <p className="text-xs text-slate-500 mt-2">
-                {SCORING_SYSTEMS.find(s => s.value === scoringType)?.description}
+                {SCORING_SYSTEMS.find((s) => s.value === scoringType)?.description}
               </p>
             </div>
 
@@ -291,18 +293,24 @@ export default function NewChallengePage() {
                 <p className="font-semibold text-slate-900">Total Points</p>
                 <p className="text-slate-600">Sum of all team members' points together</p>
               </div>
+
               <div>
                 <p className="font-semibold text-slate-900">Average Points</p>
-                <p className="text-slate-600">Fair for teams of different sizes - divides total points by member count</p>
+                <p className="text-slate-600">
+                  Fair for teams of different sizes - divides total points by member count
+                </p>
               </div>
+
               <div>
                 <p className="font-semibold text-slate-900">Tiered Completion</p>
-                <p className="text-slate-600">Award different points for partial (50%) vs full (100%) completion</p>
+                <p className="text-slate-600">Award different points for partial vs full completion</p>
               </div>
+
               <div>
                 <p className="font-semibold text-slate-900">Streak-Based</p>
                 <p className="text-slate-600">Rewards daily consistency with bonus points for streaks</p>
               </div>
+
               <div>
                 <p className="font-semibold text-slate-900">Progressive Exercise</p>
                 <p className="text-slate-600">Difficulty increases weekly - great for fitness challenges</p>
@@ -320,6 +328,7 @@ export default function NewChallengePage() {
                   <p className="text-sm text-slate-600">Invite friends to join</p>
                 </div>
               </div>
+
               <div className="flex gap-3">
                 <span className="text-2xl">2️⃣</span>
                 <div>
@@ -327,6 +336,7 @@ export default function NewChallengePage() {
                   <p className="text-sm text-slate-600">Build your streak</p>
                 </div>
               </div>
+
               <div className="flex gap-3">
                 <span className="text-2xl">3️⃣</span>
                 <div>
@@ -338,6 +348,22 @@ export default function NewChallengePage() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .page-padding {
+          padding-left: 16px;
+          padding-right: 16px;
+          padding-top: 24px;
+        }
+
+        @media (min-width: 768px) {
+          .page-padding {
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 32px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
