@@ -13,7 +13,7 @@ const supabase = createClient(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FeedType = "streak" | "join" | "score" | "team" | "message";
+type FeedType = "streak" | "score" | "team" | "message";
 
 interface Challenge {
   id: string;
@@ -41,7 +41,6 @@ const CHIP_STYLES: Record<
   { bg: string; color: string; label: string }
 > = {
   streak: { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
-  join: { bg: "#d4f5e2", color: "#1b7a4e", label: "✅ Joined" },
   score: { bg: "#e8d9f7", color: "#7b2d8b", label: "📊 Score" },
   team: { bg: "#fde0ef", color: "#b5003c", label: "🏆 Team" },
   message: { bg: "#d4eaf7", color: "#118ab2", label: "💬 Post" },
@@ -51,7 +50,7 @@ const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
 const ACTIONS = [
   { icon: "➕", label: "New Challenge", bg: "#fde0ef" },
-  { icon: "🔗", label: "Join", bg: "#fdf6d3" },
+  { icon: "🔗", label: "Sign up or Log in", bg: "#fdf6d3" },
   { icon: "👀", label: "View All", bg: "#d4f5e2" },
   { icon: "🏅", label: "Leaderboard", bg: "#e8d9f7" },
 ] as const;
@@ -708,7 +707,7 @@ export default function HomePage() {
                     className="action-btn"
                     onClick={() => {
                       if (btn.label === "New Challenge") router.push("/embed/challenges/new");
-                      if (btn.label === "Join") router.push("/embed/join");
+                      if (btn.label === "Sign up or Log in") router.push("/auth");
                       if (btn.label === "View All") router.push("/embed/challenges");
                       if (btn.label === "Leaderboard") router.push("/embed/leaderboard");
                     }}
