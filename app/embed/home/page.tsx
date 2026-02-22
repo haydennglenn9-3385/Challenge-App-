@@ -541,6 +541,18 @@ export default function HomePage() {
           }
         }
 
+                .page-padding {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        @media (min-width: 768px) {
+          .page-padding {
+            padding-left: 24px;
+            padding-right: 24px;
+          }
+        }
+
         @media (min-width: 621px) {
           .bottom-nav {
             position: sticky;
@@ -567,7 +579,7 @@ export default function HomePage() {
         <div className="wrapper" style={desktopWrapper}>
           <div style={colStyle}>
             {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}>
+           <div className="page-padding" style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}>
               {/* Wordmark */}
               <div style={{ padding: "16px 16px 8px" }}>
                 <div
