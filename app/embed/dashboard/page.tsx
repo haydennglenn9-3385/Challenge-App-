@@ -1,44 +1,63 @@
 "use client";
 
+// app/embed/dashboard/page.tsx — Queers & Allies Fitness · Personal Dashboard
+// Wix auth (useUser, getUserParams, wix_id) fully replaced with Supabase auth.
+
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase";
 
 function DashboardContent() {
   const router = useRouter();
-  const { user: wixUser, getUserParams } = useUser();
 
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile]                   = useState<any>(null);
   const [joinedChallenges, setJoinedChallenges] = useState<any[]>([]);
   const [createdChallenges, setCreatedChallenges] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const navigate = (path: string) => router.push(path + getUserParams());
+  const [teamMembers, setTeamMembers]           = useState<any[]>([]);
+  const [loading, setLoading]                   = useState(true);
+  const [authed, setAuthed]                     = useState<boolean | null>(null); // null = still checking
 
   useEffect(() => {
     async function loadData() {
-      if (!wixUser) {
+      // 1. Get the logged-in Supabase user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setAuthed(false);
         setLoading(false);
         return;
       }
 
-      // Load user profile
+      setAuthed(true);
+
+      // 2. Load user profile from the users table
+      //    The users table id matches the Supabase auth user id.
       const { data: userData } = await supabase
         .from("users")
         .select("*")
-        .eq("wix_id", wixUser.userId)
+        .eq("id", user.id)
         .single();
 
       if (!userData) {
-        setLoading(false);
-        return;
+        // Profile doesn't exist yet — create a minimal one
+        const { data: newProfile } = await supabase
+          .from("users")
+          .insert({
+            id: user.id,
+            email: user.email,
+            name: user.user_metadata?.display_name || user.email?.split("@")[0] || "Member",
+          })
+          .select()
+          .single();
+
+        setProfile(newProfile);
+      } else {
+        setProfile(userData);
       }
 
-      setProfile(userData);
+      const resolvedProfile = userData || { id: user.id };
 
-      // Load joined challenges
+      // 3. Joined challenges
       const { data: joinedData } = await supabase
         .from("challenge_members")
         .select(`
@@ -53,26 +72,25 @@ function DashboardContent() {
             description
           )
         `)
-        .eq("user_id", userData.id);
+        .eq("user_id", resolvedProfile.id);
 
       if (joinedData) {
-        const joined = joinedData.map((c: any) => c.challenges);
-        setJoinedChallenges(joined);
+        setJoinedChallenges(joinedData.map((c: any) => c.challenges).filter(Boolean));
       }
 
-      // Load created challenges (FIXED)
+      // 4. Created challenges
       const { data: createdData } = await supabase
         .from("challenges")
         .select("*")
-        .eq("creator_id", userData.id);
+        .eq("creator_id", resolvedProfile.id);
 
       setCreatedChallenges(createdData || []);
 
-      // Load team members
+      // 5. Team members
       const { data: userTeamData } = await supabase
         .from("team_members")
         .select("team_id")
-        .eq("user_id", userData.id)
+        .eq("user_id", resolvedProfile.id)
         .limit(1)
         .single();
 
@@ -92,7 +110,7 @@ function DashboardContent() {
           .limit(5);
 
         if (membersData) {
-          setTeamMembers(membersData.map((m: any) => m.users));
+          setTeamMembers(membersData.map((m: any) => m.users).filter(Boolean));
         }
       }
 
@@ -100,25 +118,29 @@ function DashboardContent() {
     }
 
     loadData();
-  }, [wixUser]);
+  }, []);
 
-  if (!wixUser) {
+  // ── Not logged in ────────────────────────────────────────────────────────────
+  if (authed === false) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="neon-card rounded-3xl p-12 text-center max-w-md">
+          <div className="text-5xl mb-4">🏳️‍🌈</div>
           <h2 className="text-2xl font-display mb-4">Dashboard</h2>
           <p className="text-slate-600 mb-6">Log in to see your dashboard</p>
-          <a href="https://www.queersandalliesfitness.com/account/member">
-            <button className="rainbow-cta px-6 py-3 rounded-full font-semibold">
-              Log in / Sign up
-            </button>
-          </a>
+          <button
+            onClick={() => router.push("/auth")}
+            className="rainbow-cta px-6 py-3 rounded-full font-semibold"
+          >
+            Log in / Sign up
+          </button>
         </div>
       </div>
     );
   }
 
-  if (loading) {
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (loading || authed === null) {
     return (
       <div className="p-10 text-center">
         <p className="text-slate-500">Loading your dashboard…</p>
@@ -126,8 +148,14 @@ function DashboardContent() {
     );
   }
 
+  // ── Dashboard ────────────────────────────────────────────────────────────────
   const streakDays = profile?.streak || 0;
   const weekDays = ["M", "T", "W", "T", "F", "S", "S"];
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   return (
     <div className="space-y-6">
@@ -143,17 +171,24 @@ function DashboardContent() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/embed/challenges")}
+            onClick={() => router.push("/embed/challenges")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             All Challenges
           </button>
 
           <button
-            onClick={() => navigate("/embed/leaderboard")}
+            onClick={() => router.push("/embed/leaderboard")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             Leaderboard
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            className="px-4 py-2 rounded-full font-semibold border border-red-200 bg-white/80 hover:bg-red-50 transition text-sm text-red-600"
+          >
+            Sign out
           </button>
         </div>
       </div>
@@ -168,7 +203,7 @@ function DashboardContent() {
         </h2>
       </div>
 
-      {/* Grid Layout */}
+      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Profile Card */}
@@ -182,19 +217,18 @@ function DashboardContent() {
               <strong>Email:</strong> {profile?.email}
             </p>
           </div>
-
-          <a href="https://www.queersandalliesfitness.com/account/member">
-            <button className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm w-full">
-              Manage Account →
-            </button>
-          </a>
+          <button
+            onClick={() => router.push("/embed/profile")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm w-full"
+          >
+            Edit Profile →
+          </button>
         </div>
 
         {/* Streak Card */}
         <div className="neon-card rounded-3xl p-6 flex flex-col items-center">
           <div className="text-5xl mb-2">🔥</div>
           <h3 className="text-xl font-semibold mb-2">{streakDays}-Day Streak</h3>
-
           <div className="flex justify-between w-full mt-3 max-w-xs">
             {weekDays.map((d, i) => (
               <div key={i} className="flex flex-col items-center">
@@ -205,26 +239,22 @@ function DashboardContent() {
                       ? "bg-gradient-to-r from-pink-500 to-purple-500"
                       : "bg-slate-300"
                   }`}
-                ></div>
+                />
               </div>
             ))}
           </div>
-
           <p className="mt-4 text-slate-600 text-sm">
-            You're on fire! Keep it going 🔥
+            {streakDays > 0 ? "You're on fire! Keep it going 🔥" : "Start your streak today!"}
           </p>
         </div>
 
         {/* Points Card */}
         <div className="neon-card rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-4">Points & Rewards</h3>
-          <p className="text-3xl font-bold mb-4">
-            ⭐ {profile?.total_points || 0}
-          </p>
+          <p className="text-3xl font-bold mb-4">⭐ {profile?.total_points || 0}</p>
           <p className="text-sm text-slate-600 mb-4">Total Points Earned</p>
-
           <button
-            onClick={() => navigate("/embed/leaderboard")}
+            onClick={() => router.push("/embed/leaderboard")}
             className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm w-full"
           >
             View Leaderboard
@@ -234,14 +264,13 @@ function DashboardContent() {
         {/* Team Members */}
         <div className="neon-card rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-4">Your Teammates</h3>
-
           {teamMembers.length === 0 ? (
             <>
               <p className="text-slate-600 mb-4 text-sm">
                 Join a challenge to see your teammates!
               </p>
               <button
-                onClick={() => navigate("/embed/join")}
+                onClick={() => router.push("/embed/join")}
                 className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm w-full"
               >
                 Join with Code
@@ -256,17 +285,13 @@ function DashboardContent() {
                 >
                   <div>
                     <p className="font-semibold text-sm">{member.name}</p>
-                    <p className="text-xs text-slate-500">
-                      🔥 {member.streak || 0} streak
-                    </p>
+                    <p className="text-xs text-slate-500">🔥 {member.streak || 0} streak</p>
                   </div>
-
                   <p className="text-sm font-semibold text-slate-700">
                     ⭐ {member.total_points || 0}
                   </p>
                 </div>
               ))}
-
               {teamMembers.length > 4 && (
                 <p className="text-xs text-slate-500 text-center pt-2">
                   +{teamMembers.length - 4} more teammates
@@ -276,17 +301,16 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Joined Challenges */}
+        {/* Active (Joined) Challenges */}
         <div className="neon-card rounded-3xl p-6 md:col-span-2">
           <h3 className="text-xl font-semibold mb-4">Active Challenges</h3>
-
           {joinedChallenges.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-slate-500 mb-4">
                 You haven't joined any challenges yet!
               </p>
               <button
-                onClick={() => navigate("/embed/challenges")}
+                onClick={() => router.push("/embed/challenges")}
                 className="rainbow-cta px-6 py-3 rounded-full font-semibold"
               >
                 Browse Challenges
@@ -296,22 +320,11 @@ function DashboardContent() {
             <div className="space-y-3">
               {joinedChallenges.map((challenge: any) => {
                 const startDate = new Date(challenge.start_date);
-                const endDate = new Date(challenge.end_date);
-                const now = new Date();
-
-                const totalDays = Math.ceil(
-                  (endDate.getTime() - startDate.getTime()) /
-                    (1000 * 60 * 60 * 24)
-                );
-                const daysPassed = Math.ceil(
-                  (now.getTime() - startDate.getTime()) /
-                    (1000 * 60 * 60 * 24)
-                );
-
-                const progress = Math.min(
-                  100,
-                  Math.max(0, Math.round((daysPassed / totalDays) * 100))
-                );
+                const endDate   = new Date(challenge.end_date);
+                const now       = new Date();
+                const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000);
+                const daysPassed = Math.ceil((now.getTime() - startDate.getTime()) / 86400000);
+                const progress  = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
 
                 return (
                   <div
@@ -322,57 +335,36 @@ function DashboardContent() {
                       <p className="font-semibold">{challenge.name}</p>
                       <p className="text-sm text-slate-500">
                         {challenge.description
-                          ? challenge.description.substring(0, 60) +
-                            (challenge.description.length > 60 ? "..." : "")
+                          ? challenge.description.substring(0, 60) + (challenge.description.length > 60 ? "…" : "")
                           : "Code: " + challenge.join_code}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4">
+                      {/* Progress ring */}
                       <div className="w-16 h-16 rounded-full relative">
                         <svg className="w-16 h-16 transform -rotate-90">
+                          <circle cx="32" cy="32" r="28" stroke="#e5e7eb" strokeWidth="4" fill="none" />
                           <circle
-                            cx="32"
-                            cy="32"
-                            r="28"
-                            stroke="#e5e7eb"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <circle
-                            cx="32"
-                            cy="32"
-                            r="28"
-                            stroke="url(#gradient)"
-                            strokeWidth="4"
-                            fill="none"
+                            cx="32" cy="32" r="28"
+                            stroke="url(#grad)" strokeWidth="4" fill="none"
                             strokeDasharray={`${progress * 1.76} 176`}
                             strokeLinecap="round"
                           />
-
                           <defs>
-                            <linearGradient
-                              id="gradient"
-                              x1="0%"
-                              y1="0%"
-                              x2="100%"
-                              y2="100%"
-                            >
+                            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
                               <stop offset="0%" stopColor="#FD80AB" />
                               <stop offset="100%" stopColor="#719FFF" />
                             </linearGradient>
                           </defs>
                         </svg>
-
                         <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
                           {progress}%
                         </div>
                       </div>
 
                       <button
-                        onClick={() =>
-                          navigate(`/embed/challenge/${challenge.id}`)
-                        }
+                        onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                         className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
                       >
                         View
@@ -388,10 +380,7 @@ function DashboardContent() {
         {/* Created Challenges */}
         {createdChallenges.length > 0 && (
           <div className="neon-card rounded-3xl p-6 md:col-span-2">
-            <h3 className="text-xl font-semibold mb-4">
-              Challenges You Created
-            </h3>
-
+            <h3 className="text-xl font-semibold mb-4">Challenges You Created</h3>
             <div className="space-y-3">
               {createdChallenges.map((challenge: any) => (
                 <div
@@ -404,11 +393,8 @@ function DashboardContent() {
                       Join code: <strong>{challenge.join_code}</strong>
                     </p>
                   </div>
-
                   <button
-                    onClick={() =>
-                      navigate(`/embed/challenge/${challenge.id}/manage`)
-                    }
+                    onClick={() => router.push(`/embed/challenge/${challenge.id}/manage`)}
                     className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
                   >
                     Manage
@@ -422,30 +408,28 @@ function DashboardContent() {
         {/* Quick Actions */}
         <div className="neon-card rounded-3xl p-6 md:col-span-2">
           <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
-              onClick={() => navigate("/embed/challenges/new")}
+              onClick={() => router.push("/embed/challenges/new")}
               className="rainbow-cta rounded-2xl px-6 py-4 font-semibold text-center"
             >
               Create Challenge
             </button>
-
             <button
-              onClick={() => navigate("/embed/join")}
+              onClick={() => router.push("/embed/join")}
               className="px-6 py-4 rounded-2xl font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition text-center"
             >
               Join with Code
             </button>
-
             <button
-              onClick={() => navigate("/embed/messages")}
+              onClick={() => router.push("/embed/messages")}
               className="px-6 py-4 rounded-2xl font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition text-center"
             >
               Messages
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );
@@ -453,9 +437,7 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={<div className="p-10 text-center">Loading dashboard…</div>}
-    >
+    <Suspense fallback={<div className="p-10 text-center">Loading dashboard…</div>}>
       <DashboardContent />
     </Suspense>
   );
