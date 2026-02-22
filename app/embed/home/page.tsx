@@ -485,7 +485,7 @@ export default function HomePage() {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 10px;
-          padding: 0 16px;
+          padding: 0;
           margin: 14px 0;
         }
 
@@ -586,7 +586,7 @@ export default function HomePage() {
               {/* Hero banner */}
               <div
                 style={{
-                  margin: "0 16px",
+                  margin: "0",
                   background: "#0e0e0e",
                   borderRadius: 22,
                   padding: "24px 22px",
@@ -737,7 +737,7 @@ export default function HomePage() {
                   display: "grid",
                   gridTemplateColumns: "1fr",
                   gap: 12,
-                  padding: "0 16px 0 16px",
+                  padding: "0",
                 }}
               >
                 {challenges.slice(0, 2).map((c, i) => (
@@ -752,7 +752,7 @@ export default function HomePage() {
               {/* Activity Feed header */}
               <div
                 style={{
-                  margin: "20px 16px 0",
+                  margin: "20px 0 0",
                   height: 1.5,
                   background:
                     "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
@@ -765,7 +765,7 @@ export default function HomePage() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  padding: "14px 16px 0",
+                  padding: "14px 0 0",
                 }}
               >
                 <div
@@ -782,7 +782,7 @@ export default function HomePage() {
               {/* Post input */}
               <div
                 style={{
-                  padding: "10px 16px 12px",
+                  padding: "10px 0 12px",
                   display: "flex",
                   gap: 8,
                 }}
@@ -837,7 +837,7 @@ export default function HomePage() {
               {/* Feed items */}
               <div
                 style={{
-                  padding: "0 16px 16px",
+                  padding: "0 0 16px",
                   display: "flex",
                   flexDirection: "column",
                   gap: 8,
