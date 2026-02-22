@@ -1,14 +1,5 @@
 "use client";
 
-// app/auth/reset/page.tsx — Queers & Allies Fitness · Reset Password
-//
-// Flow:
-//   1. User clicks "Forgot password?" on /auth
-//   2. Supabase emails them a link pointing to /auth/reset
-//   3. This page detects the recovery token in the URL hash
-//   4. User enters a new password → supabase.auth.updateUser()
-//   5. Redirect to /embed/home
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -19,23 +10,22 @@ const supabase = createClient(
 );
 
 type PageState =
-  | "loading"      // Waiting to confirm the recovery token is valid
-  | "ready"        // Token confirmed — show the new password form
-  | "submitting"   // Saving the new password
-  | "success"      // Done — show confirmation
-  | "invalid";     // No valid token found (stale/missing link)
+  | "loading"
+  | "ready"
+  | "submitting"
+  | "success"
+  | "invalid";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
 
   const [pageState, setPageState] = useState<PageState>("loading");
-  const [password, setPassword]   = useState("");
-  const [confirm, setConfirm]     = useState("");
-  const [error, setError]         = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(5);
 
-  // Supabase fires PASSWORD_RECOVERY when it detects the token in the URL hash.
-  // We listen for that event to confirm the link is valid before showing the form.
+  // Detect Supabase PASSWORD_RECOVERY event
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event) => {
@@ -45,9 +35,8 @@ export default function ResetPasswordPage() {
       }
     );
 
-    // Safety net: if no recovery event fires within 4s, the link is bad
     const timeout = setTimeout(() => {
-      setPageState((prev) => prev === "loading" ? "invalid" : prev);
+      setPageState((prev) => (prev === "loading" ? "invalid" : prev));
     }, 4000);
 
     return () => {
@@ -56,10 +45,13 @@ export default function ResetPasswordPage() {
     };
   }, []);
 
-  // Countdown redirect after success
+  // Redirect after success
   useEffect(() => {
     if (pageState !== "success") return;
-    if (countdown <= 0) { router.push("/embed/home"); return; }
+    if (countdown <= 0) {
+      router.push("/embed/home");
+      return;
+    }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [pageState, countdown, router]);
@@ -72,10 +64,12 @@ export default function ResetPasswordPage() {
       setError("Please fill in both fields.");
       return;
     }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
+
     if (password !== confirm) {
       setError("Passwords don't match.");
       return;
@@ -123,7 +117,6 @@ export default function ResetPasswordPage() {
         .reset-card {
           background: rgba(255,255,255,0.82);
           backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
           border-radius: 24px;
           padding: 36px 32px;
           box-shadow: 0 8px 40px rgba(0,0,0,0.10);
@@ -139,20 +132,11 @@ export default function ResetPasswordPage() {
           border: 1.5px solid rgba(0,0,0,0.1);
           background: rgba(255,255,255,0.9);
           font-size: 14px;
-          font-family: 'DM Sans', sans-serif;
           outline: none;
           transition: border-color 0.15s;
-          color: #0e0e0e;
         }
-        .reset-input:focus { border-color: #7b2d8b; }
-        .reset-input::placeholder { color: #aaa; }
 
-        /* Strength meter colors */
-        .strength-bar {
-          height: 4px;
-          border-radius: 99px;
-          transition: width 0.3s, background 0.3s;
-        }
+        .reset-input:focus { border-color: #7b2d8b; }
 
         .primary-btn {
           width: 100%;
@@ -163,17 +147,20 @@ export default function ResetPasswordPage() {
           color: #fff;
           font-size: 15px;
           font-weight: 700;
-          font-family: 'DM Sans', sans-serif;
           cursor: pointer;
           transition: opacity 0.15s, transform 0.15s;
         }
+
         .primary-btn:hover:not(:disabled) { opacity: 0.91; transform: translateY(-1px); }
         .primary-btn:disabled { opacity: 0.45; cursor: default; }
 
         .error-box {
-          background: #fff0f0; border: 1px solid #ffc5c5;
-          color: #c0392b; border-radius: 12px;
-          padding: 10px 14px; font-size: 13px; line-height: 1.4;
+          background: #fff0f0;
+          border: 1px solid #ffc5c5;
+          color: #c0392b;
+          border-radius: 12px;
+          padding: 10px 14px;
+          font-size: 13px;
         }
 
         .spinner {
@@ -192,15 +179,10 @@ export default function ResetPasswordPage() {
         }
       `}</style>
 
-      <div style={{ minHeight: "100dvh", width: "100%", display: "flex", flexDirection: "column" }}>
-
-        {/* Rainbow strip */}
+      <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
         <div className="rainbow-strip" />
 
-        {/* Centered layout */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px" }}>
-
-          {/* Wordmark */}
           <div style={{ marginBottom: 28, textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
             <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 15, letterSpacing: 3, color: "#7b2d8b", opacity: 0.85 }}>
@@ -208,63 +190,52 @@ export default function ResetPasswordPage() {
             </div>
           </div>
 
-          {/* ── LOADING ── */}
+          {/* LOADING */}
           {pageState === "loading" && (
-            <div className="reset-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center" }}>
+            <div className="reset-card" style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 20 }}>
               <div className="spinner" />
               <div>
-                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1, color: "#0e0e0e" }}>
-                  Verifying your link…
-                </div>
-                <p style={{ fontSize: 13, color: "#888", marginTop: 6 }}>Just a moment</p>
+                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22 }}>Verifying your link…</div>
+                <p style={{ fontSize: 13, color: "#888" }}>Just a moment</p>
               </div>
             </div>
           )}
 
-          {/* ── INVALID / EXPIRED LINK ── */}
+          {/* INVALID */}
           {pageState === "invalid" && (
             <div className="reset-card" style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
-              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26, letterSpacing: 1, color: "#0e0e0e", marginBottom: 8 }}>
-                Link Expired
-              </h1>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6, marginBottom: 24 }}>
+              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26 }}>Link Expired</h1>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 24 }}>
                 This password reset link has expired or already been used.
-                Reset links are only valid for 1 hour.
               </p>
-              <button
-                onClick={() => router.push("/auth")}
-                className="primary-btn"
-                style={{ marginBottom: 12 }}
-              >
+
+              <button className="primary-btn" onClick={() => router.push("/auth")} style={{ marginBottom: 12 }}>
                 Request a new link
               </button>
+
               <button
                 onClick={() => router.push("/embed/home")}
-                style={{ background: "none", border: "none", color: "#888", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                style={{ background: "none", border: "none", color: "#888", fontSize: 13, cursor: "pointer" }}
               >
                 Back to home
               </button>
             </div>
           )}
 
-          {/* ── PASSWORD FORM ── */}
+          {/* FORM */}
           {(pageState === "ready" || pageState === "submitting") && (
             <div className="reset-card">
-              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 28, letterSpacing: 1, color: "#0e0e0e", marginBottom: 6 }}>
-                Set new password
-              </h1>
-              <p style={{ fontSize: 13, color: "#777", marginBottom: 24, lineHeight: 1.5 }}>
+              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 28 }}>Set new password</h1>
+              <p style={{ fontSize: 13, color: "#777", marginBottom: 24 }}>
                 Choose something strong — at least 8 characters.
               </p>
 
               <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
                 {error && <div className="error-box">⚠️ {error}</div>}
 
-                {/* New password */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>New Password</label>
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>New Password</label>
                   <input
                     className="reset-input"
                     type="password"
@@ -274,15 +245,10 @@ export default function ResetPasswordPage() {
                     autoComplete="new-password"
                     autoFocus
                   />
-                  {/* Strength meter */}
-                  {password.length > 0 && (
-                    <PasswordStrength password={password} />
-                  )}
                 </div>
 
-                {/* Confirm password */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>Confirm Password</label>
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Confirm Password</label>
                   <input
                     className="reset-input"
                     type="password"
@@ -290,9 +256,8 @@ export default function ResetPasswordPage() {
                     value={confirm}
                     onChange={(e) => { setConfirm(e.target.value); setError(null); }}
                     autoComplete="new-password"
-                    onKeyDown={(e) => e.key === "Enter" && handleReset(e as unknown as React.FormEvent)}
                   />
-                  {/* Match indicator */}
+
                   {confirm.length > 0 && (
                     <div style={{ fontSize: 12, fontWeight: 600, color: password === confirm ? "#1b7a4e" : "#c0392b" }}>
                       {password === confirm ? "✓ Passwords match" : "✗ Passwords don't match"}
@@ -304,80 +269,29 @@ export default function ResetPasswordPage() {
                   type="submit"
                   className="primary-btn"
                   disabled={pageState === "submitting" || password.length < 8 || password !== confirm}
-                  style={{ marginTop: 4 }}
                 >
                   {pageState === "submitting" ? "Saving…" : "Set New Password"}
                 </button>
-
               </form>
             </div>
           )}
 
-          {/* ── SUCCESS ── */}
+          {/* SUCCESS */}
           {pageState === "success" && (
             <div className="reset-card" style={{ textAlign: "center" }}>
               <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
-              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26, letterSpacing: 1, color: "#0e0e0e", marginBottom: 8 }}>
-                Password updated!
-              </h1>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6, marginBottom: 24 }}>
-                You're all set. Redirecting you to the app in{" "}
-                <span style={{ fontWeight: 700, color: "#7b2d8b" }}>{countdown}</span>…
+              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26 }}>Password updated!</h1>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 24 }}>
+                Redirecting in <span style={{ fontWeight: 700, color: "#7b2d8b" }}>{countdown}</span>…
               </p>
-              <button
-                onClick={() => router.push("/embed/home")}
-                className="primary-btn"
-              >
+
+              <button className="primary-btn" onClick={() => router.push("/embed/home")}>
                 Go to app now →
               </button>
             </div>
           )}
-
         </div>
       </div>
     </>
   );
-}
-
-// ── Password strength meter ────────────────────────────────────────────────────
-function PasswordStrength({ password }: { password: string }) {
-  const score = getStrengthScore(password);
-
-  const levels = [
-    { label: "Too short", color: "#e74c3c" },
-    { label: "Weak",      color: "#e67e22" },
-    { label: "Fair",      color: "#f1c40f" },
-    { label: "Good",      color: "#2ecc71" },
-    { label: "Strong",    color: "#1b7a4e" },
-  ];
-
-  const { label, color } = levels[score];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", gap: 4 }}>
-        {levels.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1, height: 4, borderRadius: 99,
-              background: i <= score ? color : "rgba(0,0,0,0.08)",
-              transition: "background 0.3s",
-            }}
-          />
-        ))}
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 600, color }}>{label}</div>
-    </div>
-  );
-}
-
-function getStrengthScore(pw: string): number {
-  if (pw.length < 8) return 0;
-  let score = 1;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return Math.min(score, 4);
 }

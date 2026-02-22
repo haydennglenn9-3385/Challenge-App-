@@ -1,13 +1,6 @@
 "use client";
 
 // app/auth/page.tsx — Queers & Allies Fitness · Login / Sign Up
-// Routes to /auth — update your login and join links to point here.
-// Requires in .env.local:
-//   NEXT_PUBLIC_SUPABASE_URL
-//   NEXT_PUBLIC_SUPABASE_ANON_KEY
-//
-// For Google sign-in, enable Google provider in:
-//   Supabase Dashboard → Authentication → Providers → Google
 
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -20,15 +13,14 @@ const supabase = createClient(
 type Mode = "login" | "signup";
 
 export default function AuthPage() {
-  const [mode, setMode]           = useState<Mode>("login");
-  const [email, setEmail]         = useState("");
-  const [password, setPassword]   = useState("");
+  const [mode, setMode] = useState<Mode>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [agreed, setAgreed]       = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [success, setSuccess]     = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   function clearState() {
     setError(null);
@@ -51,10 +43,12 @@ export default function AuthPage() {
       setError("Please enter your email and password.");
       return;
     }
+
     if (mode === "signup" && !agreed) {
       setError("Please agree to the terms to create an account.");
       return;
     }
+
     if (mode === "signup" && password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -63,7 +57,11 @@ export default function AuthPage() {
     setLoading(true);
 
     if (mode === "login") {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
       if (err) {
         setError(err.message);
       } else {
@@ -77,10 +75,10 @@ export default function AuthPage() {
           data: { display_name: displayName || email.split("@")[0] },
         },
       });
+
       if (err) {
         setError(err.message);
       } else if (data.user && !data.session) {
-        // Email confirmation required
         setSuccess("Check your email to confirm your account, then log in.");
         setMode("login");
       } else {
@@ -91,28 +89,13 @@ export default function AuthPage() {
     setLoading(false);
   }
 
-  async function handleGoogle() {
-    clearState();
-    setGoogleLoading(true);
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/embed/home`,
-      },
-    });
-    if (err) {
-      setError(err.message);
-      setGoogleLoading(false);
-    }
-    // On success Supabase redirects — no need to setLoading(false)
-  }
-
   const isSignup = mode === "signup";
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
+
         @keyframes rainbowShift { 0%{background-position:0%} 100%{background-position:200%} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 
@@ -161,6 +144,7 @@ export default function AuthPage() {
           transition: border-color 0.15s;
           color: #0e0e0e;
         }
+
         .input-field:focus { border-color: #7b2d8b; }
         .input-field::placeholder { color: #aaa; }
 
@@ -178,25 +162,9 @@ export default function AuthPage() {
           transition: opacity 0.15s, transform 0.15s;
           letter-spacing: 0.3px;
         }
+
         .primary-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
         .primary-btn:disabled { opacity: 0.5; cursor: default; }
-
-        .google-btn {
-          width: 100%;
-          padding: 13px;
-          border-radius: 14px;
-          border: 1.5px solid rgba(0,0,0,0.12);
-          background: rgba(255,255,255,0.9);
-          color: #1a1a1a;
-          font-size: 14px;
-          font-weight: 600;
-          font-family: 'DM Sans', sans-serif;
-          cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 10px;
-          transition: background 0.15s, transform 0.15s;
-        }
-        .google-btn:hover:not(:disabled) { background: #fff; transform: translateY(-1px); }
-        .google-btn:disabled { opacity: 0.5; cursor: default; }
 
         .tab {
           flex: 1;
@@ -211,20 +179,10 @@ export default function AuthPage() {
           transition: background 0.15s, color 0.15s;
           color: #999;
         }
+
         .tab.active {
           background: #0e0e0e;
           color: #fff;
-        }
-
-        .divider {
-          display: flex; align-items: center; gap: 12px;
-          color: #bbb; font-size: 12px; font-weight: 600;
-        }
-        .divider::before, .divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: rgba(0,0,0,0.1);
         }
 
         .error-box {
@@ -251,56 +209,102 @@ export default function AuthPage() {
           display: flex; align-items: flex-start; gap: 10px;
           cursor: pointer;
         }
+
         .checkbox-row input[type="checkbox"] {
           width: 18px; height: 18px; margin-top: 1px;
           accent-color: #7b2d8b; cursor: pointer; flex-shrink: 0;
         }
+
         .checkbox-label {
           font-size: 12px; color: #555; line-height: 1.5;
         }
+
         .checkbox-label a {
           color: #7b2d8b; text-decoration: none; font-weight: 600;
         }
+
         .checkbox-label a:hover { text-decoration: underline; }
       `}</style>
 
-      {/* Full-bleed page */}
+      {/* Full page */}
       <div style={{ minHeight: "100dvh", width: "100%", display: "flex", flexDirection: "column" }}>
-
         {/* Rainbow strip */}
-        <div style={{
-          height: 5, width: "100%", flexShrink: 0,
-          background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
-          backgroundSize: "200% 100%",
-          animation: "rainbowShift 4s linear infinite",
-        }} />
+        <div
+          style={{
+            height: 5,
+            width: "100%",
+            flexShrink: 0,
+            background:
+              "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+            backgroundSize: "200% 100%",
+            animation: "rainbowShift 4s linear infinite",
+          }}
+        />
 
         {/* Centered content */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px" }}>
-
-          {/* Logo / wordmark */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "32px 20px",
+          }}
+        >
+          {/* Logo */}
           <div style={{ marginBottom: 28, textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 15, letterSpacing: 3, color: "#7b2d8b", opacity: 0.85 }}>
+            <div
+              style={{
+                fontFamily: "'Bebas Neue', cursive",
+                fontSize: 15,
+                letterSpacing: 3,
+                color: "#7b2d8b",
+                opacity: 0.85,
+              }}
+            >
               QUEERS & ALLIES FITNESS
             </div>
           </div>
 
           <div className="auth-card">
-
             {/* Mode tabs */}
-            <div style={{ display: "flex", gap: 6, background: "rgba(0,0,0,0.06)", borderRadius: 14, padding: 4, marginBottom: 24 }}>
-              <button className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => switchMode("login")}>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                background: "rgba(0,0,0,0.06)",
+                borderRadius: 14,
+                padding: 4,
+                marginBottom: 24,
+              }}
+            >
+              <button
+                className={`tab ${mode === "login" ? "active" : ""}`}
+                onClick={() => switchMode("login")}
+              >
                 Log In
               </button>
-              <button className={`tab ${mode === "signup" ? "active" : ""}`} onClick={() => switchMode("signup")}>
+              <button
+                className={`tab ${mode === "signup" ? "active" : ""}`}
+                onClick={() => switchMode("signup")}
+              >
                 Sign Up
               </button>
             </div>
 
             {/* Heading */}
             <div style={{ marginBottom: 20 }}>
-              <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26, letterSpacing: 1, color: "#0e0e0e", lineHeight: 1.1 }}>
+              <h1
+                style={{
+                  fontFamily: "'Bebas Neue', cursive",
+                  fontSize: 26,
+                  letterSpacing: 1,
+                  color: "#0e0e0e",
+                  lineHeight: 1.1,
+                }}
+              >
                 {isSignup ? "Create your account" : "Welcome back"}
               </h1>
               <p style={{ fontSize: 13, color: "#777", marginTop: 4 }}>
@@ -311,12 +315,19 @@ export default function AuthPage() {
             </div>
 
             {/* Error / success */}
-            {error   && <div className="error-box"   style={{ marginBottom: 16 }}>⚠️ {error}</div>}
-            {success && <div className="success-box" style={{ marginBottom: 16 }}>✅ {success}</div>}
+            {error && (
+              <div className="error-box" style={{ marginBottom: 16 }}>
+                ⚠️ {error}
+              </div>
+            )}
+            {success && (
+              <div className="success-box" style={{ marginBottom: 16 }}>
+                ✅ {success}
+              </div>
+            )}
 
             {/* Form fields */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
               {isSignup && (
                 <input
                   className="input-field"
@@ -357,9 +368,18 @@ export default function AuthPage() {
                   />
                   <span className="checkbox-label">
                     I agree to the{" "}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
-                    {" "}and{" "}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                    <a href="/terms" target="_blank" rel="noopener noreferrer">
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Privacy Policy
+                    </a>
+                    .
                   </span>
                 </label>
               )}
@@ -378,49 +398,63 @@ export default function AuthPage() {
               {!isSignup && (
                 <button
                   onClick={async () => {
-                    if (!email) { setError("Enter your email above first."); return; }
+                    if (!email) {
+                      setError("Enter your email above first.");
+                      return;
+                    }
                     clearState();
-                    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-                      redirectTo: `${window.location.origin}/auth/reset`,
-                    });
+                    const { error: err } =
+                      await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/auth/reset`,
+                      });
                     if (err) setError(err.message);
-                    else setSuccess("Password reset email sent — check your inbox.");
+                    else
+                      setSuccess(
+                        "Password reset email sent — check your inbox."
+                      );
                   }}
-                  style={{ background: "none", border: "none", color: "#7b2d8b", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#7b2d8b",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
                 >
                   Forgot password?
                 </button>
               )}
-
-              {/* Divider */}
-              <div className="divider">or</div>
-
-              {/* Google sign-in */}
-              <button className="google-btn" onClick={handleGoogle} disabled={googleLoading}>
-                {/* Google SVG icon */}
-                <svg width="18" height="18" viewBox="0 0 18 18">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                  <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
-                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z"/>
-                </svg>
-                {googleLoading ? "Redirecting…" : "Continue with Google"}
-              </button>
-
             </div>
-          </div>
 
-          {/* Footer switch */}
-          <p style={{ marginTop: 20, fontSize: 13, color: "#777", textAlign: "center" }}>
-            {isSignup ? "Already have an account? " : "Don't have an account? "}
-            <button
-              onClick={() => switchMode(isSignup ? "login" : "signup")}
-              style={{ background: "none", border: "none", color: "#7b2d8b", fontWeight: 700, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}
+            {/* Footer switch */}
+            <p
+              style={{
+                marginTop: 20,
+                fontSize: 13,
+                color: "#777",
+                textAlign: "center",
+              }}
             >
-              {isSignup ? "Log in" : "Sign up free"}
-            </button>
-          </p>
-
+              {isSignup ? "Already have an account? " : "Don't have an account? "}
+              <button
+                onClick={() => switchMode(isSignup ? "login" : "signup")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#7b2d8b",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                {isSignup ? "Log in" : "Sign up free"}
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </>
