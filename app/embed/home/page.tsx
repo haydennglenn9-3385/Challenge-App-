@@ -10,6 +10,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type FeedType = "streak" | "join" | "score" | "team" | "message";
 
 interface Challenge {
@@ -31,6 +32,7 @@ interface FeedItem {
   meta: Record<string, unknown>;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }> = {
   streak:  { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
   join:    { bg: "#d4f5e2", color: "#1b7a4e", label: "✅ Joined" },
@@ -59,15 +61,20 @@ function daysLeft(endDate?: string) {
   return diff > 0 ? diff : 0;
 }
 
+// ─── Chip ─────────────────────────────────────────────────────────────────────
 function Chip({ type }: { type: FeedType }) {
   const s = CHIP_STYLES[type];
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap" as const }}>
+    <span style={{
+      background: s.bg, color: s.color, fontSize: 10, fontWeight: 700,
+      padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap" as const,
+    }}>
       {s.label}
     </span>
   );
 }
 
+// ─── Feed Card ────────────────────────────────────────────────────────────────
 function FeedCard({ item, index }: { item: FeedItem; index: number }) {
   const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
   const meta = item.meta;
@@ -77,25 +84,42 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
     : null;
 
   return (
-    <div style={{ background: "#fff", borderRadius: 14, padding: "12px 13px", display: "flex", gap: 10, alignItems: "flex-start" as const, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", animation: "slideIn 0.4s ease both", animationDelay: `${index * 0.06}s` }}>
-      <div style={{ width: 38, height: 38, borderRadius: "50%", background: avatarBg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginTop: 1 }}>
+    <div style={{
+      background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)",
+      borderRadius: 16, padding: "13px 14px",
+      display: "flex", gap: 11, alignItems: "flex-start" as const,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+      animation: "slideIn 0.4s ease both",
+      animationDelay: `${index * 0.06}s`,
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%", background: avatarBg,
+        flexShrink: 0, display: "flex", alignItems: "center",
+        justifyContent: "center", fontSize: 17, marginTop: 1,
+      }}>
         {item.type === "team" ? "🏳️‍🌈" : "😊"}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0e0e0e" }}>{item.user_name}</div>
-        <div style={{ fontSize: 11.5, color: "#666", marginTop: 2, lineHeight: 1.35 }} dangerouslySetInnerHTML={{ __html: item.text }} />
-        <div style={{ fontSize: 10, color: "#bbb", marginTop: 2 }}>
+        <div
+          style={{ fontSize: 11.5, color: "#555", marginTop: 2, lineHeight: 1.4 }}
+          dangerouslySetInnerHTML={{ __html: item.text }}
+        />
+        <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>
           {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end" as const, gap: 4, flexShrink: 0 }}>
         <Chip type={item.type} />
-        {subValue && <span style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 14, color: "#7b2d8b" }}>{subValue}</span>}
+        {subValue && (
+          <span style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 14, color: "#7b2d8b" }}>{subValue}</span>
+        )}
       </div>
     </div>
   );
 }
 
+// ─── Challenge Card ───────────────────────────────────────────────────────────
 function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorIndex: number }) {
   const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
   const pct = challenge.capacity > 0 ? Math.round((challenge.member_count / challenge.capacity) * 100) : 0;
@@ -104,43 +128,55 @@ function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorI
 
   return (
     <div
-      style={{ background: "#1a1a1a", borderRadius: 16, padding: "14px 13px", position: "relative" as const, overflow: "hidden" as const, cursor: "pointer", transform: hovered ? "scale(1.02)" : "scale(1)", transition: "transform 0.15s" }}
+      style={{
+        background: "#1a1a1a", borderRadius: 18, padding: "16px 14px",
+        position: "relative" as const, overflow: "hidden" as const, cursor: "pointer",
+        transform: hovered ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.15s",
+        // Fixed height so both cards are always the same size
+        height: 190,
+        display: "flex", flexDirection: "column" as const, justifyContent: "space-between",
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div style={{ position: "absolute" as const, top: -16, right: -16, width: 64, height: 64, borderRadius: "50%", background: c.glow, opacity: 0.18 }} />
-      <div style={{ fontSize: 20, marginBottom: 6 }}>{challenge.emoji || "💪"}</div>
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" as const, color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{challenge.type}</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", lineHeight: 1.25, marginBottom: 10 }}>{challenge.name}</div>
-      <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 9px" }}>
-        <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 14, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>Members{days !== null ? ` · ${days}d left` : ""}</div>
+      <div style={{ position: "absolute" as const, top: -16, right: -16, width: 72, height: 72, borderRadius: "50%", background: c.glow, opacity: 0.2 }} />
+
+      {/* Top section */}
+      <div>
+        <div style={{ fontSize: 20, marginBottom: 6 }}>{challenge.emoji || "💪"}</div>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" as const, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+          {challenge.type}
+        </div>
+        {/* Single line truncation — keeps cards symmetrical */}
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.3,
+          overflow: "hidden", display: "-webkit-box",
+          WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
+        }}>
+          {challenge.name}
+        </div>
       </div>
-      <div style={{ marginTop: 8, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, overflow: "hidden" as const }}>
-        <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(90deg, ${c.prog1}, ${c.prog2})` }} />
+
+      {/* Bottom section */}
+      <div>
+        <div style={{ background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "8px 10px", marginBottom: 8 }}>
+          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 15, color: c.valColor }}>
+            {challenge.member_count} / {challenge.capacity}
+          </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>
+            Members{days !== null ? ` · ${days}d left` : ""}
+          </div>
+        </div>
+        <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, overflow: "hidden" as const }}>
+          <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(90deg, ${c.prog1}, ${c.prog2})` }} />
+        </div>
       </div>
     </div>
   );
 }
 
-function DesktopChallengeRow({ challenge }: { challenge: Challenge }) {
-  const days = daysLeft(challenge.end_date);
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      style={{ padding: "14px 16px", borderRadius: 12, background: hovered ? "#f8f4ff" : "#f5f5f5", cursor: "pointer", transition: "background 0.15s" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div style={{ fontWeight: 700, fontSize: 14, color: "#0e0e0e" }}>{challenge.name}</div>
-      <div style={{ fontSize: 12, color: "#888", marginTop: 3 }}>
-        {challenge.member_count} member{challenge.member_count !== 1 ? "s" : ""}
-        {days !== null ? ` · ${days} days left` : ""}
-      </div>
-    </div>
-  );
-}
-
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [feed, setFeed]             = useState<FeedItem[]>([]);
@@ -199,101 +235,31 @@ export default function HomePage() {
     setPosting(false);
   }
 
+  const pageStyle: CSSProperties = {
+    minHeight: "100dvh",
+    width: "100%",
+    // Pastel gradient — same vibe as your landing page
+    background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    fontFamily: "'DM Sans', sans-serif",
+  };
+
+  // Content column: full width on mobile, comfortable max on desktop
+  const colStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: 620,
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+  };
+
   if (loading) return (
-    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#d4f5e2 0%,#fde0ef 35%,#fdf6d3 65%,#d4eaf7 100%)" }}>
-      <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 12 }}>
-        <div style={{ fontSize: 48 }}>🏳️‍🌈</div>
+    <div style={{ ...pageStyle, justifyContent: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
         <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
-      </div>
-    </div>
-  );
-
-  // The app panel (shared between mobile and desktop right column)
-  const appPanel = (
-    <div id="app-panel" style={{ display: "flex", flexDirection: "column" as const, flex: 1, minHeight: "100dvh", background: "#f5f0ff", position: "relative" as const }}>
-      {/* Rainbow strip */}
-      <div style={{ height: 4, flexShrink: 0, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)", backgroundSize: "200% 100%", animation: "rainbowShift 4s linear infinite" }} />
-
-      <div id="scroll-area" style={{ flex: 1, overflowY: "auto" as const, overflowX: "hidden" as const, paddingBottom: 90 }}>
-        <div style={{ padding: "14px 16px 6px" }}>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2, color: "#7b2d8b", opacity: 0.7 }}>QUEERS & ALLIES FITNESS</div>
-        </div>
-
-        {/* Hero */}
-        <div style={{ margin: "0 16px", background: "#0e0e0e", borderRadius: 20, padding: "22px 20px", position: "relative" as const, overflow: "hidden" as const }}>
-          <div style={{ position: "absolute" as const, bottom: -30, right: -30, width: 130, height: 130, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.25 }} />
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" as const, color: "#ffd166", marginBottom: 8 }}>
-            ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
-          </div>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 34, lineHeight: 1.05, color: "#fff" }}>
-            Building<br />
-            <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Community</span><br />
-            Strength.
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6, fontWeight: 500 }}>Physical Fitness + Mental Health · Sacramento, CA</div>
-          <div className="hero-pill">
-            🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="action-grid">
-          {ACTIONS.map((btn) => (
-            <div key={btn.label} className="action-btn">
-              <div className="action-icon" style={{ background: btn.bg }}>{btn.icon}</div>
-              <div className="action-label">{btn.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Featured Challenges */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "4px 16px 10px" }}>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 20, letterSpacing: 1 }}>Featured Challenges</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }}>See all →</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "0 16px" }}>
-          {challenges.slice(0, 2).map((c, i) => <ChallengeCard key={c.id} challenge={c} colorIndex={i} />)}
-        </div>
-
-        {/* Activity Feed */}
-        <div style={{ height: 2, margin: "16px 16px 0", background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", borderRadius: 2, opacity: 0.25 }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 16px 10px", gap: 8 }}>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 20, letterSpacing: 1, flexShrink: 0 }}>Activity Feed</div>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            <input value={postText} onChange={(e) => setPostText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handlePost()} placeholder="Post a shoutout…" style={{ fontSize: 11, padding: "6px 10px", borderRadius: 20, border: "1px solid #ddd", outline: "none", width: 108 }} />
-            <button onClick={handlePost} disabled={posting || !postText.trim()} style={{ background: "#0e0e0e", color: "#fff", fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", opacity: posting ? 0.5 : 1 }}>
-              {posting ? "…" : "Post"}
-            </button>
-          </div>
-        </div>
-        <div style={{ margin: "0 16px 16px", display: "flex", flexDirection: "column" as const, gap: 8 }}>
-          {feed.length === 0
-            ? <div style={{ textAlign: "center" as const, padding: "28px 0", color: "#bbb", fontSize: 13 }}>No activity yet — be the first to post! 🌈</div>
-            : feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
-          }
-        </div>
-      </div>
-
-      {/* Bottom nav */}
-      <div id="bottom-nav" style={{ background: "#0e0e0e", padding: "12px 20px max(20px, env(safe-area-inset-bottom))", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
-        {([
-          { id: "ranks",     icon: "🏅", label: "Ranks"     },
-          { id: "dashboard", icon: "🏳️‍🌈", label: "Dashboard" },
-          { id: "streak",    icon: "🔥", label: "Streak",   sub: streak !== null ? `${streak}d` : "" },
-          { id: "messages",  icon: "💬", label: "Messages"  },
-        ] as const).map((nav) => (
-          <div key={nav.id} onClick={() => setActiveNav(nav.id)} style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 10px", borderRadius: 12, background: activeNav === nav.id ? "rgba(255,255,255,0.06)" : "transparent" }}>
-            {nav.id === "dashboard" ? (
-              <div style={{ width: 32, height: 32, background: activeNav === "dashboard" ? "linear-gradient(135deg,#7b2d8b,#ff3c5f)" : "rgba(255,255,255,0.1)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏳️‍🌈</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2 }}>
-                <div style={{ fontSize: 20, lineHeight: 1 }}>{nav.icon}</div>
-                {"sub" in nav && nav.sub && <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 11, color: "#ffd166", lineHeight: 1 }}>{nav.sub}</div>}
-              </div>
-            )}
-            <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: 0.5, color: activeNav === nav.id ? "#ffd166" : "rgba(255,255,255,0.4)" }}>{nav.label}</div>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -308,75 +274,233 @@ export default function HomePage() {
         html, body { height: 100%; }
         ::-webkit-scrollbar { display: none; }
 
-        .action-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 14px 16px; }
-        .action-btn { background: #fff; border-radius: 16px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transition: transform 0.15s; min-width: 0; }
-        .action-btn:hover { transform: translateY(-2px); }
-        .action-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .action-label { font-size: 10px; font-weight: 600; text-align: center; color: #0e0e0e; line-height: 1.2; word-break: break-word; width: 100%; }
-        .hero-pill { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-top: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,0.7); max-width: 100%; }
-
-        /* MOBILE: full width, fixed bottom nav */
-        .mobile-layout { display: flex; flex-direction: column; min-height: 100dvh; }
-        #app-panel { flex: 1; }
-        #scroll-area { padding-bottom: 80px !important; }
-        #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; }
-
-        /* DESKTOP: two-column, sticky nav inside right panel */
-        @media (min-width: 768px) {
-          body { background: linear-gradient(135deg,#d4f5e2 0%,#fde0ef 30%,#fdf6d3 60%,#d4eaf7 100%) !important; }
-          .mobile-layout { flex-direction: row; max-width: 1200px; margin: 0 auto; min-height: 100dvh; }
-          .desktop-left { display: flex !important; }
-          #app-panel { max-width: 400px; flex-shrink: 0; box-shadow: -8px 0 40px rgba(0,0,0,0.08); }
-          #scroll-area { padding-bottom: 0 !important; }
-          #bottom-nav { position: sticky !important; bottom: 0 !important; left: auto !important; right: auto !important; }
-          .action-label { font-size: 9.5px; }
+        .action-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+          padding: 0 16px;
+          margin: 14px 0;
+        }
+        .action-btn {
+          background: rgba(255,255,255,0.85);
+          backdrop-filter: blur(8px);
+          border-radius: 18px;
+          padding: 14px 6px;
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          cursor: pointer;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+          transition: transform 0.15s, box-shadow 0.15s;
+          min-width: 0;
+        }
+        .action-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+        .action-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .action-label {
+          font-size: 10px; font-weight: 700; text-align: center;
+          color: #1a1a1a; line-height: 1.2;
+          /* Always one line — truncate if needed */
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+        }
+        /* On very small screens, allow wrap for action labels */
+        @media (max-width: 340px) {
+          .action-label { white-space: normal; font-size: 9px; }
+          .action-icon { width: 34px; height: 34px; font-size: 15px; }
         }
 
-        @media (max-width: 360px) {
-          .action-label { font-size: 8.5px; }
-          .action-icon { width: 28px; height: 28px; font-size: 13px; }
-          .action-btn { padding: 8px 2px; gap: 4px; border-radius: 12px; }
-          .action-grid { gap: 6px; margin: 12px 12px; }
+        .bottom-nav {
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          background: #0e0e0e;
+          padding: 12px 20px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom));
+          display: flex; justify-content: space-around; align-items: center;
+          z-index: 100;
+        }
+        /* On desktop, anchor nav to the content column */
+        @media (min-width: 621px) {
+          .bottom-nav {
+            position: sticky;
+            bottom: 0;
+            border-radius: 0;
+          }
         }
       `}</style>
 
-      <div className="mobile-layout">
+      <div style={pageStyle}>
+        <div style={colStyle}>
 
-        {/* Desktop left column — hidden on mobile via CSS */}
-        <div className="desktop-left" style={{ display: "none", flex: 1, flexDirection: "column" as const, justifyContent: "center", padding: "60px 48px", gap: 24 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,0.7)", backdropFilter: "blur(8px)", borderRadius: 99, padding: "6px 16px", fontSize: 13, fontWeight: 600, color: "#0e0e0e", width: "fit-content", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-            Invite-only fitness challenges
-          </div>
-          <div>
-            <h1 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(30px,3.5vw,50px)", fontWeight: 700, color: "#0e0e0e", lineHeight: 1.1, letterSpacing: -1 }}>
-              Queers and Allies<br />Fitness Challenge
-            </h1>
-            <p style={{ fontSize: 16, color: "#444", marginTop: 16, lineHeight: 1.6, maxWidth: 460 }}>
-              Spark friendly competition, track streaks, and keep your gym crew moving together. Create vibrant challenges and cheer each other on every day.
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
-            <button style={{ background: "linear-gradient(135deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", color: "#fff", fontWeight: 700, fontSize: 15, padding: "13px 28px", borderRadius: 99, border: "none", cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>Dashboard</button>
-            <button style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)", color: "#0e0e0e", fontWeight: 600, fontSize: 15, padding: "13px 28px", borderRadius: 99, border: "1px solid rgba(0,0,0,0.1)", cursor: "pointer" }}>View Challenges</button>
-            <button style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)", color: "#0e0e0e", fontWeight: 600, fontSize: 15, padding: "13px 28px", borderRadius: 99, border: "1px solid rgba(0,0,0,0.1)", cursor: "pointer" }}>Join with code</button>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", borderRadius: 20, padding: "20px", boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <span style={{ background: "#22c55e", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>Popular</span>
-              <span style={{ fontWeight: 700, fontSize: 16, color: "#0e0e0e" }}>Active Challenges</span>
+          {/* Animated rainbow strip */}
+          <div style={{
+            height: 4, flexShrink: 0,
+            background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+            backgroundSize: "200% 100%",
+            animation: "rainbowShift 4s linear infinite",
+          }} />
+
+          {/* Scrollable content */}
+          <div style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}>
+
+            {/* Wordmark */}
+            <div style={{ padding: "16px 16px 8px" }}>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
+                QUEERS & ALLIES FITNESS
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
-              {challenges.slice(0, 4).map(c => <DesktopChallengeRow key={c.id} challenge={c} />)}
+
+            {/* Hero banner */}
+            <div style={{
+              margin: "0 16px",
+              background: "#0e0e0e",
+              borderRadius: 22,
+              padding: "24px 22px",
+              position: "relative", overflow: "hidden",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            }}>
+              <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
+                ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
+              </div>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
+                Building<br />
+                <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  Community
+                </span><br />
+                Strength.
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
+                Physical Fitness + Mental Health · Sacramento, CA
+              </div>
+              {/* Hero pill — inline, no wrapping */}
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14,
+                background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)",
+              }}>
+                🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week
+              </div>
             </div>
-            <button style={{ width: "100%", marginTop: 14, padding: "12px", borderRadius: 10, border: "1px solid #e5e5e5", background: "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", color: "#0e0e0e" }}>
-              Browse all challenges →
-            </button>
+
+            {/* Quick actions */}
+            <div className="action-grid">
+              {ACTIONS.map((btn) => (
+                <div key={btn.label} className="action-btn">
+                  <div className="action-icon" style={{ background: btn.bg }}>{btn.icon}</div>
+                  <div className="action-label">{btn.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Featured Challenges */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px 12px" }}>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }}>See all →</div>
+            </div>
+
+            {/* Challenge cards — equal height, side by side */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 16px" }}>
+              {challenges.slice(0, 2).map((c, i) => (
+                <ChallengeCard key={c.id} challenge={c} colorIndex={i} />
+              ))}
+            </div>
+
+            {/* Activity Feed header */}
+            <div style={{ margin: "20px 16px 0", height: 1.5, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", opacity: 0.25, borderRadius: 2 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px 0" }}>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
+            </div>
+
+            {/* Post input — its own full-width row, nothing cut off */}
+            <div style={{ padding: "10px 16px 12px", display: "flex", gap: 8 }}>
+              <input
+                value={postText}
+                onChange={(e) => setPostText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handlePost()}
+                placeholder="Post a shoutout to the community…"
+                style={{
+                  flex: 1, fontSize: 13, padding: "10px 16px",
+                  borderRadius: 24, border: "none", outline: "none",
+                  background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+                }}
+              />
+              <button
+                onClick={handlePost}
+                disabled={posting || !postText.trim()}
+                style={{
+                  background: posting || !postText.trim() ? "rgba(0,0,0,0.15)" : "#0e0e0e",
+                  color: "#fff", fontSize: 13, fontWeight: 700,
+                  padding: "10px 20px", borderRadius: 24, border: "none",
+                  cursor: posting || !postText.trim() ? "default" : "pointer",
+                  flexShrink: 0, transition: "background 0.15s",
+                }}
+              >
+                {posting ? "…" : "Post"}
+              </button>
+            </div>
+
+            {/* Feed items */}
+            <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {feed.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#999", fontSize: 13 }}>
+                  No activity yet — be the first to post! 🌈
+                </div>
+              ) : (
+                feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
+              )}
+            </div>
+
           </div>
+
+          {/* Bottom nav */}
+          <div className="bottom-nav">
+            {([
+              { id: "ranks",     icon: "🏅", label: "Ranks"     },
+              { id: "dashboard", icon: "🏳️‍🌈", label: "Dashboard" },
+              { id: "streak",    icon: "🔥", label: "Streak",   sub: streak !== null ? `${streak}d` : "" },
+              { id: "messages",  icon: "💬", label: "Messages"  },
+            ] as const).map((nav) => (
+              <div
+                key={nav.id}
+                onClick={() => setActiveNav(nav.id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 4, cursor: "pointer", padding: "6px 12px", borderRadius: 12,
+                  background: activeNav === nav.id ? "rgba(255,255,255,0.07)" : "transparent",
+                  transition: "background 0.15s",
+                }}
+              >
+                {nav.id === "dashboard" ? (
+                  <div style={{
+                    width: 34, height: 34,
+                    background: activeNav === "dashboard" ? "linear-gradient(135deg,#7b2d8b,#ff3c5f)" : "rgba(255,255,255,0.1)",
+                    borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19,
+                    transition: "background 0.15s",
+                  }}>
+                    🏳️‍🌈
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                    <div style={{ fontSize: 21, lineHeight: 1 }}>{nav.icon}</div>
+                    {"sub" in nav && nav.sub && (
+                      <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 11, color: "#ffd166", lineHeight: 1 }}>
+                        {nav.sub}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                  color: activeNav === nav.id ? "#ffd166" : "rgba(255,255,255,0.45)",
+                }}>
+                  {nav.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
-
-        {/* App panel */}
-        {appPanel}
-
       </div>
     </>
   );
