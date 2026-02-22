@@ -5,36 +5,34 @@ import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/utils/supabase/client";
 
 /**
- * 1. REFINED PROGRESS RING
- * Moved the gradient and added a "Glass" container for the Apple vibe.
+ * PREMIUM RAINBOW PROGRESS RING
+ * Fixed positioning and high-end rainbow gradient
  */
-function ProgressRing({ progress = 75, size = 44 }: { progress?: number; size?: number }) {
+function ProgressRing({ progress = 75, size = 52 }: { progress?: number; size?: number }) {
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center bg-white/40 backdrop-blur-md rounded-full p-1.5 shadow-inner border border-white/40">
+    <div className="relative flex items-center justify-center bg-white/40 backdrop-blur-xl rounded-full p-2 shadow-sm border border-white/60">
       <svg width={size} height={size} viewBox="0 0 36 36" className="transform -rotate-90">
         <defs>
-          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#C6FF5E" />
-            <stop offset="100%" stopColor="#FF5E5E" />
+          <linearGradient id="rainbowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF3B30" /> {/* Apple Red */}
+            <stop offset="25%" stopColor="#FF9500" /> {/* Apple Orange */}
+            <stop offset="50%" stopColor="#FFCC00" /> {/* Apple Yellow */}
+            <stop offset="75%" stopColor="#4CD964" /> {/* Apple Green */}
+            <stop offset="100%" stopColor="#5AC8FA" /> {/* Apple Blue */}
           </linearGradient>
         </defs>
+        {/* Subtle Track */}
+        <circle cx="18" cy="18" r={radius} stroke="rgba(0,0,0,0.04)" strokeWidth="3.5" fill="none" />
+        {/* Rainbow Progress */}
         <circle
           cx="18"
           cy="18"
           r={radius}
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth="3.5"
-          fill="none"
-        />
-        <circle
-          cx="18"
-          cy="18"
-          r={radius}
-          stroke="url(#ringGradient)"
+          stroke="url(#rainbowGradient)"
           strokeWidth="3.5"
           fill="none"
           strokeDasharray={circumference}
@@ -50,119 +48,71 @@ function ProgressRing({ progress = 75, size = 44 }: { progress?: number; size?: 
 export default function HomeLandingPage() {
   const supabase = getSupabaseBrowserClient();
   const [challenges, setChallenges] = useState<any[]>([]);
-  const [streakFeed, setStreakFeed] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
-      try {
-        await Promise.all([fetchActiveChallenges(), fetchStreakFeed()]);
-      } catch (err) {
-        console.error("Data fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
+      const { data } = await supabase
+        .from("challenges")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      const active = data?.filter((c: any) => {
+        if (!c.end_date) return false;
+        return new Date(c.end_date) > new Date();
+      }) || [];
+      
+      setChallenges(active);
+      setLoading(false);
     }
     loadData();
   }, []);
 
-  async function fetchActiveChallenges() {
-    const { data } = await supabase
-      .from("challenges")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    const active = data?.filter((c: any) => {
-      if (!c.end_date) return false;
-      return new Date(c.end_date) > new Date();
-    }) || [];
-    setChallenges(active);
-  }
-
-  async function fetchStreakFeed() {
-    const { data } = await supabase
-      .from("streak_events")
-      .select("id, user_name, streak_count")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setStreakFeed(data || []);
-  }
-
-  // Prevents the "Application Error" crash while waiting for data
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lime-100 to-purple-100">
-        <div className="animate-pulse text-slate-500 font-bold tracking-tighter">PREPARING CHALLENGES...</div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="animate-pulse text-slate-400 font-bold tracking-tighter uppercase text-xs">Loading...</div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-lime-200 via-pink-200 to-purple-200 pb-32 font-sans selection:bg-pink-300">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#fdfcfb_0%,_#e2d1c3_100%)] pb-32 font-sans">
       
-      {/* 2. REFINED TOP NAV */}
-      <nav className="flex items-center justify-between px-6 pt-8 mb-8">
-        <Link href="/" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500/80 hover:text-slate-900 transition-colors">
+      {/* 1. CLEAN NAVIGATION */}
+      <nav className="flex items-center justify-between px-6 pt-10 mb-12 max-w-xl mx-auto">
+        <Link href="/" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-all">
           ← Back
         </Link>
-        <div className="hidden md:flex gap-3">
-          <Link href="/embed/new" className="px-5 py-2 rounded-full bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm text-xs font-bold text-slate-800">
-            + New Challenge
-          </Link>
-          <Link href="/leaderboard" className="px-5 py-2 rounded-full bg-slate-900 text-white text-xs font-bold shadow-lg">
-            Leaderboard
-          </Link>
-        </div>
+        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-rose-400 shadow-lg border-2 border-white" />
       </nav>
 
-      {/* 3. HERO SECTION */}
-      <header className="px-6 mb-10">
-        <p className="text-[10px] font-black tracking-[0.3em] text-slate-500/70 uppercase mb-2">
-          Queers & Allies Fitness
+      {/* 2. HERO HEADER */}
+      <header className="px-8 mb-12 max-w-xl mx-auto text-center md:text-left">
+        <p className="text-[10px] font-black tracking-[0.4em] text-slate-400 uppercase mb-3">
+          Community Progress
         </p>
-        <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-[1.1] tracking-tight">
-          Building community <br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500">
-            strength.
+        <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tighter">
+          Building <br className="hidden md:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500">
+            community strength.
           </span>
         </h2>
       </header>
 
-      {/* 4. SOCIAL FEED (SCROLLABLE BUBBLES) */}
-      {streakFeed.length > 0 && (
-        <section className="mb-12">
-          <div className="flex gap-4 overflow-x-auto px-6 pb-4 no-scrollbar">
-            {streakFeed.map((event) => (
-              <div key={event.id} className="shrink-0 px-6 py-4 rounded-[30px] bg-white/40 backdrop-blur-2xl border border-white/50 shadow-sm transition-transform active:scale-95">
-                <span className="text-sm font-medium text-slate-800">
-                  🔥 <span className="font-bold">{event.user_name}</span> 
-                  <span className="opacity-60 ml-1">is on a {event.streak_count} day streak!</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 5. CHALLENGES GRID */}
-      <section className="px-6 space-y-6 max-w-2xl mx-auto">
-        {challenges.map((challenge, index) => {
+      {/* 3. CHALLENGE LIST */}
+      <section className="px-6 space-y-8 max-w-xl mx-auto">
+        {challenges.map((challenge) => {
           const daysLeft = challenge.end_date ? Math.ceil((new Date(challenge.end_date).getTime() - Date.now()) / 86400000) : 0;
-          const isFeatured = index === 0;
 
           return (
             <Link
               key={challenge.id}
               href={`/embed/challenge/${challenge.id}`}
-              className={`group relative block rounded-[38px] transition-all duration-500 active:scale-[0.97] 
-                ${isFeatured 
-                  ? 'bg-white/80 p-8 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.1)] ring-1 ring-white/60' 
-                  : 'bg-white/50 p-7 shadow-lg border border-white/40 opacity-90 hover:opacity-100'}`}
+              className="group relative block rounded-[40px] bg-white/70 backdrop-blur-2xl p-8 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.06)] border border-white/60 active:scale-[0.98] transition-all duration-300"
             >
-              {/* Correct Ring Placement: Integrated into flow */}
-              <div className="flex justify-between items-start mb-6">
-                <div className="max-w-[75%]">
-                  <h3 className={`font-black text-slate-900 tracking-tight leading-tight mb-2 ${isFeatured ? 'text-2xl' : 'text-xl'}`}>
+              {/* Top Row: Title + Ring */}
+              <div className="flex justify-between items-start gap-4 mb-8">
+                <div className="flex-1">
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-3">
                     {challenge.name}
                   </h3>
                   <p className="text-sm font-medium text-slate-500 leading-relaxed line-clamp-2">
@@ -170,24 +120,25 @@ export default function HomeLandingPage() {
                   </p>
                 </div>
                 <div className="shrink-0">
-                  <ProgressRing size={isFeatured ? 52 : 44} progress={75} />
+                  <ProgressRing progress={65} size={56} />
                 </div>
               </div>
 
-              {/* Functional Footer */}
-              <div className="flex items-center justify-between pt-5 border-t border-slate-900/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                     <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-400 to-pink-400 border-2 border-white shadow-sm" />
-                     <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-lime-300 to-emerald-400 border-2 border-white shadow-sm" />
+              {/* Bottom Row: Social Stats */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/[0.03] rounded-2xl border border-black/5">
+                  <div className="flex -space-x-1.5">
+                     <div className="w-5 h-5 rounded-full bg-blue-400 border border-white" />
+                     <div className="w-5 h-5 rounded-full bg-rose-400 border border-white" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                     {challenge.member_count || 0} Members
                   </span>
                 </div>
-                <div className="bg-rose-50 px-3 py-1.5 rounded-2xl border border-rose-100">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">
-                    {daysLeft}d left
+
+                <div className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 rounded-2xl border border-rose-500/10">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-600">
+                    {daysLeft}d Remaining
                   </span>
                 </div>
               </div>
@@ -196,13 +147,13 @@ export default function HomeLandingPage() {
         })}
       </section>
 
-      {/* 6. MOBILE FLOATING NAV (PILL SHAPE) */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full px-6 max-w-md md:hidden">
+      {/* 4. APPLE-STYLE FLOATING CTA */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full px-6 max-w-md">
         <Link 
           href="/embed/new" 
-          className="flex items-center justify-center gap-3 w-full py-5 rounded-[24px] bg-slate-900 text-white font-black shadow-2xl transition-transform active:scale-95 text-sm tracking-widest uppercase"
+          className="flex items-center justify-center gap-3 w-full py-5 rounded-[28px] bg-slate-900 text-white font-black shadow-2xl active:scale-95 transition-all text-xs tracking-[0.2em] uppercase"
         >
-          <span className="text-xl">+</span> New Challenge
+          <span className="text-lg">+</span> Create Challenge
         </Link>
       </div>
     </div>
