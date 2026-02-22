@@ -99,8 +99,8 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
     item.type === "streak"
       ? `${meta.days}d`
       : item.type === "score" || item.type === "team"
-      ? `#${meta.rank}`
-      : null;
+        ? `#${meta.rank}`
+        : null;
 
   return (
     <div
@@ -534,6 +534,14 @@ export default function HomePage() {
           z-index: 100;
         }
 
+        @media (max-width: 620px) {
+          .wrapper {
+          max-width: none !important;
+          margin: 0 !important;
+           width: 100% !important;
+          }
+        }
+
         @media (min-width: 621px) {
           .bottom-nav {
             position: sticky;
@@ -557,7 +565,7 @@ export default function HomePage() {
           }}
         />
 
-        <div style={desktopWrapper}>
+        <div className="wrapper" style={desktopWrapper}>
           <div style={colStyle}>
             {/* Scrollable content */}
             <div style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}>
