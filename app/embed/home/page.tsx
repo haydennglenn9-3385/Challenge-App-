@@ -423,7 +423,6 @@ export default function HomePage() {
   // Desktop wrapper: full width on mobile, max 620px on desktop
   const desktopWrapper: CSSProperties = {
     width: "100%",
-    maxWidth: 620,
     margin: "0 auto",
     flex: 1,
     display: "flex",
