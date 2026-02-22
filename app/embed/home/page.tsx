@@ -4,14 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/utils/supabase/client";
 
-// Decorative 75% progress ring
+// Decorative 75% progress ring with rainbow gradient
 function ProgressRing() {
   return (
-    <svg width="40" height="40" viewBox="0 0 36 36">
+    <svg width="28" height="28" viewBox="0 0 36 36">
       <defs>
         <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#A3FF00" />
-          <stop offset="100%" stopColor="#FF6EC7" />
+          <stop offset="0%" stopColor="#FF6EC7" />
+          <stop offset="25%" stopColor="#FF8A00" />
+          <stop offset="50%" stopColor="#A3FF00" />
+          <stop offset="75%" stopColor="#00CFFF" />
+          <stop offset="100%" stopColor="#9B5CFF" />
         </linearGradient>
       </defs>
 
@@ -43,8 +46,8 @@ function ProgressRing() {
 export default function HomeLandingPage() {
   const supabase = getSupabaseBrowserClient();
 
-  const [challenges, setChallenges] = useState([]);
-  const [streakFeed, setStreakFeed] = useState([]);
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [streakFeed, setStreakFeed] = useState<any[]>([]);
 
   useEffect(() => {
     fetchActiveChallenges();
@@ -57,12 +60,13 @@ export default function HomeLandingPage() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    const active = data?.filter((c) => {
-      if (!c.end_date) return false;
-      return new Date(c.end_date) > new Date();
-    });
+    const active =
+      data?.filter((c: any) => {
+        if (!c.end_date) return false;
+        return new Date(c.end_date) > new Date();
+      }) || [];
 
-    setChallenges(active || []);
+    setChallenges(active);
   }
 
   async function fetchStreakFeed() {
@@ -76,10 +80,10 @@ export default function HomeLandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-lime-200 via-pink-200 to-purple-200 p-5 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-lime-200 via-pink-200 to-purple-200 pb-24">
 
       {/* Top Navigation */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between px-4 pt-5 mb-6">
         <Link href="/" className="text-sm font-medium text-slate-700">
           ← Back
         </Link>
@@ -95,7 +99,7 @@ export default function HomeLandingPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="mb-8">
+      <div className="px-4 mb-8">
         <p className="text-xs tracking-widest text-slate-600 uppercase mb-1">
           Challenges
         </p>
@@ -106,7 +110,7 @@ export default function HomeLandingPage() {
 
       {/* Streak Feed */}
       {streakFeed.length > 0 && (
-        <div className="mb-10">
+        <div className="px-4 mb-10">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">
             Recent streaks
           </h3>
@@ -115,7 +119,7 @@ export default function HomeLandingPage() {
             {streakFeed.map((event) => (
               <div
                 key={event.id}
-                className="shrink-0 px-4 py-3 rounded-2xl bg-white/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] text-sm"
+                className="shrink-0 px-4 py-3 rounded-2xl bg-white/60 backdrop-blur-xl shadow text-sm"
               >
                 🔥 <strong>{event.user_name}</strong> hit a{" "}
                 {event.streak_count}-day streak
@@ -126,28 +130,30 @@ export default function HomeLandingPage() {
       )}
 
       {/* Active Challenges */}
-      <div className="space-y-5">
+      <div className="space-y-5 px-4">
         {challenges.map((challenge) => {
           const end = challenge.end_date
             ? new Date(challenge.end_date)
             : null;
 
           const daysLeft = end
-            ? Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            ? Math.ceil(
+                (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+              )
             : 0;
 
           return (
             <Link
               key={challenge.id}
               href={`/embed/challenge/${challenge.id}`}
-              className="block p-5 rounded-3xl bg-white/70 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] relative"
+              className="block p-5 pt-7 rounded-3xl bg-white/75 backdrop-blur-xl shadow relative"
             >
               {/* Progress Ring */}
-              <div className="absolute top-4 right-4">
+              <div className="absolute -top-3 right-3">
                 <ProgressRing />
               </div>
 
-              <h3 className="text-lg font-semibold text-slate-800 mb-1">
+              <h3 className="text-lg font-semibold text-slate-800 mb-1 pr-14">
                 {challenge.name}
               </h3>
 
