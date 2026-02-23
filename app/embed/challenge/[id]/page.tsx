@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 // ─── Exercise schedule ────────────────────────────────────────────────────────
 

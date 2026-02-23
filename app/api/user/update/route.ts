@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = import { supabase } from "@/lib/supabase/client";  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+// Server-side Supabase client (service role key)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! // server-side only
 );
 

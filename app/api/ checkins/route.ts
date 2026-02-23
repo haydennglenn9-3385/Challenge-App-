@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 import { evaluateCheckIn } from "@/lib/scoring/evaluateCheckIn";
 import { computeTeamScore } from "@/lib/scoring/computeTeamScore";
 

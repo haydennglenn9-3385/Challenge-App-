@@ -1,29 +1,30 @@
 import { jwtDecode } from "jwt-decode";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 
+// Decodes a token and fetches the matching user from Supabase
 export async function getUserFromToken(token: string) {
-  const supabase = import { supabase } from "@/lib/supabase/client";    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  if (!token) return null;
 
-  const decoded: any = jwtDecode(token);
-  const wixId = decoded.wixId;
+  let decoded: any;
+  try {
+    decoded = jwtDecode(token);
+  } catch (err) {
+    return null;
+  }
 
-  // 1. Try to find the user
-  const { data: existingUser } = await supabase
+  // Adjust this depending on what your token actually contains now
+  const userId = decoded?.id || decoded?.userId || decoded?.sub;
+
+  if (!userId) return null;
+
+  // Fetch the user from Supabase
+  const { data, error } = await supabase
     .from("users")
     .select("*")
-    .eq("wix_id", wixId)
+    .eq("id", userId)
     .single();
 
-  if (existingUser) return existingUser;
+  if (error) return null;
 
-  // 2. Create the user if not found
-  const { data: newUser } = await supabase
-    .from("users")
-    .insert({ wix_id: wixId })
-    .select()
-    .single();
-
-  return newUser;
+  return data;
 }

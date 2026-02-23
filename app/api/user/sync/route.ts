@@ -1,46 +1,33 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = import { supabase } from "@/lib/supabase/client";  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+// Server-side Supabase client (service role key)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! // server-side only
 );
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { wixId, email, name } = body;
+  const { wixId, name, email, password } = body;
 
-  if (!wixId || !email) {
+  if (!wixId) {
     return NextResponse.json(
-      { error: "Missing wixId or email" },
+      { error: "Missing wixId" },
       { status: 400 }
     );
   }
 
-  // Check if user exists
-  const { data: existingUser, error: findError } = await supabase
-    .from("users")
-    .select("*")
-    .eq("wix_id", wixId)
-    .maybeSingle();
+  // Update name/email
+  if (name || email) {
+    const updates: any = {};
+    if (name) updates.name = name;
+    if (email) updates.email = email;
 
-  if (findError) {
-    return NextResponse.json(
-      { error: findError.message },
-      { status: 500 }
-    );
-  }
-
-  // If user exists → update name/email
-  if (existingUser) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("users")
-      .update({
-        name,
-        email,
-      })
-      .eq("wix_id", wixId)
-      .select()
-      .single();
+      .update(updates)
+      .eq("wix_id", wixId);
 
     if (error) {
       return NextResponse.json(
@@ -48,29 +35,21 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-
-    return NextResponse.json(data);
   }
 
-  // If user does NOT exist → create new row
-  const { data, error } = await supabase
-    .from("users")
-    .insert({
-      wix_id: wixId,
-      email,
-      name,
-      streak: 0,
-      total_points: 0,
-    })
-    .select()
-    .single();
+  // Update password (optional)
+  if (password) {
+    const { error } = await supabase.auth.admin.updateUserById(wixId, {
+      password,
+    });
 
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ success: true });
 }

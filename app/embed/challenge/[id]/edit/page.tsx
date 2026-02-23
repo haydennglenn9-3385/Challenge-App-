@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 export default function EditCheckInPage() {
   const params = useParams<{ id: string }>();

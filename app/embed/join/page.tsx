@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 
 const LGBTQ_FITNESS_FACTS = [
   "🏳️‍🌈 The first gay softball league was founded in 1977 in San Francisco - now there are over 40 leagues across North America!",
@@ -14,9 +14,6 @@ const LGBTQ_FITNESS_FACTS = [
   "💃 Queer folks invented voguing in the 1960s ballroom scene - a full-body workout disguised as fabulous performance art!",
 ];
 
-const supabase = import { supabase } from "@/lib/supabase/client";  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function SignupPage() {
   const router = useRouter();
