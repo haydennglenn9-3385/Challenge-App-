@@ -1,24 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // server-side only
+);
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const wixId = searchParams.get('wixId');
+  const id = searchParams.get("id");
 
-  if (!wixId) {
-    return NextResponse.json({ error: 'Missing wixId' }, { status: 400 });
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing user id" },
+      { status: 400 }
+    );
   }
 
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('wix_id', wixId)
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", id)
     .single();
 
   if (error) {
-    console.error('Error fetching user:', error);
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 
-  return NextResponse.json(user);
+  return NextResponse.json(data);
 }
