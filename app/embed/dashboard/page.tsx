@@ -5,11 +5,8 @@
 import { useEffect, useState, CSSProperties } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -368,7 +365,7 @@ export default function DashboardPage() {
           .from("user_streaks")
           .select("current_streak")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         setStreak(
           (sData as { current_streak: number } | null)?.current_streak ?? 0
