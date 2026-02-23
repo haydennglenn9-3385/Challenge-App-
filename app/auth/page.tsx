@@ -3,12 +3,7 @@
 // app/auth/page.tsx — Queers & Allies Fitness · Login / Sign Up
 
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup";
 
