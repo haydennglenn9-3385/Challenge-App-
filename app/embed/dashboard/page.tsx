@@ -86,6 +86,104 @@ function Chip({ type }: { type: FeedType }) {
   );
 }
 
+// ─── Feed Card ────────────────────────────────────────────────────────────────
+
+function FeedCard({ item, index }: { item: FeedItem; index: number }) {
+  const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
+  const meta = item.meta;
+
+  const subValue =
+    item.type === "streak"
+      ? `${meta.days}d`
+      : item.type === "score" || item.type === "team"
+      ? `#${meta.rank}`
+      : null;
+
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.85)",
+        backdropFilter: "blur(12px)",
+        borderRadius: 16,
+        padding: "13px 14px",
+        display: "flex",
+        gap: 11,
+        alignItems: "flex-start",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+        animation: "slideIn 0.4s ease both",
+        animationDelay: `${index * 0.06}s`,
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          background: avatarBg,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 17,
+          marginTop: 1,
+        }}
+      >
+        {item.type === "team" ? "🏳️‍🌈" : "😊"}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{ fontSize: 13, fontWeight: 700, color: "#0e0e0e" }}
+        >
+          {item.user_name}
+        </div>
+
+        <div
+          style={{
+            fontSize: 11.5,
+            color: "#555",
+            marginTop: 2,
+            lineHeight: 1.4,
+          }}
+          dangerouslySetInnerHTML={{ __html: item.text }}
+        />
+
+        <div
+          style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}
+        >
+          {new Date(item.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 4,
+          flexShrink: 0,
+        }}
+      >
+        <Chip type={item.type} />
+        {subValue && (
+          <span
+            style={{
+              fontFamily: "'Bebas Neue', cursive",
+              fontSize: 14,
+              color: "#7b2d8b",
+            }}
+          >
+            {subValue}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Challenge Card ───────────────────────────────────────────────────────────
 
 function ChallengeCard({
@@ -226,103 +324,7 @@ function ChallengeCard({
   );
 }
 
-// ─── Feed Card ────────────────────────────────────────────────────────────────
-
-function FeedCard({ item, index }: { item: FeedItem; index: number }) {
-  const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
-  const meta = item.meta;
-
-  const subValue =
-    item.type === "streak"
-      ? `${meta.days}d`
-      : item.type === "score" || item.type === "team"
-      ? `#${meta.rank}`
-      : null;
-
-  return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.85)",
-        backdropFilter: "blur(12px)",
-        borderRadius: 16,
-        padding: "13px 14px",
-        display: "flex",
-        gap: 11,
-        alignItems: "flex-start",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-        animation: "slideIn 0.4s ease both",
-        animationDelay: `${index * 0.06}s`,
-      }}
-    >
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          background: avatarBg,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 17,
-          marginTop: 1,
-        }}
-      >
-        {item.type === "team" ? "🏳️‍🌈" : "😊"}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{ fontSize: 13, fontWeight: 700, color: "#0e0e0e" }}
-        >
-          {item.user_name}
-        </div>
-
-        <div
-          style={{
-            fontSize: 11.5,
-            color: "#555",
-            marginTop: 2,
-            lineHeight: 1.4,
-          }}
-          dangerouslySetInnerHTML={{ __html: item.text }}
-        />
-
-        <div
-          style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}
-        >
-          {new Date(item.created_at).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 4,
-          flexShrink: 0,
-        }}
-      >
-        <Chip type={item.type} />
-        {subValue && (
-          <span
-            style={{
-              fontFamily: "'Bebas Neue', cursive",
-              fontSize: 14,
-              color: "#7b2d8b",
-            }}
-          >
-            {subValue}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
