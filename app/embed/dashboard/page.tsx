@@ -1,444 +1,1022 @@
 "use client";
 
-// app/embed/dashboard/page.tsx — Queers & Allies Fitness · Personal Dashboard
-// Wix auth (useUser, getUserParams, wix_id) fully replaced with Supabase auth.
+// app/embed/dashboard/page.tsx — Queers & Allies Fitness Dashboard
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState, CSSProperties } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
-function DashboardContent() {
-  const router = useRouter();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  const [profile, setProfile]                   = useState<any>(null);
-  const [joinedChallenges, setJoinedChallenges] = useState<any[]>([]);
-  const [createdChallenges, setCreatedChallenges] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers]           = useState<any[]>([]);
-  const [loading, setLoading]                   = useState(true);
-  const [authed, setAuthed]                     = useState<boolean | null>(null); // null = still checking
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    async function loadData() {
-      // 1. Get the logged-in Supabase user
-      const { data: { user } } = await supabase.auth.getUser();
+type FeedType = "streak" | "score" | "team" | "message";
 
-      if (!user) {
-        setAuthed(false);
-        setLoading(false);
-        return;
-      }
+interface Challenge {
+  id: string;
+  name: string;
+  type: string;
+  emoji: string;
+  member_count: number;
+  capacity: number;
+  end_date?: string;
+}
 
-      setAuthed(true);
+interface FeedItem {
+  id: string;
+  created_at: string;
+  user_name: string;
+  type: FeedType;
+  text: string;
+  meta: Record<string, unknown>;
+}
 
-      // 2. Load user profile from the users table
-      //    The users table id matches the Supabase auth user id.
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-      if (!userData) {
-        // Profile doesn't exist yet — create a minimal one
-        const { data: newProfile } = await supabase
-          .from("users")
-          .insert({
-            id: user.id,
-            email: user.email,
-            name: user.user_metadata?.display_name || user.email?.split("@")[0] || "Member",
-          })
-          .select()
-          .single();
+const CHIP_STYLES: Record<
+  FeedType,
+  { bg: string; color: string; label: string }
+> = {
+  streak: { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
+  score: { bg: "#e8d9f7", color: "#7b2d8b", label: "📊 Score" },
+  team: { bg: "#fde0ef", color: "#b5003c", label: "🏆 Team" },
+  message: { bg: "#d4eaf7", color: "#118ab2", label: "💬 Post" },
+};
 
-        setProfile(newProfile);
-      } else {
-        setProfile(userData);
-      }
+const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
-      const resolvedProfile = userData || { id: user.id };
+const ACTIONS = [
+  { icon: "➕", label: "New Challenge", bg: "#fde0ef" },
+  { icon: "🔗", label: "Sign up or Log in", bg: "#fdf6d3" },
+  { icon: "👀", label: "View All", bg: "#d4f5e2" },
+  { icon: "🏅", label: "Leaderboard", bg: "#e8d9f7" },
+] as const;
 
-      // 3. Joined challenges
-      const { data: joinedData } = await supabase
-        .from("challenge_members")
-        .select(`
-          challenge_id,
-          challenges (
-            id,
-            name,
-            join_code,
-            creator_id,
-            start_date,
-            end_date,
-            description
-          )
-        `)
-        .eq("user_id", resolvedProfile.id);
+const CARD_COLORS = [
+  { glow: "#ff3c5f", prog1: "#ff3c5f", prog2: "#ffd166", valColor: "#ffd166" },
+  { glow: "#06d6a0", prog1: "#06d6a0", prog2: "#118ab2", valColor: "#06d6a0" },
+];
 
-      if (joinedData) {
-        setJoinedChallenges(joinedData.map((c: any) => c.challenges).filter(Boolean));
-      }
+function daysLeft(endDate?: string) {
+  if (!endDate) return null;
+  const diff = Math.ceil(
+    (new Date(endDate).getTime() - Date.now()) / 86400000
+  );
+  return diff > 0 ? diff : 0;
+}
 
-      // 4. Created challenges
-      const { data: createdData } = await supabase
-        .from("challenges")
-        .select("*")
-        .eq("creator_id", resolvedProfile.id);
+// ─── Chip ─────────────────────────────────────────────────────────────────────
 
-      setCreatedChallenges(createdData || []);
+function Chip({ type }: { type: FeedType }) {
+  const s = CHIP_STYLES[type];
+  return (
+    <span
+      style={{
+        background: s.bg,
+        color: s.color,
+        fontSize: 10,
+        fontWeight: 700,
+        padding: "3px 8px",
+        borderRadius: 20,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {s.label}
+    </span>
+  );
+}
 
-      // 5. Team members
-      const { data: userTeamData } = await supabase
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", resolvedProfile.id)
-        .limit(1)
-        .single();
+// ─── Challenge Card ───────────────────────────────────────────────────────────
 
-      if (userTeamData) {
-        const { data: membersData } = await supabase
-          .from("team_members")
-          .select(`
-            user_id,
-            users (
-              id,
-              name,
-              streak,
-              total_points
-            )
-          `)
-          .eq("team_id", userTeamData.team_id)
-          .limit(5);
+function ChallengeCard({
+  challenge,
+  colorIndex,
+}: {
+  challenge: Challenge;
+  colorIndex: number;
+}) {
+  const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
 
-        if (membersData) {
-          setTeamMembers(membersData.map((m: any) => m.users).filter(Boolean));
-        }
-      }
+  const pct =
+    challenge.capacity > 0
+      ? Math.round((challenge.member_count / challenge.capacity) * 100)
+      : 0;
 
-      setLoading(false);
-    }
+  const days = daysLeft(challenge.end_date);
 
-    loadData();
-  }, []);
-
-  // ── Not logged in ────────────────────────────────────────────────────────────
-  if (authed === false) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="neon-card rounded-3xl p-12 text-center max-w-md">
-          <div className="text-5xl mb-4">🏳️‍🌈</div>
-          <h2 className="text-2xl font-display mb-4">Dashboard</h2>
-          <p className="text-slate-600 mb-6">Log in to see your dashboard</p>
-          <button
-            onClick={() => router.push("/auth")}
-            className="rainbow-cta px-6 py-3 rounded-full font-semibold"
-          >
-            Log in / Sign up
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Loading ──────────────────────────────────────────────────────────────────
-  if (loading || authed === null) {
-    return (
-      <div className="p-10 text-center">
-        <p className="text-slate-500">Loading your dashboard…</p>
-      </div>
-    );
-  }
-
-  // ── Dashboard ────────────────────────────────────────────────────────────────
-  const streakDays = profile?.streak || 0;
-  const weekDays = ["M", "T", "W", "T", "F", "S", "S"];
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/");
-  }
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div
+      style={{
+        background: "#1a1a1a",
+        borderRadius: 18,
+        padding: "16px 14px",
+        position: "relative",
+        overflow: "hidden",
+        cursor: "pointer",
+        transform: hovered ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.15s",
+        height: 190,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: -16,
+          right: -16,
+          width: 72,
+          height: 72,
+          borderRadius: "50%",
+          background: c.glow,
+          opacity: 0.2,
+        }}
+      />
 
-      {/* Nav */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <button
-          onClick={() => router.push("/")}
-          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-        >
-          ← Home
-        </button>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.push("/embed/challenges")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-          >
-            All Challenges
-          </button>
-
-          <button
-            onClick={() => router.push("/embed/leaderboard")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-          >
-            Leaderboard
-          </button>
-
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 rounded-full font-semibold border border-red-200 bg-white/80 hover:bg-red-50 transition text-sm text-red-600"
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-
-      {/* Header */}
+      {/* Top section */}
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">
-          DASHBOARD
-        </p>
-        <h2 className="text-4xl font-display">
-          Welcome back, {profile?.name || "friend"}!
-        </h2>
+        <div style={{ fontSize: 20, marginBottom: 6 }}>
+          {challenge.emoji || "💪"}
+        </div>
+
+        <div
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.4)",
+            marginBottom: 4,
+          }}
+        >
+          {challenge.type}
+        </div>
+
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#fff",
+            lineHeight: 1.3,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {challenge.name}
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* Profile Card */}
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Your Profile</h3>
-          <div className="space-y-2 text-sm mb-4">
-            <p className="text-slate-700">
-              <strong>Name:</strong> {profile?.name}
-            </p>
-            <p className="text-slate-700">
-              <strong>Email:</strong> {profile?.email}
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/embed/profile")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm w-full"
+      {/* Bottom section */}
+      <div>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.09)",
+            borderRadius: 10,
+            padding: "8px 10px",
+            marginBottom: 8,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Bebas Neue', cursive",
+              fontSize: 15,
+              color: c.valColor,
+            }}
           >
-            Edit Profile →
-          </button>
-        </div>
-
-        {/* Streak Card */}
-        <div className="neon-card rounded-3xl p-6 flex flex-col items-center">
-          <div className="text-5xl mb-2">🔥</div>
-          <h3 className="text-xl font-semibold mb-2">{streakDays}-Day Streak</h3>
-          <div className="flex justify-between w-full mt-3 max-w-xs">
-            {weekDays.map((d, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <span className="text-slate-600 text-sm">{d}</span>
-                <div
-                  className={`w-3 h-3 mt-1 rounded-full ${
-                    i < streakDays
-                      ? "bg-gradient-to-r from-pink-500 to-purple-500"
-                      : "bg-slate-300"
-                  }`}
-                />
-              </div>
-            ))}
+            {challenge.member_count} / {challenge.capacity}
           </div>
-          <p className="mt-4 text-slate-600 text-sm">
-            {streakDays > 0 ? "You're on fire! Keep it going 🔥" : "Start your streak today!"}
-          </p>
-        </div>
 
-        {/* Points Card */}
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Points & Rewards</h3>
-          <p className="text-3xl font-bold mb-4">⭐ {profile?.total_points || 0}</p>
-          <p className="text-sm text-slate-600 mb-4">Total Points Earned</p>
-          <button
-            onClick={() => router.push("/embed/leaderboard")}
-            className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm w-full"
+          <div
+            style={{
+              fontSize: 9,
+              color: "rgba(255,255,255,0.4)",
+              marginTop: 1,
+            }}
           >
-            View Leaderboard
-          </button>
-        </div>
-
-        {/* Team Members */}
-        <div className="neon-card rounded-3xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Your Teammates</h3>
-          {teamMembers.length === 0 ? (
-            <>
-              <p className="text-slate-600 mb-4 text-sm">
-                Join a challenge to see your teammates!
-              </p>
-              <button
-                onClick={() => router.push("/embed/join")}
-                className="rainbow-cta rounded-full px-4 py-2 font-semibold text-sm w-full"
-              >
-                Join with Code
-              </button>
-            </>
-          ) : (
-            <div className="space-y-2">
-              {teamMembers.slice(0, 4).map((member: any) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-white"
-                >
-                  <div>
-                    <p className="font-semibold text-sm">{member.name}</p>
-                    <p className="text-xs text-slate-500">🔥 {member.streak || 0} streak</p>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    ⭐ {member.total_points || 0}
-                  </p>
-                </div>
-              ))}
-              {teamMembers.length > 4 && (
-                <p className="text-xs text-slate-500 text-center pt-2">
-                  +{teamMembers.length - 4} more teammates
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Active (Joined) Challenges */}
-        <div className="neon-card rounded-3xl p-6 md:col-span-2">
-          <h3 className="text-xl font-semibold mb-4">Active Challenges</h3>
-          {joinedChallenges.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-slate-500 mb-4">
-                You haven't joined any challenges yet!
-              </p>
-              <button
-                onClick={() => router.push("/embed/challenges")}
-                className="rainbow-cta px-6 py-3 rounded-full font-semibold"
-              >
-                Browse Challenges
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {joinedChallenges.map((challenge: any) => {
-                const startDate = new Date(challenge.start_date);
-                const endDate   = new Date(challenge.end_date);
-                const now       = new Date();
-                const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000);
-                const daysPassed = Math.ceil((now.getTime() - startDate.getTime()) / 86400000);
-                const progress  = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
-
-                return (
-                  <div
-                    key={challenge.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:shadow-md transition"
-                  >
-                    <div className="flex-1">
-                      <p className="font-semibold">{challenge.name}</p>
-                      <p className="text-sm text-slate-500">
-                        {challenge.description
-                          ? challenge.description.substring(0, 60) + (challenge.description.length > 60 ? "…" : "")
-                          : "Code: " + challenge.join_code}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      {/* Progress ring */}
-                      <div className="w-16 h-16 rounded-full relative">
-                        <svg className="w-16 h-16 transform -rotate-90">
-                          <circle cx="32" cy="32" r="28" stroke="#e5e7eb" strokeWidth="4" fill="none" />
-                          <circle
-                            cx="32" cy="32" r="28"
-                            stroke="url(#grad)" strokeWidth="4" fill="none"
-                            strokeDasharray={`${progress * 1.76} 176`}
-                            strokeLinecap="round"
-                          />
-                          <defs>
-                            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#FD80AB" />
-                              <stop offset="100%" stopColor="#719FFF" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
-                          {progress}%
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
-                        className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-                      >
-                        View
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Created Challenges */}
-        {createdChallenges.length > 0 && (
-          <div className="neon-card rounded-3xl p-6 md:col-span-2">
-            <h3 className="text-xl font-semibold mb-4">Challenges You Created</h3>
-            <div className="space-y-3">
-              {createdChallenges.map((challenge: any) => (
-                <div
-                  key={challenge.id}
-                  className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white"
-                >
-                  <div>
-                    <p className="font-semibold">{challenge.name}</p>
-                    <p className="text-sm text-slate-500">
-                      Join code: <strong>{challenge.join_code}</strong>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => router.push(`/embed/challenge/${challenge.id}/manage`)}
-                    className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-                  >
-                    Manage
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <div className="neon-card rounded-3xl p-6 md:col-span-2">
-          <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              onClick={() => router.push("/embed/challenges/new")}
-              className="rainbow-cta rounded-2xl px-6 py-4 font-semibold text-center"
-            >
-              Create Challenge
-            </button>
-            <button
-              onClick={() => router.push("/embed/join")}
-              className="px-6 py-4 rounded-2xl font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition text-center"
-            >
-              Join with Code
-            </button>
-            <button
-              onClick={() => router.push("/embed/messages")}
-              className="px-6 py-4 rounded-2xl font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition text-center"
-            >
-              Messages
-            </button>
+            Members{days !== null ? ` · ${days}d left` : ""}
           </div>
         </div>
 
+        <div
+          style={{
+            height: 3,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 99,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              borderRadius: 99,
+              width: `${pct}%`,
+              background: `linear-gradient(90deg, ${c.prog1}, ${c.prog2})`,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-export default function DashboardPage() {
+// ─── Feed Card ────────────────────────────────────────────────────────────────
+
+function FeedCard({ item, index }: { item: FeedItem; index: number }) {
+  const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
+  const meta = item.meta;
+
+  const subValue =
+    item.type === "streak"
+      ? `${meta.days}d`
+      : item.type === "score" || item.type === "team"
+      ? `#${meta.rank}`
+      : null;
+
   return (
-    <Suspense fallback={<div className="p-10 text-center">Loading dashboard…</div>}>
-      <DashboardContent />
-    </Suspense>
+    <div
+      style={{
+        background: "rgba(255,255,255,0.85)",
+        backdropFilter: "blur(12px)",
+        borderRadius: 16,
+        padding: "13px 14px",
+        display: "flex",
+        gap: 11,
+        alignItems: "flex-start",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+        animation: "slideIn 0.4s ease both",
+        animationDelay: `${index * 0.06}s`,
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          background: avatarBg,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 17,
+          marginTop: 1,
+        }}
+      >
+        {item.type === "team" ? "🏳️‍🌈" : "😊"}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{ fontSize: 13, fontWeight: 700, color: "#0e0e0e" }}
+        >
+          {item.user_name}
+        </div>
+
+        <div
+          style={{
+            fontSize: 11.5,
+            color: "#555",
+            marginTop: 2,
+            lineHeight: 1.4,
+          }}
+          dangerouslySetInnerHTML={{ __html: item.text }}
+        />
+
+        <div
+          style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}
+        >
+          {new Date(item.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 4,
+          flexShrink: 0,
+        }}
+      >
+        <Chip type={item.type} />
+        {subValue && (
+          <span
+            style={{
+              fontFamily: "'Bebas Neue', cursive",
+              fontSize: 14,
+              color: "#7b2d8b",
+            }}
+          >
+            {subValue}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const router = useRouter();
+
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [streak, setStreak] = useState<number | null>(null);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [postText, setPostText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [activeNav, setActiveNav] = useState("dashboard");
+
+  useEffect(() => {
+    async function load() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user?.email) setUserEmail(user.email.split("@")[0]);
+
+      const { data: cData } = await supabase
+        .from("challenges")
+        .select("*")
+        .order("member_count", { ascending: false })
+        .limit(6);
+
+      setChallenges((cData as Challenge[]) || []);
+
+      const { data: fData } = await supabase
+        .from("activity_feed")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      setFeed((fData as FeedItem[]) || []);
+
+      if (user) {
+        const { data: sData } = await supabase
+          .from("user_streaks")
+          .select("current_streak")
+          .eq("user_id", user.id)
+          .single();
+
+        setStreak(
+          (sData as { current_streak: number } | null)?.current_streak ?? 0
+        );
+      }
+
+      setLoading(false);
+    }
+
+    load();
+
+    const sub = supabase
+      .channel("activity_feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_feed" },
+        (payload) =>
+          setFeed((prev) => [payload.new as FeedItem, ...prev.slice(0, 9)])
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sub);
+    };
+  }, []);
+
+  async function handlePost() {
+    if (!postText.trim()) return;
+
+    setPosting(true);
+
+    await supabase.from("activity_feed").insert({
+      user_name: userEmail || "Member",
+      type: "message",
+      text: `"${postText.trim()}"`,
+      meta: {},
+    });
+
+    setPostText("");
+    setPosting(false);
+  }
+
+  const pageStyle: CSSProperties = {
+    minHeight: "100dvh",
+    width: "100%",
+    background:
+      "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    fontFamily: "'DM Sans', sans-serif",
+  };
+
+  const desktopWrapper: CSSProperties = {
+    width: "100%",
+    margin: "0 auto",
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+  };
+
+  const colStyle: CSSProperties = {
+    width: "100%",
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+  };
+
+  if (loading)
+    return (
+      <div style={{ ...pageStyle, justifyContent: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
+          <div
+            style={{
+              fontFamily: "'Bebas Neue', cursive",
+              fontSize: 18,
+              color: "#7b2d8b",
+              letterSpacing: 2,
+            }}
+          >
+            LOADING...
+          </div>
+        </div>
+      </div>
+    );
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        @keyframes rainbowShift {
+          0% { background-position: 0% }
+          100% { background-position: 200% }
+        }
+
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(10px) }
+          to { opacity: 1; transform: translateY(0) }
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        ::-webkit-scrollbar { display: none; }
+
+        .action-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+          padding: 0;
+          margin: 14px 0;
+        }
+
+        .action-btn {
+          background: rgba(255,255,255,0.85);
+          backdrop-filter: blur(8px);
+          border-radius: 18px;
+          padding: 14px 6px;
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          cursor: pointer;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+          transition: transform 0.15s, box-shadow 0.15s;
+          min-width: 0;
+        }
+
+        .action-btn:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+
+        .action-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+
+        .action-label {
+          font-size: 10px; font-weight: 700; text-align: center;
+          color: #1a1a1a; line-height: 1.2;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+        }
+
+        @media (max-width: 340px) {
+          .action-label { white-space: normal; font-size: 9px; }
+          .action-icon { width: 34px; height: 34px; font-size: 15px; }
+        }
+
+        .bottom-nav {
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          background: rgba(14,14,14,0.85);
+          backdrop-filter: blur(10px);
+          padding: 12px 20px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom));
+          display: flex; justify-content: space-around; align-items: center;
+          z-index: 100;
+        }
+
+        @media (max-width: 620px) {
+          .wrapper {
+            max-width: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+          }
+        }
+
+        .page-padding {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        @media (min-width: 768px) {
+          .page-padding {
+            padding-left: 24px;
+            padding-right: 24px;
+          }
+        }
+
+        @media (min-width: 621px) {
+          .bottom-nav {
+            position: sticky;
+            bottom: 0;
+            border-radius: 0;
+          }
+        }
+      `}</style>
+
+      <div style={pageStyle}>
+        {/* Full-width rainbow strip */}
+        <div
+          style={{
+            height: 12,
+            width: "100%",
+            background:
+              "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+            backgroundSize: "200% 100%",
+            animation: "rainbowShift 4s linear infinite",
+            flexShrink: 0,
+          }}
+        />
+
+        <div className="wrapper" style={desktopWrapper}>
+          <div style={colStyle}>
+            {/* Scrollable content */}
+            <div
+              className="page-padding"
+              style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}
+            >
+              {/* Wordmark */}
+              <div style={{ padding: "16px 16px 8px" }}>
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', cursive",
+                    fontSize: 13,
+                    letterSpacing: 2.5,
+                    color: "#7b2d8b",
+                    opacity: 0.8,
+                  }}
+                >
+                  QUEERS & ALLIES FITNESS
+                </div>
+              </div>
+
+              {/* Hero banner */}
+              <div
+                style={{
+                  margin: "0",
+                  background: "#0e0e0e",
+                  borderRadius: 22,
+                  padding: "24px 22px",
+                  position: "relative",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -40,
+                    right: -40,
+                    width: 160,
+                    height: 160,
+                    borderRadius: "50%",
+                    background:
+                      "linear-gradient(135deg,#7b2d8b,#ff3c5f)",
+                    opacity: 0.2,
+                  }}
+                />
+
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: "#ffd166",
+                    marginBottom: 10,
+                  }}
+                >
+                  ⚡ Welcome back
+                  {userEmail ? `, ${userEmail}` : ""}
+                </div>
+
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', cursive",
+                    fontSize: 40,
+                    lineHeight: 1.0,
+                    color: "#fff",
+                  }}
+                >
+                  Building
+                  <br />
+                  <span
+                    style={{
+                      background:
+                        "linear-gradient(90deg,#ffd166,#06d6a0)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
+                    Community
+                  </span>
+                  <br />
+                  Strength.
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.5)",
+                    marginTop: 10,
+                    fontWeight: 500,
+                  }}
+                >
+                  Physical Fitness + Mental Health · Sacramento, CA
+                </div>
+
+                {/* Hero pill */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 14,
+                    background: "rgba(255,255,255,0.09)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    borderRadius: 20,
+                    padding: "6px 14px",
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.75)",
+                  }}
+                >
+                  🏆&nbsp;
+                  <span
+                    style={{
+                      color: "#06d6a0",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {challenges.length} active challenges
+                  </span>
+                  &nbsp;this week
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div className="action-grid">
+                {ACTIONS.map((btn) => (
+                  <div
+                    key={btn.label}
+                    className="action-btn"
+                    onClick={() => {
+                      if (btn.label === "New Challenge")
+                        router.push("/embed/challenges/new");
+                      if (btn.label === "Sign up or Log in")
+                        router.push("/auth");
+                      if (btn.label === "View All")
+                        router.push("/embed/challenges");
+                      if (btn.label === "Leaderboard")
+                        router.push("/embed/leaderboard");
+                    }}
+                  >
+                    <div
+                      className="action-icon"
+                      style={{ background: btn.bg }}
+                    >
+                      {btn.icon}
+                    </div>
+                    <div className="action-label">{btn.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Featured Challenges */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "4px 16px 12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', cursive",
+                    fontSize: 22,
+                    letterSpacing: 1,
+                  }}
+                >
+                  Featured Challenges
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#7b2d8b",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => router.push("/embed/challenges")}
+                >
+                  See all →
+                </div>
+              </div>
+
+              {/* Challenge cards */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr",
+                  gap: 12,
+                  padding: "0",
+                }}
+              >
+                {challenges.slice(0, 2).map((c, i) => (
+                  <ChallengeCard
+                    key={c.id}
+                    challenge={c}
+                    colorIndex={i}
+                  />
+                ))}
+              </div>
+
+              {/* Activity Feed header */}
+              <div
+                style={{
+                  margin: "20px 0 0",
+                  height: 1.5,
+                  background:
+                    "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
+                  opacity: 0.25,
+                  borderRadius: 2,
+                }}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 0 0",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'Bebas Neue', cursive",
+                    fontSize: 22,
+                    letterSpacing: 1,
+                  }}
+                >
+                  Activity Feed
+                </div>
+              </div>
+
+              {/* Post input */}
+              <div
+                style={{
+                  padding: "10px 0 12px",
+                  display: "flex",
+                  gap: 8,
+                }}
+              >
+                <input
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handlePost()
+                  }
+                  placeholder="Post a shoutout to the community…"
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: "10px 16px",
+                    borderRadius: 24,
+                    border: "none",
+                    outline: "none",
+                    background: "rgba(255,255,255,0.85)",
+                    backdropFilter: "blur(8px)",
+                    boxShadow:
+                      "0 2px 8px rgba(0,0,0,0.07)",
+                  }}
+                />
+
+                <button
+                  onClick={handlePost}
+                  disabled={posting || !postText.trim()}
+                  style={{
+                    background:
+                      posting || !postText.trim()
+                        ? "rgba(0,0,0,0.15)"
+                        : "#0e0e0e",
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    padding: "10px 20px",
+                    borderRadius: 24,
+                    border: "none",
+                    cursor:
+                      posting || !postText.trim()
+                        ? "default"
+                        : "pointer",
+                    flexShrink: 0,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {posting ? "…" : "Post"}
+                </button>
+              </div>
+
+              {/* Feed items */}
+              <div
+                style={{
+                  padding: "0 0 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {feed.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "32px 0",
+                      color: "#999",
+                      fontSize: 13,
+                    }}
+                  >
+                    No activity yet — be the first to post! 🌈
+                  </div>
+                ) : (
+                  feed.map((item, i) => (
+                    <FeedCard
+                      key={item.id}
+                      item={item}
+                      index={i}
+                    />
+                  ))
+                )}
+              </div>
+              {/* Bottom nav */}
+              <div className="bottom-nav">
+                {(
+                  [
+                    {
+                      id: "dashboard",
+                      icon: "🏳️‍🌈",
+                      label: "Dashboard",
+                    },
+                    {
+                      id: "streak",
+                      icon: "🔥",
+                      label: "Streak",
+                      sub: streak !== null ? `${streak}d` : "",
+                    },
+                    {
+                      id: "messages",
+                      icon: "💬",
+                      label: "Messages",
+                    },
+                    {
+                      id: "profile",
+                      icon: "👤",
+                      label: "Profile",
+                    },
+                  ] as const
+                ).map((nav) => (
+                  <div
+                    key={nav.id}
+                    onClick={() => {
+                      setActiveNav(nav.id);
+                      router.push(`/embed/${nav.id}`);
+                    }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 4,
+                      cursor: "pointer",
+                      padding: "6px 12px",
+                      borderRadius: 12,
+                      background:
+                        activeNav === nav.id
+                          ? "rgba(255,255,255,0.07)"
+                          : "transparent",
+                      transition: "background 0.15s",
+                    }}
+                  >
+                    {/* Special styling for Dashboard icon */}
+                    {nav.id === "dashboard" ? (
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          background:
+                            activeNav === "dashboard"
+                              ? "linear-gradient(135deg,#7b2d8b,#ff3c5f)"
+                              : "rgba(255,255,255,0.1)",
+                          borderRadius: 10,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 19,
+                          transition: "background 0.15s",
+                        }}
+                      >
+                        {nav.icon}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 21,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {nav.icon}
+                        </div>
+
+                        {"sub" in nav && nav.sub && (
+                          <div
+                            style={{
+                              fontFamily: "'Bebas Neue', cursive",
+                              fontSize: 11,
+                              color: "#ffd166",
+                              lineHeight: 1,
+                            }}
+                          >
+                            {nav.sub}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        color:
+                          activeNav === nav.id
+                            ? "#ffd166"
+                            : "rgba(255,255,255,0.45)",
+                      }}
+                    >
+                      {nav.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
