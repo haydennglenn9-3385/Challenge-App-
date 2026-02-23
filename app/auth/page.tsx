@@ -65,7 +65,7 @@ export default function AuthPage() {
       if (err) {
         setError(err.message);
       } else {
-        window.location.href = "/embed/home";
+        window.location.href = "/embed/profile";
       }
     } else {
       const { data, error: err } = await supabase.auth.signUp({
@@ -82,7 +82,7 @@ export default function AuthPage() {
         setSuccess("Check your email to confirm your account, then log in.");
         setMode("login");
       } else {
-        window.location.href = "/embed/home";
+        window.location.href = "/embed/dashboard";
       }
     }
 
