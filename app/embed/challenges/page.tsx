@@ -75,12 +75,10 @@ export default function ChallengesPage() {
 
   const handleJoinWithCode = async () => {
     if (!codeModal || !currentUserId) return;
-    setCodeError("");
-    setJoining(true);
+    setCodeError(""); setJoining(true);
     if (codeInput.trim().toUpperCase() !== codeModal.join_code?.toUpperCase()) {
       setCodeError("Incorrect code. Try again.");
-      setJoining(false);
-      return;
+      setJoining(false); return;
     }
     const { error } = await supabase.from("challenge_members").insert({
       challenge_id: codeModal.id, user_id: currentUserId,
@@ -104,7 +102,7 @@ export default function ChallengesPage() {
   return (
     <div className="min-h-screen px-5 pt-6 pb-28 space-y-5">
 
-      {/* Header */}
+      {/* Header — no + button */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1" style={{
@@ -113,13 +111,9 @@ export default function ChallengesPage() {
           }}>Queers & Allies Fitness</p>
           <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">Challenges</h1>
         </div>
-        <button onClick={() => navigate("/embed/challenges/new")}
-          className="w-10 h-10 rounded-full neon-card flex items-center justify-center text-xl font-bold text-slate-700 hover:scale-105 transition-transform">
-          +
-        </button>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions — renamed "Enter Code" → "Join with Code" */}
       <div className="flex gap-3">
         <button onClick={() => navigate("/embed/challenges/new")}
           className="flex-1 rainbow-cta rounded-xl py-3 font-bold text-sm">
@@ -127,7 +121,7 @@ export default function ChallengesPage() {
         </button>
         <button onClick={() => navigate("/embed/join")}
           className="flex-1 rounded-xl py-3 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
-          Enter Code
+          Join with Code
         </button>
       </div>
 
@@ -231,17 +225,31 @@ export default function ChallengesPage() {
                         Open
                       </button>
                     ) : challenge.is_public ? (
-                      <button onClick={() => handleJoinPublic(challenge)} disabled={joining}
-                        className="text-xs font-bold px-4 py-1.5 rounded-full text-white disabled:opacity-50"
-                        style={{ background: "linear-gradient(90deg,#48cfad,#667eea)" }}>
-                        {joining ? "..." : "Join Now"}
-                      </button>
+                      <>
+                        {/* Preview button for non-members */}
+                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                          Preview
+                        </button>
+                        <button onClick={() => handleJoinPublic(challenge)} disabled={joining}
+                          className="text-xs font-bold px-4 py-1.5 rounded-full text-white disabled:opacity-50"
+                          style={{ background: "linear-gradient(90deg,#48cfad,#667eea)" }}>
+                          {joining ? "..." : "Join Now"}
+                        </button>
+                      </>
                     ) : (
-                      <button onClick={() => { setCodeModal(challenge); setCodeInput(""); setCodeError(""); }}
-                        className="text-xs font-bold px-4 py-1.5 rounded-full border-2 text-slate-700 hover:bg-slate-50 transition-colors"
-                        style={{ borderColor: "#e2e8f0" }}>
-                        Enter Code
-                      </button>
+                      <>
+                        {/* Preview + Enter Code for private non-members */}
+                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                          Preview
+                        </button>
+                        <button onClick={() => { setCodeModal(challenge); setCodeInput(""); setCodeError(""); }}
+                          className="text-xs font-bold px-4 py-1.5 rounded-full border-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                          style={{ borderColor: "#e2e8f0" }}>
+                          Join with Code
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -251,7 +259,7 @@ export default function ChallengesPage() {
         </div>
       )}
 
-      {/* Enter Code bottom sheet */}
+      {/* Join with Code bottom sheet */}
       {codeModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}

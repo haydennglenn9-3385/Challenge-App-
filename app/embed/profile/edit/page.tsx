@@ -23,6 +23,7 @@ export default function EditProfilePage() {
 
   const [name, setName]               = useState("");
   const [email, setEmail]             = useState("");
+  const [newEmail, setNewEmail]       = useState("");
   const [avatarEmoji, setAvatarEmoji] = useState("😊");
   const [newPassword, setNewPassword]         = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,6 +34,7 @@ export default function EditProfilePage() {
       if (!user) { router.push("/auth"); return; }
 
       setEmail(user.email || "");
+      setNewEmail(user.email || "");
 
       const { data } = await supabase
         .from("users").select("name, avatar_emoji").eq("id", user.id).single();
@@ -53,13 +55,26 @@ export default function EditProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    const { error } = await supabase
+    // Update display name + avatar in users table
+    const { error: dbError } = await supabase
       .from("users")
       .update({ name: name.trim(), avatar_emoji: avatarEmoji })
       .eq("id", user.id);
 
-    if (error) setErrorMsg(error.message);
-    else setSuccessMsg("Profile updated!");
+    if (dbError) { setErrorMsg(dbError.message); setSaving(false); return; }
+
+    // If email changed, update via Supabase auth
+    if (newEmail.trim() && newEmail.trim() !== email) {
+      const { error: emailError } = await supabase.auth.updateUser({ email: newEmail.trim() });
+      if (emailError) {
+        setErrorMsg(emailError.message);
+        setSaving(false);
+        return;
+      }
+      setSuccessMsg("Profile updated! Check your new email address for a confirmation link.");
+    } else {
+      setSuccessMsg("Profile updated!");
+    }
 
     setSaving(false);
   }
@@ -185,8 +200,19 @@ export default function EditProfilePage() {
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Email</label>
-                <input className="edit-input" type="email" value={email} disabled />
-                <p style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>Email can't be changed here. Contact support if needed.</p>
+                <input
+                  className="edit-input"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  autoComplete="email"
+                />
+                {newEmail.trim() !== email && (
+                  <p style={{ fontSize: 11, color: "#7b2d8b", marginTop: 4, fontWeight: 600 }}>
+                    ✉️ A confirmation link will be sent to this address before it changes.
+                  </p>
+                )}
               </div>
 
               {successMsg && (

@@ -18,6 +18,7 @@ interface TeamStanding {
   avg_points: number;
   total_points: number;
   member_count: number;
+  scoring_rules?: string;
 }
 
 const getMedal = (rank: number) => ["🥇", "🥈", "🥉"][rank - 1] ?? null;
@@ -30,7 +31,7 @@ const RANK_ACCENTS: Record<number, string> = {
 
 const FALLBACK_AVATARS = ["🏳️‍🌈", "💪", "🔥", "⚡", "🌈", "✨", "🦋", "💫"];
 
-// ─── Glass Podium (OUTSIDE main component) ───────────────────────────────────
+// ─── Glass Podium ─────────────────────────────────────────────────────────────
 function GlassPodium({ items, getName, getPoints, getAvatar }: {
   items: any[];
   getName: (i: any) => string;
@@ -38,47 +39,35 @@ function GlassPodium({ items, getName, getPoints, getAvatar }: {
   getAvatar: (i: any) => string;
 }) {
   if (items.length < 2) return null;
-
   const top = items.slice(0, 3);
-  // Display order: 2nd, 1st, 3rd
   const ordered =
     top.length === 2
       ? [{ item: top[1], rank: 2 }, { item: top[0], rank: 1 }]
       : [{ item: top[1], rank: 2 }, { item: top[0], rank: 1 }, { item: top[2], rank: 3 }];
 
-  // Glass styles per rank
   const glassStyles: Record<number, { blockBg: string; shimmer: string; height: number; glow: string }> = {
     1: {
       blockBg: "linear-gradient(160deg, rgba(255,179,200,0.55) 0%, rgba(255,212,163,0.45) 30%, rgba(255,245,163,0.45) 55%, rgba(179,240,220,0.45) 80%, rgba(179,212,247,0.55) 100%)",
       shimmer: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.55) 50%, transparent 60%)",
-      height: 110,
-      glow: "0 0 30px rgba(255,179,200,0.5), 0 0 60px rgba(179,212,247,0.3)",
+      height: 110, glow: "0 0 30px rgba(255,179,200,0.5), 0 0 60px rgba(179,212,247,0.3)",
     },
     2: {
       blockBg: "linear-gradient(160deg, rgba(244,160,200,0.5) 0%, rgba(192,132,232,0.45) 50%, rgba(147,187,244,0.55) 100%)",
       shimmer: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%)",
-      height: 80,
-      glow: "0 0 24px rgba(192,132,232,0.45)",
+      height: 80, glow: "0 0 24px rgba(192,132,232,0.45)",
     },
     3: {
       blockBg: "linear-gradient(160deg, rgba(168,230,248,0.55) 0%, rgba(255,255,255,0.4) 50%, rgba(249,198,212,0.55) 100%)",
       shimmer: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%)",
-      height: 60,
-      glow: "0 0 20px rgba(168,230,248,0.4)",
+      height: 60, glow: "0 0 20px rgba(168,230,248,0.4)",
     },
   };
 
   return (
     <>
       <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        .podium-shimmer {
-          animation: shimmer 3s ease-in-out infinite;
-          background-size: 200% 100%;
-        }
+        @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+        .podium-shimmer { animation: shimmer 3s ease-in-out infinite; background-size: 200% 100%; }
       `}</style>
       <div className="neon-card rounded-2xl p-5 mb-1">
         <div className="flex items-end justify-center gap-3" style={{ height: 190 }}>
@@ -90,44 +79,21 @@ function GlassPodium({ items, getName, getPoints, getAvatar }: {
             const avatar = getAvatar(item);
             return (
               <div key={rank} className="flex flex-col items-center gap-1 flex-1">
-                {/* Avatar circle */}
-                <div
-                  className="rounded-full flex items-center justify-center text-xl flex-shrink-0"
+                <div className="rounded-full flex items-center justify-center text-xl flex-shrink-0"
                   style={{
-                    width: rank === 1 ? 44 : 36,
-                    height: rank === 1 ? 44 : 36,
-                    background: rank === 1
-                      ? "linear-gradient(135deg, #ff6b9d, #667eea)"
-                      : "rgba(255,255,255,0.8)",
+                    width: rank === 1 ? 44 : 36, height: rank === 1 ? 44 : 36,
+                    background: rank === 1 ? "linear-gradient(135deg, #ff6b9d, #667eea)" : "rgba(255,255,255,0.8)",
                     border: rank === 1 ? "2px solid rgba(255,255,255,0.6)" : "2px solid rgba(0,0,0,0.06)",
                     boxShadow: rank === 1 ? "0 4px 12px rgba(102,126,234,0.35)" : "none",
-                  }}
-                >
+                  }}>
                   {avatar}
                 </div>
                 <p className="text-xs font-bold text-slate-700 text-center truncate w-full px-1">{name}</p>
                 <p className="text-xs font-semibold text-slate-400">{pts} pts</p>
-
-                {/* Glass block */}
-                <div
-                  className="w-full rounded-t-xl relative overflow-hidden"
-                  style={{
-                    height: s.height,
-                    background: s.blockBg,
-                    boxShadow: s.glow,
-                    backdropFilter: "blur(12px)",
-                    border: "1px solid rgba(255,255,255,0.6)",
-                    borderBottom: "none",
-                  }}
-                >
-                  {/* Shimmer overlay */}
-                  <div
-                    className="podium-shimmer absolute inset-0"
-                    style={{ background: s.shimmer }}
-                  />
-                  {/* Top highlight edge */}
+                <div className="w-full rounded-t-xl relative overflow-hidden"
+                  style={{ height: s.height, background: s.blockBg, boxShadow: s.glow, backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.6)", borderBottom: "none" }}>
+                  <div className="podium-shimmer absolute inset-0" style={{ background: s.shimmer }} />
                   <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "rgba(255,255,255,0.8)" }} />
-                  {/* Medal */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-xl drop-shadow-sm">{medal}</span>
                   </div>
@@ -141,37 +107,26 @@ function GlassPodium({ items, getName, getPoints, getAvatar }: {
   );
 }
 
-// ─── RankRow (OUTSIDE main component) ────────────────────────────────────────
+// ─── RankRow ──────────────────────────────────────────────────────────────────
 function RankRow({ rank, name, sub, points, pointsLabel, isMe, avatar }: {
   rank: number; name: string; sub: string; points: number;
   pointsLabel: string; isMe?: boolean; avatar: string;
 }) {
   const accent = RANK_ACCENTS[rank];
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0 relative overflow-hidden"
-      style={isMe ? { background: "#1C1C1E" } : {}}
-    >
+    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0 relative overflow-hidden"
+      style={isMe ? { background: "#1C1C1E" } : {}}>
       {accent && !isMe && (
         <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: accent }} />
       )}
-      {/* Rank number */}
       <div className="w-6 text-center flex-shrink-0 ml-2">
         {getMedal(rank)
           ? <span className="text-base">{getMedal(rank)}</span>
           : <span className={`text-sm font-bold ${isMe ? "text-white/40" : "text-slate-400"}`}>{rank}</span>
         }
       </div>
-      {/* Emoji avatar circle */}
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
-        style={{
-          background: isMe
-            ? "linear-gradient(135deg, #ff6b9d, #667eea)"
-            : "rgba(0,0,0,0.04)",
-          border: isMe ? "none" : "1px solid rgba(0,0,0,0.06)",
-        }}
-      >
+      <div className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+        style={{ background: isMe ? "linear-gradient(135deg, #ff6b9d, #667eea)" : "rgba(0,0,0,0.04)", border: isMe ? "none" : "1px solid rgba(0,0,0,0.06)" }}>
         {avatar}
       </div>
       <div className="flex-1 min-w-0">
@@ -198,18 +153,17 @@ function RankRow({ rank, name, sub, points, pointsLabel, isMe, avatar }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeaderboardPage() {
   const { user } = useUser();
-  const [individuals, setIndividuals] = useState<LeaderboardUser[]>([]);
-  const [teams, setTeams]             = useState<TeamStanding[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [tab, setTab]                 = useState<"teams" | "individual">("teams");
+  const [individuals, setIndividuals]     = useState<LeaderboardUser[]>([]);
+  const [teams, setTeams]                 = useState<TeamStanding[]>([]);
+  const [challengeRules, setChallengeRules] = useState<string | null>(null);
+  const [loading, setLoading]             = useState(true);
+  const [tab, setTab]                     = useState<"teams" | "individual">("teams");
 
   useEffect(() => {
     async function load() {
       const { data: users } = await supabase
-        .from("users")
-        .select("id, name, streak, total_points, emoji_avatar")
-        .order("total_points", { ascending: false })
-        .limit(20);
+        .from("users").select("id, name, streak, total_points, emoji_avatar")
+        .order("total_points", { ascending: false }).limit(20);
       if (users) setIndividuals(users);
 
       const { data: teamData } = await supabase
@@ -227,16 +181,30 @@ export default function LeaderboardPage() {
         standings.sort((a, b) => b.avg_points - a.avg_points);
         setTeams(standings);
       }
+
+      // Fetch scoring rules from the active challenge if available
+      const { data: activeChallenge } = await supabase
+        .from("challenges")
+        .select("rules, scoring_type")
+        .gte("end_date", new Date().toISOString().split("T")[0])
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeChallenge?.rules) {
+        setChallengeRules(activeChallenge.rules);
+      } else if (activeChallenge?.scoring_type) {
+        setChallengeRules(activeChallenge.scoring_type);
+      }
+
       setLoading(false);
     }
     load();
   }, []);
 
-  // Get avatar emoji for a person, fallback to name-based default
   const getPersonAvatar = (person: LeaderboardUser) =>
     person.emoji_avatar || FALLBACK_AVATARS[person.name?.charCodeAt(0) % FALLBACK_AVATARS.length] || "💪";
 
-  // Teams use the team name initial mapped to a flag emoji
   const getTeamAvatar = (team: TeamStanding) => {
     const teamEmojis: Record<string, string> = {
       "Team Hayden": "⚡",
@@ -290,28 +258,22 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <>
-              <GlassPodium
-                items={teams}
-                getName={(t) => t.name}
-                getPoints={(t) => t.avg_points}
-                getAvatar={getTeamAvatar}
-              />
+              <GlassPodium items={teams} getName={(t) => t.name} getPoints={(t) => t.avg_points} getAvatar={getTeamAvatar} />
               <div className="neon-card rounded-2xl overflow-hidden">
                 {teams.map((team, i) => (
                   <RankRow
-                    key={team.id}
-                    rank={i + 1}
-                    name={team.name}
+                    key={team.id} rank={i + 1} name={team.name}
                     sub={`${team.member_count} member${team.member_count !== 1 ? "s" : ""} · ${team.total_points} total pts`}
-                    points={team.avg_points}
-                    pointsLabel="avg pts"
-                    avatar={getTeamAvatar(team)}
+                    points={team.avg_points} pointsLabel="avg pts" avatar={getTeamAvatar(team)}
                   />
                 ))}
               </div>
-              <div className="neon-card rounded-2xl px-5 py-3 text-center">
-                <p className="text-xs text-slate-500 font-medium">Team score = total points ÷ members, rounded up</p>
-              </div>
+              {/* Show challenge-specific scoring rules if available, otherwise nothing */}
+              {challengeRules && (
+                <div className="neon-card rounded-2xl px-5 py-3 text-center">
+                  <p className="text-xs text-slate-500 font-medium">📋 {challengeRules}</p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -326,42 +288,24 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <>
-              <GlassPodium
-                items={individuals}
-                getName={(p) => p.name || "User"}
-                getPoints={(p) => p.total_points || 0}
-                getAvatar={getPersonAvatar}
-              />
+              <GlassPodium items={individuals} getName={(p) => p.name || "User"} getPoints={(p) => p.total_points || 0} getAvatar={getPersonAvatar} />
               <div className="neon-card rounded-2xl overflow-hidden">
                 {individuals.map((person, i) => {
                   if (user?.name === person.name) return null;
                   return (
-                    <RankRow
-                      key={person.id}
-                      rank={i + 1}
-                      name={person.name}
+                    <RankRow key={person.id} rank={i + 1} name={person.name}
                       sub={`🔥 ${person.streak || 0}-day streak`}
-                      points={person.total_points || 0}
-                      pointsLabel="points"
-                      avatar={getPersonAvatar(person)}
-                    />
+                      points={person.total_points || 0} pointsLabel="points"
+                      avatar={getPersonAvatar(person)} />
                   );
                 })}
-                {/* You card — always at bottom */}
                 {myIdx >= 0 && (
-                  <RankRow
-                    rank={myIdx + 1}
-                    name={individuals[myIdx].name}
+                  <RankRow rank={myIdx + 1} name={individuals[myIdx].name}
                     sub={`🔥 ${individuals[myIdx].streak || 0}-day streak`}
-                    points={individuals[myIdx].total_points || 0}
-                    pointsLabel="points"
-                    isMe
-                    avatar={getPersonAvatar(individuals[myIdx])}
-                  />
+                    points={individuals[myIdx].total_points || 0} pointsLabel="points"
+                    isMe avatar={getPersonAvatar(individuals[myIdx])} />
                 )}
               </div>
-
-              {/* Nudge */}
               {myIdx > 2 && individuals[myIdx - 1] && (
                 <div className="neon-card rounded-2xl px-5 py-3 flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#FF6B9D" }} />
