@@ -38,9 +38,9 @@ const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
 const ACTIONS = [
   { icon: "➕", label: "New Challenge",     iconBg: "#fde0ef", route: "/embed/challenges/new" },
-  { icon: "🔗", label: "Sign up or Log in", iconBg: "#fdf6d3", route: "/auth"                },
-  { icon: "👀", label: "View All",           iconBg: "#d4f5e2", route: "/embed/challenges"    },
-  { icon: "🏅", label: "Leaderboard",        iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
+  { icon: "🔥", label: "My Streak",          iconBg: "#fde0ef", route: "/embed/profile"       },
+  { icon: "⚡", label: "My Challenges",      iconBg: "#d4f5e2", route: "/embed/challenges"    },
+  { icon: "🏆", label: "My Team",             iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
 ];
 
 const CARD_COLORS = [
@@ -56,7 +56,7 @@ function daysLeft(endDate?: string) {
 
 // ─── Chip ─────────────────────────────────────────────────────────────────────
 function Chip({ type }: { type: FeedType }) {
-  const s = CHIP_STYLES[type] ?? { bg: "#eee", color: "#555", label: "?" };
+  const s = CHIP_STYLES[type];
   return (
     <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>
       {s.label}
@@ -131,6 +131,7 @@ export default function DashboardPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [feed, setFeed]             = useState<FeedItem[]>([]);
   const [userEmail, setUserEmail]   = useState<string>("");
+  const [userStreak, setUserStreak] = useState<number>(0);
   const [loading, setLoading]       = useState(true);
   const [postText, setPostText]     = useState("");
   const [posting, setPosting]       = useState(false);
@@ -139,6 +140,10 @@ export default function DashboardPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) setUserEmail(user.email.split("@")[0]);
+      if (user) {
+        const { data: sData } = await supabase.from("users").select("streak").eq("id", user.id).single();
+        if (sData) setUserStreak(sData.streak || 0);
+      }
 
       const { data: cData } = await supabase
         .from("challenges").select("*")
@@ -282,8 +287,10 @@ export default function DashboardPage() {
           <div className="action-grid">
             {ACTIONS.map((btn) => (
               <div key={btn.label} className="action-btn" onClick={() => router.push(btn.route)}>
-                <div className="action-icon" style={{ background: btn.iconBg }}>{btn.icon}</div>
-                <div className="action-label">{btn.label}</div>
+                <div className="action-icon" style={{ background: btn.iconBg }}>
+                  {btn.label === "My Streak" ? (userStreak > 0 ? `${btn.icon} ${userStreak}` : btn.icon) : btn.icon}
+                </div>
+                <div className="action-label">{btn.label === "My Streak" && userStreak > 0 ? `🔥 ${userStreak} days` : btn.label}</div>
               </div>
             ))}
           </div>

@@ -168,7 +168,7 @@ export default function ChallengesPage() {
           onClick={() => navigate("/embed/join")}
           className="w-full rounded-xl py-3.5 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
         >
-          Join with Code
+          Become a Member
         </button>
         <button
           onClick={() => navigate("/embed/leaderboard")}
