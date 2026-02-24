@@ -19,10 +19,10 @@ function BottomNav() {
 
   const navItems = [
     { label: "Ranks",      icon: "🏅", path: "/embed/leaderboard" },
-    { label: "Home",       icon: "🏠", path: "/embed/dashboard" },
-    { label: "Feed",       icon: "🏳️‍🌈", path: "/embed/messages", center: true },
-    { label: "Streak",     icon: "🔥", path: "/embed/profile" },
     { label: "Challenges", icon: "⚡", path: "/embed/challenges" },
+    { label: "Activity",   icon: "🏳️‍🌈", path: "/embed/dashboard", center: true },
+    { label: "Messages",   icon: "💬", path: "/embed/messages" },
+    { label: "Profile",    icon: "👤", path: "/embed/profile" },
   ];
 
   return (
@@ -30,7 +30,7 @@ function BottomNav() {
       <div
         className="flex items-center justify-around px-2 pt-2 pb-6"
         style={{
-          background: "rgba(255,255,255,0.92)",
+          background: "rgba(255,255,255,0.95)",
           backdropFilter: "blur(20px)",
           borderTop: "1px solid rgba(0,0,0,0.06)",
         }}
@@ -51,9 +51,7 @@ function BottomNav() {
               >
                 {item.icon}
               </div>
-              <span className="text-[10px] font-bold text-slate-400">
-                {item.label}
-              </span>
+              <span className="text-[10px] font-bold text-slate-400">{item.label}</span>
             </button>
           ) : (
             <button
