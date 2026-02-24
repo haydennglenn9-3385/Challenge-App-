@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
+const EMOJI_OPTIONS = [
+  "😊", "😄", "😁", "🤩", "🥳", "😎", "🤗", "😜",
+  "🤪", "😝", "🤓", "😏", "🥸", "🤠", "👽", "🤖",
+  "🥹", "😈", "🦸", "🧜", "🧚", "🧝", "🦄",
+];
+
 export default function EditProfilePage() {
   const router = useRouter();
 
@@ -15,13 +21,10 @@ export default function EditProfilePage() {
   const [pwSuccess, setPwSuccess]   = useState("");
   const [pwError, setPwError]       = useState("");
 
-  // Profile fields
-  const [name, setName]   = useState("");
-  const [bio, setBio]     = useState("");
-  const [email, setEmail] = useState("");
-
-  // Password fields
-  const [newPassword, setNewPassword]     = useState("");
+  const [name, setName]               = useState("");
+  const [email, setEmail]             = useState("");
+  const [avatarEmoji, setAvatarEmoji] = useState("😊");
+  const [newPassword, setNewPassword]         = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
@@ -31,10 +34,11 @@ export default function EditProfilePage() {
 
       setEmail(user.email || "");
 
-      const { data } = await supabase.from("users").select("name, bio").eq("id", user.id).single();
+      const { data } = await supabase
+        .from("users").select("name, avatar_emoji").eq("id", user.id).single();
       if (data) {
         setName(data.name || "");
-        setBio(data.bio || "");
+        setAvatarEmoji(data.avatar_emoji || "😊");
       }
       setLoading(false);
     }
@@ -51,14 +55,12 @@ export default function EditProfilePage() {
 
     const { error } = await supabase
       .from("users")
-      .update({ name: name.trim(), bio: bio.trim() })
+      .update({ name: name.trim(), avatar_emoji: avatarEmoji })
       .eq("id", user.id);
 
-    if (error) {
-      setErrorMsg(error.message);
-    } else {
-      setSuccessMsg("Profile updated!");
-    }
+    if (error) setErrorMsg(error.message);
+    else setSuccessMsg("Profile updated!");
+
     setSaving(false);
   }
 
@@ -66,24 +68,13 @@ export default function EditProfilePage() {
     setPwError("");
     setPwSuccess("");
 
-    if (newPassword.length < 8) {
-      setPwError("Password must be at least 8 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPwError("Passwords don't match.");
-      return;
-    }
+    if (newPassword.length < 8) { setPwError("Password must be at least 8 characters."); return; }
+    if (newPassword !== confirmPassword) { setPwError("Passwords don't match."); return; }
 
     setSavingPw(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      setPwError(error.message);
-    } else {
-      setPwSuccess("Password updated!");
-      setNewPassword("");
-      setConfirmPassword("");
-    }
+    if (error) setPwError(error.message);
+    else { setPwSuccess("Password updated!"); setNewPassword(""); setConfirmPassword(""); }
     setSavingPw(false);
   }
 
@@ -101,34 +92,31 @@ export default function EditProfilePage() {
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         .edit-input {
-          width: 100%;
-          padding: 13px 16px;
-          border-radius: 14px;
+          width: 100%; padding: 13px 16px; border-radius: 14px;
           border: 1.5px solid rgba(0,0,0,0.1);
           background: rgba(255,255,255,0.9);
-          font-size: 14px;
-          font-family: 'DM Sans', sans-serif;
-          outline: none;
-          transition: border-color 0.15s;
-          color: #0e0e0e;
+          font-size: 14px; font-family: 'DM Sans', sans-serif;
+          outline: none; transition: border-color 0.15s; color: #0e0e0e;
         }
         .edit-input:focus { border-color: #7b2d8b; }
         .edit-input::placeholder { color: #aaa; }
         .edit-input:disabled { background: #f8f8f8; color: #aaa; cursor: not-allowed; }
         .save-btn {
-          width: 100%;
-          padding: 14px;
-          border-radius: 14px;
-          border: none;
+          width: 100%; padding: 14px; border-radius: 14px; border: none;
           background: linear-gradient(135deg, #7b2d8b, #ff3c5f);
-          color: #fff;
-          font-size: 15px;
-          font-weight: 700;
-          font-family: 'DM Sans', sans-serif;
-          cursor: pointer;
-          transition: opacity 0.15s;
+          color: #fff; font-size: 15px; font-weight: 700;
+          font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.15s;
         }
         .save-btn:disabled { opacity: 0.5; cursor: default; }
+        .emoji-option {
+          width: 48px; height: 48px; border-radius: 14px; border: 2.5px solid transparent;
+          background: #f1f5f9; font-size: 24px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .emoji-option.selected {
+          border-color: #7b2d8b; background: #f3e8ff;
+        }
       `}</style>
 
       <div style={{
@@ -137,7 +125,6 @@ export default function EditProfilePage() {
         fontFamily: "'DM Sans', sans-serif",
         paddingBottom: 112,
       }}>
-
         {/* Rainbow strip */}
         <div style={{ height: 5, width: "100%", background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)" }} />
 
@@ -160,6 +147,30 @@ export default function EditProfilePage() {
           <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(16px)", borderRadius: 20, padding: 20, marginBottom: 16, boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
             <p style={{ fontSize: 13, fontWeight: 800, color: "#0e0e0e", marginBottom: 16 }}>Profile Info</p>
 
+            {/* Avatar preview + picker */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 10 }}>Avatar</label>
+              {/* Preview */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flexShrink: 0 }}>
+                  {avatarEmoji}
+                </div>
+                <p style={{ fontSize: 12, color: "#888" }}>Tap an emoji below to choose your avatar</p>
+              </div>
+              {/* Picker grid */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    className={`emoji-option${avatarEmoji === emoji ? " selected" : ""}`}
+                    onClick={() => setAvatarEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Display Name</label>
@@ -173,25 +184,8 @@ export default function EditProfilePage() {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Bio <span style={{ fontWeight: 400, color: "#aaa" }}>(optional)</span></label>
-                <textarea
-                  className="edit-input"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell the community a little about yourself…"
-                  rows={3}
-                  style={{ resize: "none", lineHeight: 1.5 }}
-                />
-              </div>
-
-              <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Email</label>
-                <input
-                  className="edit-input"
-                  type="email"
-                  value={email}
-                  disabled
-                />
+                <input className="edit-input" type="email" value={email} disabled />
                 <p style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>Email can't be changed here. Contact support if needed.</p>
               </div>
 
@@ -220,24 +214,18 @@ export default function EditProfilePage() {
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>New Password</label>
                 <input
-                  className="edit-input"
-                  type="password"
-                  value={newPassword}
+                  className="edit-input" type="password" value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="8+ characters"
-                  autoComplete="new-password"
+                  placeholder="8+ characters" autoComplete="new-password"
                 />
               </div>
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Confirm Password</label>
                 <input
-                  className="edit-input"
-                  type="password"
-                  value={confirmPassword}
+                  className="edit-input" type="password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat new password"
-                  autoComplete="new-password"
+                  placeholder="Repeat new password" autoComplete="new-password"
                 />
               </div>
 
