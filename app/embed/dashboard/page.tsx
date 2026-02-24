@@ -36,11 +36,11 @@ const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }
 
 const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
-const ACTIONS: { icon: string; label: string; bg: string; route: string }[] = [
-  { icon: "➕", label: "New Challenge",     bg: "#fde0ef", route: "/embed/challenges/new" },
-  { icon: "🔗", label: "Sign up or Log in", bg: "#fdf6d3", route: "/auth"                },
-  { icon: "👀", label: "View All",           bg: "#d4f5e2", route: "/embed/challenges"    },
-  { icon: "🏅", label: "Leaderboard",        bg: "#e8d9f7", route: "/embed/leaderboard"   },
+const ACTIONS = [
+  { icon: "➕", label: "New Challenge",     iconBg: "#fde0ef", route: "/embed/challenges/new" },
+  { icon: "🔗", label: "Sign up or Log in", iconBg: "#fdf6d3", route: "/auth"                },
+  { icon: "👀", label: "View All",           iconBg: "#d4f5e2", route: "/embed/challenges"    },
+  { icon: "🏅", label: "Leaderboard",        iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
 ];
 
 const CARD_COLORS = [
@@ -282,7 +282,7 @@ export default function DashboardPage() {
           <div className="action-grid">
             {ACTIONS.map((btn) => (
               <div key={btn.label} className="action-btn" onClick={() => router.push(btn.route)}>
-                <div className="action-icon" style={{ background: btn.bg }}>{btn.icon}</div>
+                <div className="action-icon" style={{ background: btn.iconBg }}>{btn.icon}</div>
                 <div className="action-label">{btn.label}</div>
               </div>
             ))}

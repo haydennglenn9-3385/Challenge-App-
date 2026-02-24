@@ -186,17 +186,17 @@ export default function LeaderboardPage() {
                           <div
                             className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
                             style={isFirst ? {
-                              // 1st — rainbow
-                              background: "linear-gradient(180deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+                              // 1st — soft rainbow pastel
+                              background: "linear-gradient(180deg, #ffb3c8, #ffd4a3, #fff5a3, #b3f0dc, #b3d4f7)",
                             } : actualRank === 2 ? {
-                              // 2nd — trans flag: light blue, pink, white, pink, light blue
-                              background: "linear-gradient(180deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC)",
+                              // 2nd — soft trans flag (sky blue → blush pink)
+                              background: "linear-gradient(180deg, #a8e6f8, #ffffff, #f9c6d4)",
                             } : {
-                              // 3rd — pan flag: pink, yellow, cyan
-                              background: "linear-gradient(180deg, #FF218C, #FFD800, #21B1FF)",
+                              // 3rd — soft pan flag (blush → butter → sky)
+                              background: "linear-gradient(180deg, #f9a8d4, #fde68a, #a5d8f3)",
                             }}
                           >
-                            <span className="font-bold text-sm" style={{ color: actualRank === 2 ? "#555" : "white" }}>{actualRank}</span>
+                            <span className="font-bold text-sm" style={{ color: "#666" }}>{actualRank}</span>
                           </div>
                         </div>
                       );
@@ -280,17 +280,17 @@ export default function LeaderboardPage() {
                           <div
                             className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
                             style={isFirst ? {
-                              // 1st — rainbow
-                              background: "linear-gradient(180deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+                              // 1st — soft rainbow pastel
+                              background: "linear-gradient(180deg, #ffb3c8, #ffd4a3, #fff5a3, #b3f0dc, #b3d4f7)",
                             } : actualRank === 2 ? {
-                              // 2nd — trans flag
-                              background: "linear-gradient(180deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC)",
+                              // 2nd — soft trans flag (sky blue → white → blush pink)
+                              background: "linear-gradient(180deg, #a8e6f8, #ffffff, #f9c6d4)",
                             } : {
-                              // 3rd — pan flag
-                              background: "linear-gradient(180deg, #FF218C, #FFD800, #21B1FF)",
+                              // 3rd — soft pan flag (blush → butter → sky)
+                              background: "linear-gradient(180deg, #f9a8d4, #fde68a, #a5d8f3)",
                             }}
                           >
-                            <span className="font-bold text-sm" style={{ color: actualRank === 2 ? "#555" : "white" }}>{actualRank}</span>
+                            <span className="font-bold text-sm" style={{ color: "#666" }}>{actualRank}</span>
                           </div>
                         </div>
                       );
