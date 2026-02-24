@@ -126,11 +126,9 @@ export default function ChallengesPage() {
 
                   {/* Footer meta */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-slate-500">
-                        👥 {challenge.member_count || 0} members
-                      </span>
-                    </div>
+                    <span className="text-xs font-semibold text-slate-500">
+                      👥 {challenge.member_count || 0} members
+                    </span>
                     <span className="text-xs font-semibold text-slate-500">
                       {daysLeft} days left
                     </span>
@@ -167,7 +165,7 @@ export default function ChallengesPage() {
           Create Challenge
         </button>
         <button
-          onClick={() => navigate("/embed/challenges/join")}
+          onClick={() => navigate("/embed/join")}
           className="w-full rounded-xl py-3.5 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
         >
           Join with Code

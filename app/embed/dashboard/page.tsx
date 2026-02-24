@@ -1,13 +1,10 @@
 "use client";
-
 // app/embed/dashboard/page.tsx — Queers & Allies Fitness Dashboard
-
 import { useEffect, useState, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 type FeedType = "streak" | "score" | "team" | "message";
 
 interface Challenge {
@@ -30,7 +27,6 @@ interface FeedItem {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }> = {
   streak:  { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
   score:   { bg: "#e8d9f7", color: "#7b2d8b", label: "📊 Score"  },
@@ -59,7 +55,6 @@ function daysLeft(endDate?: string) {
 }
 
 // ─── Chip ─────────────────────────────────────────────────────────────────────
-
 function Chip({ type }: { type: FeedType }) {
   const s = CHIP_STYLES[type];
   return (
@@ -70,7 +65,6 @@ function Chip({ type }: { type: FeedType }) {
 }
 
 // ─── Feed Card ────────────────────────────────────────────────────────────────
-
 function FeedCard({ item, index }: { item: FeedItem; index: number }) {
   const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
   const meta = item.meta;
@@ -78,7 +72,6 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
     item.type === "streak" ? `${meta.days}d`
     : item.type === "score" || item.type === "team" ? `#${meta.rank}`
     : null;
-
   return (
     <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "13px 14px", display: "flex", gap: 11, alignItems: "flex-start", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", animation: "slideIn 0.4s ease both", animationDelay: `${index * 0.06}s` }}>
       <div style={{ width: 40, height: 40, borderRadius: "50%", background: avatarBg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginTop: 1 }}>
@@ -100,13 +93,11 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
 }
 
 // ─── Challenge Card ───────────────────────────────────────────────────────────
-
 function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorIndex: number }) {
   const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
   const pct = challenge.capacity > 0 ? Math.round((challenge.member_count / challenge.capacity) * 100) : 0;
   const days = daysLeft(challenge.end_date);
   const [hovered, setHovered] = useState(false);
-
   return (
     <div
       style={{ background: "#1a1a1a", borderRadius: 18, padding: "16px 14px", position: "relative", overflow: "hidden", cursor: "pointer", transform: hovered ? "scale(1.02)" : "scale(1)", transition: "transform 0.15s", height: 190, display: "flex", flexDirection: "column", justifyContent: "space-between" }}
@@ -114,7 +105,6 @@ function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorI
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72, borderRadius: "50%", background: c.glow, opacity: 0.2 }} />
-
       <div>
         <div style={{ fontSize: 20, marginBottom: 6 }}>{challenge.emoji || "💪"}</div>
         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{challenge.type}</div>
@@ -122,7 +112,6 @@ function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorI
           {challenge.name}
         </div>
       </div>
-
       <div>
         <div style={{ background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "8px 10px", marginBottom: 8 }}>
           <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 15, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
@@ -137,18 +126,14 @@ function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorI
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function DashboardPage() {
   const router = useRouter();
-
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [feed, setFeed]             = useState<FeedItem[]>([]);
-  const [streak, setStreak]         = useState<number | null>(null);
   const [userEmail, setUserEmail]   = useState<string>("");
   const [loading, setLoading]       = useState(true);
   const [postText, setPostText]     = useState("");
   const [posting, setPosting]       = useState(false);
-  const [activeNav, setActiveNav]   = useState("dashboard");
 
   useEffect(() => {
     async function load() {
@@ -165,16 +150,8 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false }).limit(10);
       setFeed((fData as FeedItem[]) || []);
 
-      if (user) {
-        const { data: sData } = await supabase
-          .from("user_streaks").select("current_streak")
-          .eq("user_id", user.id).maybeSingle();
-        setStreak((sData as { current_streak: number } | null)?.current_streak ?? 0);
-      }
-
       setLoading(false);
     }
-
     load();
 
     const sub = supabase
@@ -209,21 +186,6 @@ export default function DashboardPage() {
     fontFamily: "'DM Sans', sans-serif",
   };
 
-  const desktopWrapper: CSSProperties = {
-    width: "100%",
-    margin: "0 auto",
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  };
-
-  const colStyle: CSSProperties = {
-    width: "100%",
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  };
-
   if (loading) return (
     <div style={{ ...pageStyle, justifyContent: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
@@ -244,12 +206,10 @@ export default function DashboardPage() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; }
         ::-webkit-scrollbar { display: none; }
-
         .action-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 10px;
-          padding: 0;
           margin: 14px 0;
         }
         .action-btn {
@@ -277,175 +237,109 @@ export default function DashboardPage() {
           .action-label { white-space: normal; font-size: 9px; }
           .action-icon { width: 34px; height: 34px; font-size: 15px; }
         }
-
         .page-padding { padding-left: 16px; padding-right: 16px; }
         @media (min-width: 768px) {
           .page-padding { padding-left: 24px; padding-right: 24px; }
         }
-        @media (max-width: 620px) {
-          .wrapper { max-width: none !important; margin: 0 !important; width: 100% !important; }
-        }
-
-        /* ── Bottom nav is fixed to viewport, never inside scroll ── */
-        .bottom-nav {
-          position: fixed;
-          bottom: 0; left: 0; right: 0;
-          background: rgba(14, 14, 14, 0.85);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          padding: 12px 20px;
-          padding-bottom: max(16px, env(safe-area-inset-bottom));
-          display: flex; justify-content: space-around; align-items: center;
-          z-index: 100;
-        }
-        @media (min-width: 621px) {
-          .bottom-nav { position: sticky; bottom: 0; }
-        }
       `}</style>
 
       <div style={pageStyle}>
-
         {/* Rainbow strip */}
         <div style={{ height: 12, width: "100%", background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)", backgroundSize: "200% 100%", animation: "rainbowShift 4s linear infinite", flexShrink: 0 }} />
 
-        <div className="wrapper" style={desktopWrapper}>
-          <div style={colStyle}>
+        {/* Scrollable content — pb-28 leaves room for the layout nav */}
+        <div className="page-padding" style={{ width: "100%", flex: 1, overflowY: "auto", paddingBottom: 112 }}>
 
-            {/* ── Scrollable content ── */}
-            <div className="page-padding" style={{ flex: 1, overflowY: "auto", paddingBottom: 90 }}>
-
-              {/* Wordmark */}
-              <div style={{ padding: "16px 0 8px" }}>
-                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
-                  QUEERS & ALLIES FITNESS
-                </div>
-              </div>
-
-              {/* Hero banner */}
-              <div style={{ background: "#0e0e0e", borderRadius: 22, padding: "24px 22px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
-                <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
-                  ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
-                  Building<br />
-                  <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                    Community
-                  </span><br />
-                  Strength.
-                </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
-                  Physical Fitness + Mental Health · Sacramento, CA
-                </div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-                  🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week
-                </div>
-              </div>
-
-              {/* Quick actions */}
-              <div className="action-grid">
-                {ACTIONS.map((btn) => (
-                  <div key={btn.label} className="action-btn" onClick={() => router.push(btn.route)}>
-                    <div className="action-icon" style={{ background: btn.bg }}>{btn.icon}</div>
-                    <div className="action-label">{btn.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Featured Challenges */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 12px" }}>
-                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }} onClick={() => router.push("/embed/challenges")}>
-                  See all →
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0" }}>
-                {challenges.slice(0, 2).map((c, i) => (
-                  <ChallengeCard key={c.id} challenge={c} colorIndex={i} />
-                ))}
-              </div>
-
-              {/* Rainbow divider */}
-              <div style={{ margin: "20px 0 0", height: 1.5, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", opacity: 0.25, borderRadius: 2 }} />
-
-              {/* Activity Feed */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0" }}>
-                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
-              </div>
-
-              {/* Post input */}
-              <div style={{ padding: "10px 0 12px", display: "flex", gap: 8 }}>
-                <input
-                  value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handlePost()}
-                  placeholder="Post a shoutout to the community…"
-                  style={{ flex: 1, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
-                />
-                <button
-                  onClick={handlePost}
-                  disabled={posting || !postText.trim()}
-                  style={{ background: posting || !postText.trim() ? "rgba(0,0,0,0.15)" : "#0e0e0e", color: "#fff", fontSize: 13, fontWeight: 700, padding: "10px 20px", borderRadius: 24, border: "none", cursor: posting || !postText.trim() ? "default" : "pointer", flexShrink: 0, transition: "background 0.15s" }}
-                >
-                  {posting ? "…" : "Post"}
-                </button>
-              </div>
-
-              {/* Feed items */}
-              <div style={{ padding: "0 0 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-                {feed.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "32px 0", color: "#999", fontSize: 13 }}>
-                    No activity yet — be the first to post! 🌈
-                  </div>
-                ) : (
-                  feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
-                )}
-              </div>
-
+          {/* Wordmark */}
+          <div style={{ padding: "16px 0 8px" }}>
+            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
+              QUEERS & ALLIES FITNESS
             </div>
-            {/* ↑ End scroll area — bottom nav is OUTSIDE this div */}
-
-            {/* Bottom nav */}
-            <div className="bottom-nav">
-              {([
-                { id: "dashboard", icon: "🏳️‍🌈", label: "Dashboard" },
-                { id: "streak",    icon: "🔥",     label: "Streak",   sub: streak !== null ? `${streak}d` : "" },
-                { id: "messages",  icon: "💬",     label: "Messages" },
-                { id: "profile",   icon: "👤",     label: "Profile"  },
-              ] as const).map((nav) => (
-                <div
-                  key={nav.id}
-                  onClick={() => {
-                    setActiveNav(nav.id);
-                    if (nav.id !== "streak") router.push(`/embed/${nav.id}`);
-                  }}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", padding: "6px 12px", borderRadius: 12, background: activeNav === nav.id ? "rgba(255,255,255,0.07)" : "transparent", transition: "background 0.15s" }}
-                >
-                  {nav.id === "dashboard" ? (
-                    <div style={{ width: 34, height: 34, background: activeNav === "dashboard" ? "linear-gradient(135deg,#7b2d8b,#ff3c5f)" : "rgba(255,255,255,0.1)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, transition: "background 0.15s" }}>
-                      {nav.icon}
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                      <div style={{ fontSize: 21, lineHeight: 1 }}>{nav.icon}</div>
-                      {"sub" in nav && nav.sub && (
-                        <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 11, color: "#ffd166", lineHeight: 1 }}>
-                          {nav.sub}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: activeNav === nav.id ? "#ffd166" : "rgba(255,255,255,0.45)" }}>
-                    {nav.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* ↑ End bottom nav */}
-
           </div>
-        </div>
 
+          {/* Hero banner */}
+          <div style={{ background: "#0e0e0e", borderRadius: 22, padding: "24px 22px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
+              ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
+            </div>
+            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
+              Building<br />
+              <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Community
+              </span><br />
+              Strength.
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
+              Physical Fitness + Mental Health · Sacramento, CA
+            </div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+              🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div className="action-grid">
+            {ACTIONS.map((btn) => (
+              <div key={btn.label} className="action-btn" onClick={() => router.push(btn.route)}>
+                <div className="action-icon" style={{ background: btn.bg }}>{btn.icon}</div>
+                <div className="action-label">{btn.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Featured Challenges */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 12px" }}>
+            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }} onClick={() => router.push("/embed/challenges")}>
+              See all →
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {challenges.slice(0, 2).map((c, i) => (
+              <ChallengeCard key={c.id} challenge={c} colorIndex={i} />
+            ))}
+          </div>
+
+          {/* Rainbow divider */}
+          <div style={{ margin: "20px 0 0", height: 1.5, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", opacity: 0.25, borderRadius: 2 }} />
+
+          {/* Activity Feed */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0" }}>
+            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
+          </div>
+
+          {/* Post input */}
+          <div style={{ padding: "10px 0 12px", display: "flex", gap: 8 }}>
+            <input
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handlePost()}
+              placeholder="Post a shoutout to the community…"
+              style={{ flex: 1, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
+            />
+            <button
+              onClick={handlePost}
+              disabled={posting || !postText.trim()}
+              style={{ background: posting || !postText.trim() ? "rgba(0,0,0,0.15)" : "#0e0e0e", color: "#fff", fontSize: 13, fontWeight: 700, padding: "10px 20px", borderRadius: 24, border: "none", cursor: posting || !postText.trim() ? "default" : "pointer", flexShrink: 0, transition: "background 0.15s" }}
+            >
+              {posting ? "…" : "Post"}
+            </button>
+          </div>
+
+          {/* Feed items */}
+          <div style={{ paddingBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            {feed.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "#999", fontSize: 13 }}>
+                No activity yet — be the first to post! 🌈
+              </div>
+            ) : (
+              feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
+            )}
+          </div>
+
+        </div>
+        {/* ↑ End scroll area — bottom nav lives in embed/layout.tsx */}
       </div>
     </>
   );
