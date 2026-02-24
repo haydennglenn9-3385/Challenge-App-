@@ -37,10 +37,10 @@ const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }
 const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
 const ACTIONS = [
-  { icon: "➕", label: "New Challenge",     iconBg: "#fde0ef", route: "/embed/challenges/new" },
-  { icon: "🔥", label: "My Streak",          iconBg: "#fde0ef", route: "/embed/profile"       },
-  { icon: "⚡", label: "My Challenges",      iconBg: "#d4f5e2", route: "/embed/challenges"    },
-  { icon: "🏆", label: "My Team",             iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
+  { icon: "➕", label: "New Challenge", iconBg: "#fde0ef", route: "/embed/challenges/new" },
+  { icon: "🔥", label: "My Streak",     iconBg: "#fde0ef", route: "/embed/profile"       },
+  { icon: "⚡", label: "My Challenges", iconBg: "#d4f5e2", route: "/embed/challenges"    },
+  { icon: "🏆", label: "My Team",       iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
 ];
 
 const CARD_COLORS = [
@@ -93,13 +93,14 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
 }
 
 // ─── Challenge Card ───────────────────────────────────────────────────────────
-function ChallengeCard({ challenge, colorIndex }: { challenge: Challenge; colorIndex: number }) {
+function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challenge; colorIndex: number; onClick: () => void }) {
   const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
   const pct = challenge.capacity > 0 ? Math.round((challenge.member_count / challenge.capacity) * 100) : 0;
   const days = daysLeft(challenge.end_date);
   const [hovered, setHovered] = useState(false);
   return (
     <div
+      onClick={onClick}
       style={{ background: "#1a1a1a", borderRadius: 18, padding: "16px 14px", position: "relative", overflow: "hidden", cursor: "pointer", transform: hovered ? "scale(1.02)" : "scale(1)", transition: "transform 0.15s", height: 190, display: "flex", flexDirection: "column", justifyContent: "space-between" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -135,12 +136,15 @@ export default function DashboardPage() {
   const [loading, setLoading]       = useState(true);
   const [postText, setPostText]     = useState("");
   const [posting, setPosting]       = useState(false);
+  const [authed, setAuthed]         = useState(false);
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) setUserEmail(user.email.split("@")[0]);
+
       if (user) {
+        setAuthed(true);
+        if (user?.email) setUserEmail(user.email.split("@")[0]);
         const { data: sData } = await supabase.from("users").select("streak").eq("id", user.id).single();
         if (sData) setUserStreak(sData.streak || 0);
       }
@@ -246,13 +250,47 @@ export default function DashboardPage() {
         @media (min-width: 768px) {
           .page-padding { padding-left: 24px; padding-right: 24px; }
         }
+        .feed-blur-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 10;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 24px;
+        }
+        .feed-auth-card {
+          background: rgba(255,255,255,0.92);
+          backdrop-filter: blur(16px);
+          border-radius: 20px;
+          padding: 24px 20px;
+          text-align: center;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+          width: 100%;
+          max-width: 280px;
+        }
+        .login-btn {
+          display: inline-block;
+          margin-top: 14px;
+          padding: 12px 28px;
+          border-radius: 14px;
+          border: none;
+          background: linear-gradient(135deg, #7b2d8b, #ff3c5f);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 700;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          width: 100%;
+        }
       `}</style>
 
       <div style={pageStyle}>
         {/* Rainbow strip */}
         <div style={{ height: 12, width: "100%", background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)", backgroundSize: "200% 100%", animation: "rainbowShift 4s linear infinite", flexShrink: 0 }} />
 
-        {/* Scrollable content — pb-28 leaves room for the layout nav */}
         <div className="page-padding" style={{ width: "100%", flex: 1, overflowY: "auto", paddingBottom: 112 }}>
 
           {/* Wordmark */}
@@ -268,19 +306,31 @@ export default function DashboardPage() {
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
               ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
             </div>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
-              Building<br />
-              <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Community
-              </span><br />
-              Strength.
-            </div>
+            {/* "Building Community Strength" — links to website */}
+            <a
+              href="https://queersandalliesfitness.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "none" }}
+            >
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
+                Building<br />
+                <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  Community
+                </span><br />
+                Strength.
+              </div>
+            </a>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
               Physical Fitness + Mental Health · Sacramento, CA
             </div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-              🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week
-            </div>
+            {/* Active challenges — tappable */}
+            <button
+              onClick={() => router.push("/embed/challenges")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)", cursor: "pointer" }}
+            >
+              🏆&nbsp;<span style={{ color: "#06d6a0", fontWeight: 700 }}>{challenges.length} active challenges</span>&nbsp;this week →
+            </button>
           </div>
 
           {/* Quick actions */}
@@ -288,9 +338,11 @@ export default function DashboardPage() {
             {ACTIONS.map((btn) => (
               <div key={btn.label} className="action-btn" onClick={() => router.push(btn.route)}>
                 <div className="action-icon" style={{ background: btn.iconBg }}>
-                  {btn.label === "My Streak" ? (userStreak > 0 ? `${btn.icon} ${userStreak}` : btn.icon) : btn.icon}
+                  {btn.icon}
                 </div>
-                <div className="action-label">{btn.label === "My Streak" && userStreak > 0 ? `🔥 ${userStreak} days` : btn.label}</div>
+                <div className="action-label">
+                  {btn.label === "My Streak" && userStreak > 0 ? `🔥 ${userStreak} days` : btn.label}
+                </div>
               </div>
             ))}
           </div>
@@ -304,7 +356,12 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {challenges.slice(0, 2).map((c, i) => (
-              <ChallengeCard key={c.id} challenge={c} colorIndex={i} />
+              <ChallengeCard
+                key={c.id}
+                challenge={c}
+                colorIndex={i}
+                onClick={() => router.push(`/embed/challenge/${c.id}`)}
+              />
             ))}
           </div>
 
@@ -316,37 +373,58 @@ export default function DashboardPage() {
             <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
           </div>
 
-          {/* Post input */}
-          <div style={{ padding: "10px 0 12px", display: "flex", gap: 8 }}>
-            <input
-              value={postText}
-              onChange={(e) => setPostText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handlePost()}
-              placeholder="Post a shoutout to the community…"
-              style={{ flex: 1, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
-            />
-            <button
-              onClick={handlePost}
-              disabled={posting || !postText.trim()}
-              style={{ background: posting || !postText.trim() ? "rgba(0,0,0,0.15)" : "#0e0e0e", color: "#fff", fontSize: 13, fontWeight: 700, padding: "10px 20px", borderRadius: 24, border: "none", cursor: posting || !postText.trim() ? "default" : "pointer", flexShrink: 0, transition: "background 0.15s" }}
-            >
-              {posting ? "…" : "Post"}
-            </button>
-          </div>
+          {/* Post input — only shown when logged in */}
+          {authed && (
+            <div style={{ padding: "10px 0 12px", display: "flex", gap: 8 }}>
+              <input
+                value={postText}
+                onChange={(e) => setPostText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handlePost()}
+                placeholder="Post a shoutout to the community…"
+                style={{ flex: 1, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
+              />
+              <button
+                onClick={handlePost}
+                disabled={posting || !postText.trim()}
+                style={{ background: posting || !postText.trim() ? "rgba(0,0,0,0.15)" : "#0e0e0e", color: "#fff", fontSize: 13, fontWeight: 700, padding: "10px 20px", borderRadius: 24, border: "none", cursor: posting || !postText.trim() ? "default" : "pointer", flexShrink: 0, transition: "background 0.15s" }}
+              >
+                {posting ? "…" : "Post"}
+              </button>
+            </div>
+          )}
 
-          {/* Feed items */}
-          <div style={{ paddingBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            {feed.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 0", color: "#999", fontSize: 13 }}>
-                No activity yet — be the first to post! 🌈
+          {/* Feed — blurred with login prompt if not authed */}
+          <div style={{ position: "relative", paddingBottom: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, filter: authed ? "none" : "blur(4px)", pointerEvents: authed ? "auto" : "none", userSelect: authed ? "auto" : "none" }}>
+              {feed.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#999", fontSize: 13 }}>
+                  No activity yet — be the first to post! 🌈
+                </div>
+              ) : (
+                feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
+              )}
+            </div>
+
+            {/* Login overlay — shown when not authed */}
+            {!authed && (
+              <div className="feed-blur-overlay">
+                <div className="feed-auth-card">
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>🏳️‍🌈</div>
+                  <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+                    Join the Community
+                  </div>
+                  <div style={{ fontSize: 13, color: "#777", marginTop: 6, lineHeight: 1.5 }}>
+                    Log in to see what your community is up to and post your own updates.
+                  </div>
+                  <button className="login-btn" onClick={() => router.push("/auth")}>
+                    Log In / Sign Up
+                  </button>
+                </div>
               </div>
-            ) : (
-              feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
             )}
           </div>
 
         </div>
-        {/* ↑ End scroll area — bottom nav lives in embed/layout.tsx */}
       </div>
     </>
   );

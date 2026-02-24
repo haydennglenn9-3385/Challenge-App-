@@ -4,270 +4,224 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
-const LGBTQ_FITNESS_FACTS = [
-  "🏳️‍🌈 The first gay softball league was founded in 1977 in San Francisco - now there are over 40 leagues across North America!",
-  "💪 Studies show LGBTQ+ folks who participate in community sports report 50% higher life satisfaction than those who don't.",
-  "🏃 Tom Waddell founded the Gay Games in 1982. Now it attracts over 10,000 athletes from 70+ countries!",
-  "⚽ Lesbian soccer teams have been organizing since the 1970s - before Title IX even existed!",
-  "🎾 Billie Jean King came out in 1981 and became one of the first major athletes to champion LGBTQ+ rights in sports.",
-  "🏋️ Research shows that LGBTQ-inclusive gyms see 30% higher member retention - community matters!",
-  "💃 Queer folks invented voguing in the 1960s ballroom scene - a full-body workout disguised as fabulous performance art!",
-];
-
-
-export default function SignupPage() {
+export default function JoinWithCodePage() {
   const router = useRouter();
-
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [code, setCode]       = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [randomFact, setRandomFact] = useState("");
+  const [authed, setAuthed]   = useState<boolean | null>(null);
 
   useEffect(() => {
-    setRandomFact(
-      LGBTQ_FITNESS_FACTS[Math.floor(Math.random() * LGBTQ_FITNESS_FACTS.length)]
-    );
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthed(!!user);
+    });
   }, []);
 
-  async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
+  async function handleJoin() {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) { setErrorMsg("Please enter a code."); return; }
 
-    if (!email.trim() || !password.trim()) {
-      setErrorMsg("Email and password are required.");
-      return;
-    }
-
-    if (!agreed) {
-      setErrorMsg("Please agree to the Terms of Service to create your account.");
-      return;
-    }
-
-    if (password.trim().length < 8) {
-      setErrorMsg("Password must be at least 8 characters.");
+    if (!authed) {
+      // Save code to sessionStorage so we can pick it up after auth
+      sessionStorage.setItem("pendingJoinCode", trimmed);
+      router.push("/auth");
       return;
     }
 
     setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
 
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password.trim(),
-      options: {
-        data: { display_name: displayName.trim() || email.split("@")[0] },
-      },
-    });
+    // Look up challenge by join_code
+    const { data: challenge, error: findErr } = await supabase
+      .from("challenges")
+      .select("id, name")
+      .eq("join_code", trimmed)
+      .single();
 
-    if (error) {
-      setErrorMsg(error.message);
+    if (findErr || !challenge) {
+      setErrorMsg("Code not found. Double-check and try again.");
       setLoading(false);
       return;
     }
 
-    if (data.user && !data.session) {
-      setSuccessMsg("Almost there! Check your email to confirm your account, then log in.");
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setErrorMsg("You need to be logged in to join."); setLoading(false); return; }
+
+    // Check if already a member
+    const { data: existing } = await supabase
+      .from("challenge_members")
+      .select("id")
+      .eq("challenge_id", challenge.id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (existing) {
+      setSuccessMsg(`You're already in "${challenge.name}"!`);
+      setTimeout(() => router.push(`/embed/challenge/${challenge.id}`), 1500);
       setLoading(false);
-    } else {
-      router.push("/embed/home");
+      return;
     }
+
+    // Join the challenge
+    const { error: joinErr } = await supabase
+      .from("challenge_members")
+      .insert({ challenge_id: challenge.id, user_id: user.id });
+
+    if (joinErr) {
+      setErrorMsg("Something went wrong joining. Please try again.");
+    } else {
+      setSuccessMsg(`You've joined "${challenge.name}"! 🎉`);
+      setTimeout(() => router.push(`/embed/challenge/${challenge.id}`), 1500);
+    }
+
+    setLoading(false);
   }
 
   return (
-    <div className="page-padding space-y-8">
-      {/* Navigation Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <button
-          onClick={() => router.push("/embed/home")}
-          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-        >
-          ← Home
-        </button>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @keyframes rainbowShift { 0%{background-position:0%} 100%{background-position:200%} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { display: none; }
+      `}</style>
 
-        <button
-          onClick={() => router.push("/auth")}
-          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
-        >
-          Log In
-        </button>
-      </div>
+      <div style={{
+        minHeight: "100dvh",
+        width: "100%",
+        background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "'DM Sans', sans-serif",
+      }}>
+        {/* Rainbow strip */}
+        <div style={{
+          height: 12, width: "100%",
+          background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+          backgroundSize: "200% 100%",
+          animation: "rainbowShift 4s linear infinite",
+          flexShrink: 0,
+        }} />
 
-      <div className="grid gap-8 lg:grid-cols-2 items-start">
-        {/* LEFT: SIGNUP FORM */}
-        <div className="space-y-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">
-              SIGN UP
-            </p>
-            <h2 className="text-4xl font-display mb-2">Create Your Account</h2>
-            <p className="text-slate-600">
-              Join the Queers & Allies Fitness community!
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px", paddingBottom: 100 }}>
+
+          {/* Icon + heading */}
+          <div style={{ textAlign: "center", marginBottom: 28, animation: "fadeUp 0.4s ease both" }}>
+            <div style={{ fontSize: 48, marginBottom: 10 }}>🔑</div>
+            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 28, letterSpacing: 1, color: "#0e0e0e" }}>
+              Join with Code
+            </div>
+            <p style={{ fontSize: 13, color: "#777", marginTop: 6 }}>
+              Enter the challenge code you received
             </p>
           </div>
 
-          <form
-            onSubmit={handleSignup}
-            className="neon-card rounded-3xl p-8 space-y-6"
-          >
-            {/* Error message */}
+          {/* Card */}
+          <div style={{
+            background: "rgba(255,255,255,0.88)",
+            backdropFilter: "blur(20px)",
+            borderRadius: 24,
+            padding: "28px 24px",
+            width: "100%",
+            maxWidth: 400,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.10)",
+            animation: "fadeUp 0.4s ease 0.08s both",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}>
+
+            {/* Error */}
             {errorMsg && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                <p className="text-sm text-red-700 font-semibold">⚠️ {errorMsg}</p>
+              <div style={{ background: "#fff0f0", border: "1px solid #ffc5c5", color: "#c0392b", borderRadius: 12, padding: "10px 14px", fontSize: 13 }}>
+                ⚠️ {errorMsg}
               </div>
             )}
 
-            {/* Success message */}
+            {/* Success */}
             {successMsg && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                <p className="text-sm text-green-700 font-semibold">✅ {successMsg}</p>
+              <div style={{ background: "#f0fff8", border: "1px solid #b7f5d8", color: "#1b7a4e", borderRadius: 12, padding: "10px 14px", fontSize: 13 }}>
+                ✅ {successMsg}
               </div>
             )}
 
-            {/* Display name */}
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">
-                Display Name <span className="text-slate-400 font-normal">(optional)</span>
+            {/* Code input */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#555", letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+                Challenge Code
               </label>
               <input
                 type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="How you'll appear to others"
-                autoComplete="name"
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-slate-300"
+                value={code}
+                onChange={(e) => { setCode(e.target.value.toUpperCase()); setErrorMsg(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                placeholder="e.g. PRIDE24"
+                maxLength={20}
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  border: "1.5px solid rgba(0,0,0,0.1)",
+                  background: "rgba(255,255,255,0.9)",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  letterSpacing: 3,
+                  fontFamily: "'DM Sans', sans-serif",
+                  outline: "none",
+                  textAlign: "center",
+                  textTransform: "uppercase",
+                  color: "#0e0e0e",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => e.target.style.borderColor = "#7b2d8b"}
+                onBlur={(e) => e.target.style.borderColor = "rgba(0,0,0,0.1)"}
               />
             </div>
 
-            {/* Email */}
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrorMsg(""); }}
-                placeholder="you@example.com"
-                autoComplete="email"
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-slate-300"
-              />
-            </div>
-
-            {/* Password */}
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setErrorMsg(""); }}
-                placeholder="8+ characters"
-                autoComplete="new-password"
-                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-slate-300"
-              />
-            </div>
-
-            {/* Terms checkbox */}
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-1 w-5 h-5 rounded accent-violet-600 cursor-pointer flex-shrink-0"
-              />
-              <span className="text-sm text-slate-600 leading-relaxed">
-                I agree to the{" "}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-slate-800 underline hover:text-violet-700">
-                  Terms of Service
-                </a>{" "}
-                and{" "}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-slate-800 underline hover:text-violet-700">
-                  Privacy Policy
-                </a>.
-              </span>
-            </label>
-
-            {/* Sign Up button */}
+            {/* Join button */}
             <button
-              type="submit"
-              disabled={loading || !agreed}
-              className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleJoin}
+              disabled={loading || !code.trim()}
+              style={{
+                width: "100%",
+                padding: 14,
+                borderRadius: 14,
+                border: "none",
+                background: loading || !code.trim()
+                  ? "rgba(0,0,0,0.12)"
+                  : "linear-gradient(135deg, #7b2d8b, #ff3c5f)",
+                color: loading || !code.trim() ? "#999" : "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: loading || !code.trim() ? "default" : "pointer",
+                transition: "opacity 0.15s, transform 0.15s",
+              }}
             >
-              {loading ? "Creating account..." : "Sign Up"}
+              {loading ? "Joining…" : authed === false ? "Continue to Log In →" : "Join Challenge"}
             </button>
 
-            {/* Switch to login */}
-            <div className="pt-2 border-t border-slate-200 text-center">
-              <p className="text-sm text-slate-600 mb-3">Already have an account?</p>
-              <button
-                type="button"
-                onClick={() => router.push("/auth")}
-                className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline"
-              >
-                Log in
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* RIGHT: FUN FACTS + STEPS */}
-        <div className="space-y-6">
-          <div className="neon-card rounded-3xl p-8">
-            <h3 className="text-xl font-semibold mb-4">💡 Did you know?</h3>
-            {randomFact ? (
-              <p className="text-slate-700 leading-relaxed">{randomFact}</p>
-            ) : (
-              <p className="text-slate-400">Loading fun fact...</p>
+            {/* Not logged in note */}
+            {authed === false && (
+              <p style={{ fontSize: 12, color: "#999", textAlign: "center", lineHeight: 1.5 }}>
+                You'll be asked to log in or sign up, then automatically joined.
+              </p>
             )}
           </div>
 
-          <div className="neon-card rounded-3xl p-8 space-y-4">
-            <h3 className="text-xl font-semibold mb-2">✨ What happens next?</h3>
-            <div className="space-y-3 text-slate-700">
-              <div className="flex gap-3">
-                <span className="text-2xl">1️⃣</span>
-                <div>
-                  <p className="font-semibold">Create your account</p>
-                  <p className="text-sm text-slate-600">You'll unlock access to all challenges</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <span className="text-2xl">2️⃣</span>
-                <div>
-                  <p className="font-semibold">Start your streak</p>
-                  <p className="text-sm text-slate-600">Check in daily to build momentum</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <span className="text-2xl">3️⃣</span>
-                <div>
-                  <p className="font-semibold">Join challenges</p>
-                  <p className="text-sm text-slate-600">Use codes or browse public challenges</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Back link */}
+          <button
+            onClick={() => router.back()}
+            style={{ marginTop: 20, background: "none", border: "none", color: "#7b2d8b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+          >
+            ← Back
+          </button>
         </div>
       </div>
-
-      <style>{`
-        .page-padding {
-          padding-left: 16px;
-          padding-right: 16px;
-          padding-top: 16px;
-        }
-
-        @media (min-width: 768px) {
-          .page-padding {
-            padding-left: 24px;
-            padding-right: 24px;
-            padding-top: 24px;
-          }
-        }
-      `}</style>
-    </div>
+    </>
   );
 }

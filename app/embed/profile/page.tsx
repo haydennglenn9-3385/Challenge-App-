@@ -12,12 +12,12 @@ const AVATAR_GRADIENTS = [
 
 function ProfileContent() {
   const router = useRouter();
-  const [profile, setProfile]                   = useState<any>(null);
-  const [joinedChallenges, setJoinedChallenges] = useState<any[]>([]);
+  const [profile, setProfile]                     = useState<any>(null);
+  const [joinedChallenges, setJoinedChallenges]   = useState<any[]>([]);
   const [createdChallenges, setCreatedChallenges] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers]           = useState<any[]>([]);
-  const [loading, setLoading]                   = useState(true);
-  const [authed, setAuthed]                     = useState<boolean | null>(null);
+  const [teamMembers, setTeamMembers]             = useState<any[]>([]);
+  const [loading, setLoading]                     = useState(true);
+  const [authed, setAuthed]                       = useState<boolean | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -124,24 +124,37 @@ function ProfileContent() {
       {/* Hero profile card */}
       <div className="neon-card rounded-2xl overflow-hidden">
         <div className="h-1.5 w-full rainbow-cta" />
-        <div className="px-5 py-6 flex items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0"
-            style={{ background: avatarGrad }}
+        <div className="px-5 py-5">
+          <div className="flex items-center gap-4 mb-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0"
+              style={{ background: avatarGrad }}
+            >
+              {initial}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xl font-extrabold text-slate-900">{profile?.name || "Member"}</p>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">{profile?.email}</p>
+              {profile?.bio && (
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{profile.bio}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Edit Profile button */}
+          <button
+            onClick={() => router.push("/embed/profile/edit")}
+            className="w-full py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            {initial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xl font-extrabold text-slate-900">{profile?.name || "Member"}</p>
-            <p className="text-xs text-slate-500 mt-0.5 truncate">{profile?.email}</p>
-          </div>
+            ✏️ Edit Profile
+          </button>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-3 border-t border-slate-100">
           {[
-            { label: "Points", value: totalPoints, icon: "⭐" },
-            { label: "Streak", value: `${streakDays}d`, icon: "🔥" },
+            { label: "Points",     value: totalPoints,            icon: "⭐" },
+            { label: "Streak",     value: `${streakDays}d`,       icon: "🔥" },
             { label: "Challenges", value: joinedChallenges.length, icon: "⚡" },
           ].map((stat) => (
             <div key={stat.label} className="flex flex-col items-center py-4 border-r border-slate-100 last:border-0">
