@@ -186,12 +186,17 @@ export default function LeaderboardPage() {
                           <div
                             className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
                             style={isFirst ? {
-                              background: "linear-gradient(180deg, #ff6b9d, #667eea)",
+                              // 1st — rainbow
+                              background: "linear-gradient(180deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+                            } : actualRank === 2 ? {
+                              // 2nd — trans flag: light blue, pink, white, pink, light blue
+                              background: "linear-gradient(180deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC)",
                             } : {
-                              background: actualRank === 2 ? "#E5E5EA" : "#D4A97A",
+                              // 3rd — pan flag: pink, yellow, cyan
+                              background: "linear-gradient(180deg, #FF218C, #FFD800, #21B1FF)",
                             }}
                           >
-                            <span className="text-white font-bold text-sm">{actualRank}</span>
+                            <span className="font-bold text-sm" style={{ color: actualRank === 2 ? "#555" : "white" }}>{actualRank}</span>
                           </div>
                         </div>
                       );
@@ -275,12 +280,17 @@ export default function LeaderboardPage() {
                           <div
                             className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
                             style={isFirst ? {
-                              background: "linear-gradient(180deg, #ff6b9d, #667eea)",
+                              // 1st — rainbow
+                              background: "linear-gradient(180deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+                            } : actualRank === 2 ? {
+                              // 2nd — trans flag
+                              background: "linear-gradient(180deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC)",
                             } : {
-                              background: actualRank === 2 ? "#E5E5EA" : "#D4A97A",
+                              // 3rd — pan flag
+                              background: "linear-gradient(180deg, #FF218C, #FFD800, #21B1FF)",
                             }}
                           >
-                            <span className="text-white font-bold text-sm">{actualRank}</span>
+                            <span className="font-bold text-sm" style={{ color: actualRank === 2 ? "#555" : "white" }}>{actualRank}</span>
                           </div>
                         </div>
                       );

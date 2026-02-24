@@ -36,12 +36,12 @@ const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }
 
 const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 
-const ACTIONS = [
+const ACTIONS: { icon: string; label: string; bg: string; route: string }[] = [
   { icon: "➕", label: "New Challenge",     bg: "#fde0ef", route: "/embed/challenges/new" },
   { icon: "🔗", label: "Sign up or Log in", bg: "#fdf6d3", route: "/auth"                },
   { icon: "👀", label: "View All",           bg: "#d4f5e2", route: "/embed/challenges"    },
   { icon: "🏅", label: "Leaderboard",        bg: "#e8d9f7", route: "/embed/leaderboard"   },
-] as const;
+];
 
 const CARD_COLORS = [
   { glow: "#ff3c5f", prog1: "#ff3c5f", prog2: "#ffd166", valColor: "#ffd166" },
