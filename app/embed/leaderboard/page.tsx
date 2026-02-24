@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
@@ -22,28 +21,32 @@ interface TeamStanding {
   member_count: number;
 }
 
+const AVATAR_COLORS = [
+  "#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7",
+  "#ffe4cc", "#d4f0f7", "#f7d4e8",
+];
+
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, getUserParams } = useUser();
   const [individuals, setIndividuals] = useState<LeaderboardUser[]>([]);
   const [teams, setTeams] = useState<TeamStanding[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'teams' | 'individual'>('teams');
+  const [tab, setTab] = useState<"teams" | "individual">("teams");
 
   const navigate = (path: string) => router.push(path + getUserParams());
 
   useEffect(() => {
     async function loadLeaderboard() {
       const { data: users } = await supabase
-        .from('users')
-        .select('id, name, streak, total_points')
-        .order('total_points', { ascending: false })
+        .from("users")
+        .select("id, name, streak, total_points")
+        .order("total_points", { ascending: false })
         .limit(20);
-
       if (users) setIndividuals(users);
 
       const { data: teamData } = await supabase
-        .from('teams')
+        .from("teams")
         .select(`
           id,
           name,
@@ -55,7 +58,7 @@ export default function LeaderboardPage() {
             )
           )
         `)
-        .in('name', ['Team Hayden', 'Team Aria', 'Team Tiffany']);
+        .in("name", ["Team Hayden", "Team Aria", "Team Tiffany"]);
 
       if (teamData) {
         const standings: TeamStanding[] = teamData.map((team: any) => {
@@ -65,24 +68,20 @@ export default function LeaderboardPage() {
             return sum + (tm.users?.total_points || 0);
           }, 0);
           const avgPoints = memberCount > 0 ? Math.ceil(totalPoints / memberCount) : 0;
-
           return {
             id: team.id,
             name: team.name,
-            color: team.color || '#6366f1',
+            color: team.color || "#6366f1",
             avg_points: avgPoints,
             total_points: totalPoints,
             member_count: memberCount,
           };
         });
-
         standings.sort((a, b) => b.avg_points - a.avg_points);
         setTeams(standings);
       }
-
       setLoading(false);
     }
-
     loadLeaderboard();
   }, []);
 
@@ -93,143 +92,245 @@ export default function LeaderboardPage() {
     return null;
   };
 
+  // Podium — top 3 only
+  const podiumOrder = (list: TeamStanding[] | LeaderboardUser[]) => {
+    if (list.length < 2) return list;
+    const [first, second, third, ...rest] = list as any[];
+    return third
+      ? [second, first, third, ...rest]
+      : [second, first, ...rest];
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Nav */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <button onClick={() => navigate("/embed/challenges")}
-          className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-          ← Back to Challenges
-        </button>
-        <div className="flex gap-3">
-          <button onClick={() => router.push("/")}
-            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm">
-            Home
-          </button>
-          {user && (
-            <button onClick={() => navigate("/embed/dashboard")}
-              className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow">
-              Dashboard
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="min-h-screen px-5 pt-6 pb-28 space-y-6">
 
       {/* Header */}
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">LEADERBOARD</p>
-        <h2 className="text-4xl font-display">Standings</h2>
+        <p
+          className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
+          style={{
+            background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Queers & Allies Fitness
+        </p>
+        <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">
+          Leaderboard
+        </h1>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
+      {/* Tab toggle */}
+      <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
         <button
-          onClick={() => setTab('teams')}
-          className={`px-5 py-2 rounded-full font-semibold text-sm transition ${
-            tab === 'teams'
-              ? 'rainbow-cta'
-              : 'border border-slate-300 bg-white/80 hover:bg-white'
+          onClick={() => setTab("teams")}
+          className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all ${
+            tab === "teams" ? "text-slate-900" : "text-slate-400"
           }`}
+          style={tab === "teams" ? {
+            background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
+            color: "#1a1a1a",
+          } : {}}
         >
-          Team Standings
+          Teams
         </button>
         <button
-          onClick={() => setTab('individual')}
-          className={`px-5 py-2 rounded-full font-semibold text-sm transition ${
-            tab === 'individual'
-              ? 'rainbow-cta'
-              : 'border border-slate-300 bg-white/80 hover:bg-white'
+          onClick={() => setTab("individual")}
+          className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all ${
+            tab === "individual" ? "text-slate-900" : "text-slate-400"
           }`}
+          style={tab === "individual" ? {
+            background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
+            color: "#1a1a1a",
+          } : {}}
         >
           Individual
         </button>
       </div>
 
       {loading ? (
-        <div className="neon-card rounded-3xl p-12 text-center">
-          <p className="text-slate-500">Loading standings...</p>
+        <div className="neon-card rounded-2xl p-12 text-center">
+          <p className="text-slate-400 font-semibold">Loading standings...</p>
         </div>
-      ) : tab === 'teams' ? (
-        <div className="space-y-4">
+
+      ) : tab === "teams" ? (
+        <div className="space-y-3">
           {teams.length === 0 ? (
-            <div className="neon-card rounded-3xl p-12 text-center">
-              <p className="text-slate-500">No team data yet!</p>
+            <div className="neon-card rounded-2xl p-12 text-center">
+              <p className="text-2xl mb-2">🏆</p>
+              <p className="font-bold text-slate-800">No teams yet</p>
+              <p className="text-sm text-slate-500 mt-1">Check back once challenges are active</p>
             </div>
           ) : (
-            teams.map((team, index) => {
-              const rank = index + 1;
-              const medal = getMedal(rank);
-              return (
-                <div key={team.id}
-                  className={`neon-card rounded-3xl p-6 ${rank === 1 ? 'shadow-lg' : ''}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold ${
-                        rank === 1 ? 'bg-yellow-100' :
-                        rank === 2 ? 'bg-slate-100' :
-                        'bg-orange-100'
-                      }`}>
-                        {medal || rank}
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold">{team.name}</h3>
-                        <p className="text-sm text-slate-500">
-                          {team.member_count} member{team.member_count !== 1 ? 's' : ''} • {team.total_points} total pts
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold">{team.avg_points}</p>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider">avg pts</p>
-                    </div>
+            <>
+              {/* Podium — top 3 */}
+              {teams.length >= 2 && (
+                <div className="neon-card rounded-2xl p-5 mb-2">
+                  <div className="flex items-end justify-center gap-3 h-36">
+                    {podiumOrder(teams.slice(0, 3)).map((team: TeamStanding, i: number) => {
+                      const actualRank = teams.indexOf(team) + 1;
+                      const heights = ["h-20", "h-28", "h-16"];
+                      const isFirst = actualRank === 1;
+                      return (
+                        <div key={team.id} className="flex flex-col items-center gap-2 flex-1">
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                            style={{ background: AVATAR_COLORS[i], flexShrink: 0 }}
+                          >
+                            {getMedal(actualRank) || actualRank}
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 text-center leading-tight">
+                            {team.name.replace("Team ", "")}
+                          </p>
+                          <div
+                            className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
+                            style={isFirst ? {
+                              background: "linear-gradient(180deg, #ff6b9d, #667eea)",
+                            } : {
+                              background: actualRank === 2 ? "#E5E5EA" : "#D4A97A",
+                            }}
+                          >
+                            <span className="text-white font-bold text-sm">{actualRank}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              );
-            })
-          )}
-          <div className="neon-card rounded-3xl p-4 text-center">
-            <p className="text-sm text-slate-600">
-              💡 Team score = total points ÷ members, rounded up
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="neon-card rounded-3xl p-6">
-          <div className="space-y-3">
-            {individuals.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">No check-ins yet! Be the first 💪</p>
-            ) : (
-              individuals.map((user, index) => {
+              )}
+
+              {/* Full list */}
+              {teams.map((team, index) => {
                 const rank = index + 1;
                 const medal = getMedal(rank);
                 return (
-                  <div key={user.id}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-                      rank <= 3 ? 'bg-white shadow border-slate-200' : 'bg-white/60 border-slate-100'
-                    }`}>
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                        rank === 1 ? 'bg-yellow-100 text-yellow-700 text-lg' :
-                        rank === 2 ? 'bg-slate-100 text-slate-600 text-lg' :
-                        rank === 3 ? 'bg-orange-100 text-orange-600 text-lg' :
-                        'bg-slate-50 text-slate-500 text-sm'
-                      }`}>
+                  <div
+                    key={team.id}
+                    className={`neon-card rounded-2xl overflow-hidden ${rank === 1 ? "shadow-md" : ""}`}
+                  >
+                    {rank === 1 && <div className="h-1 w-full rainbow-cta" />}
+                    <div className="px-5 py-4 flex items-center gap-4">
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
+                        style={{ background: AVATAR_COLORS[index % AVATAR_COLORS.length] }}
+                      >
                         {medal || rank}
                       </div>
-                      <div>
-                        <p className="font-semibold">{user.name}</p>
-                        <p className="text-xs text-slate-500">🔥 {user.streak || 0} day streak</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900">{team.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                          {team.member_count} member{team.member_count !== 1 ? "s" : ""} · {team.total_points} total pts
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold">{user.total_points || 0}</p>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider">points</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-2xl font-extrabold text-slate-900">{team.avg_points}</p>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wide">avg pts</p>
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+
+              <div className="neon-card rounded-2xl px-5 py-3 text-center">
+                <p className="text-xs text-slate-500 font-medium">
+                  Team score = total points ÷ members, rounded up
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+      ) : (
+        /* Individual tab */
+        <div className="space-y-3">
+          {individuals.length === 0 ? (
+            <div className="neon-card rounded-2xl p-12 text-center">
+              <p className="text-2xl mb-2">💪</p>
+              <p className="font-bold text-slate-800">No check-ins yet</p>
+              <p className="text-sm text-slate-500 mt-1">Be the first to log a workout!</p>
+            </div>
+          ) : (
+            <>
+              {/* Podium — top 3 */}
+              {individuals.length >= 2 && (
+                <div className="neon-card rounded-2xl p-5 mb-2">
+                  <div className="flex items-end justify-center gap-3 h-36">
+                    {podiumOrder(individuals.slice(0, 3)).map((person: LeaderboardUser, i: number) => {
+                      const actualRank = individuals.indexOf(person) + 1;
+                      const heights = ["h-20", "h-28", "h-16"];
+                      const isFirst = actualRank === 1;
+                      const initials = person.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                      return (
+                        <div key={person.id} className="flex flex-col items-center gap-2 flex-1">
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                            style={{ background: AVATAR_COLORS[i] }}
+                          >
+                            {getMedal(actualRank) || initials}
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 text-center leading-tight truncate w-full px-1">
+                            {person.name?.split(" ")[0] || "User"}
+                          </p>
+                          <div
+                            className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
+                            style={isFirst ? {
+                              background: "linear-gradient(180deg, #ff6b9d, #667eea)",
+                            } : {
+                              background: actualRank === 2 ? "#E5E5EA" : "#D4A97A",
+                            }}
+                          >
+                            <span className="text-white font-bold text-sm">{actualRank}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Full individual list */}
+              {individuals.map((person, index) => {
+                const rank = index + 1;
+                const medal = getMedal(rank);
+                const initials = person.name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                const isMe = user?.name === person.name;
+                return (
+                  <div
+                    key={person.id}
+                    className="neon-card rounded-2xl overflow-hidden"
+                    style={isMe ? { background: "#1C1C1E" } : {}}
+                  >
+                    {rank === 1 && !isMe && <div className="h-1 w-full rainbow-cta" />}
+                    <div className="px-5 py-4 flex items-center gap-4">
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                        style={{ background: isMe ? "#FF6B9D" : AVATAR_COLORS[index % AVATAR_COLORS.length] }}
+                      >
+                        <span style={isMe ? { color: "white" } : {}}>{medal || initials}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-bold ${isMe ? "text-white" : "text-slate-900"}`}>
+                          {person.name}{isMe && " (You)"}
+                        </p>
+                        <p className={`text-xs mt-0.5 font-medium ${isMe ? "text-white/40" : "text-slate-500"}`}>
+                          🔥 {person.streak || 0}-day streak
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`text-2xl font-extrabold ${isMe ? "text-white" : "text-slate-900"}`}>
+                          {person.total_points || 0}
+                        </p>
+                        <p className={`text-xs font-bold uppercase tracking-wide ${isMe ? "text-white/40" : "text-slate-400"}`}>
+                          points
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
     </div>
