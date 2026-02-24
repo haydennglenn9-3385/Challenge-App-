@@ -56,7 +56,7 @@ function daysLeft(endDate?: string) {
 
 // ─── Chip ─────────────────────────────────────────────────────────────────────
 function Chip({ type }: { type: FeedType }) {
-  const s = CHIP_STYLES[type];
+  const s = CHIP_STYLES[type] ?? { bg: "#eee", color: "#555", label: "?" };
   return (
     <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>
       {s.label}

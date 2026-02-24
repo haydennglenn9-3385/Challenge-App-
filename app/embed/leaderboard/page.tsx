@@ -21,11 +21,6 @@ interface TeamStanding {
   member_count: number;
 }
 
-const AVATAR_COLORS = [
-  "#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7",
-  "#ffe4cc", "#d4f0f7", "#f7d4e8",
-];
-
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, getUserParams } = useUser();
@@ -48,14 +43,10 @@ export default function LeaderboardPage() {
       const { data: teamData } = await supabase
         .from("teams")
         .select(`
-          id,
-          name,
-          color,
+          id, name, color,
           team_members (
             user_id,
-            users (
-              total_points
-            )
+            users ( total_points )
           )
         `)
         .in("name", ["Team Hayden", "Team Aria", "Team Tiffany"]);
@@ -64,18 +55,9 @@ export default function LeaderboardPage() {
         const standings: TeamStanding[] = teamData.map((team: any) => {
           const members = team.team_members || [];
           const memberCount = members.length;
-          const totalPoints = members.reduce((sum: number, tm: any) => {
-            return sum + (tm.users?.total_points || 0);
-          }, 0);
+          const totalPoints = members.reduce((sum: number, tm: any) => sum + (tm.users?.total_points || 0), 0);
           const avgPoints = memberCount > 0 ? Math.ceil(totalPoints / memberCount) : 0;
-          return {
-            id: team.id,
-            name: team.name,
-            color: team.color || "#6366f1",
-            avg_points: avgPoints,
-            total_points: totalPoints,
-            member_count: memberCount,
-          };
+          return { id: team.id, name: team.name, color: team.color || "#6366f1", avg_points: avgPoints, total_points: totalPoints, member_count: memberCount };
         });
         standings.sort((a, b) => b.avg_points - a.avg_points);
         setTeams(standings);
@@ -92,28 +74,69 @@ export default function LeaderboardPage() {
     return null;
   };
 
-  // Podium — top 3 only
-  const podiumOrder = (list: TeamStanding[] | LeaderboardUser[]) => {
+  // Reorder for podium display: [2nd, 1st, 3rd]
+  function podiumOrder<T>(list: T[]): T[] {
     if (list.length < 2) return list;
-    const [first, second, third, ...rest] = list as any[];
-    return third
-      ? [second, first, third, ...rest]
-      : [second, first, ...rest];
-  };
+    const [first, second, third] = list;
+    return third ? [second, first, third] : [second, first];
+  }
+
+  const PODIUM_STYLES = [
+    // 2nd — soft bi flag
+    { height: "h-20", bg: "linear-gradient(180deg, #f4a0c8, #c084e8, #93bbf4)", textColor: "#fff" },
+    // 1st — soft rainbow pastel
+    { height: "h-28", bg: "linear-gradient(180deg, #ffb3c8, #ffd4a3, #fff5a3, #b3f0dc, #b3d4f7)", textColor: "#555" },
+    // 3rd — soft pan flag
+    { height: "h-16", bg: "linear-gradient(180deg, #f9a8d4, #fde68a, #a5d8f3)", textColor: "#555" },
+  ];
+
+  function Podium({ items, getName, getPoints }: {
+    items: any[];
+    getName: (i: any) => string;
+    getPoints: (i: any) => number | string;
+  }) {
+    const ordered = podiumOrder(items.slice(0, 3));
+    const actualRanks = [2, 1, 3]; // display order maps to actual ranks
+
+    return (
+      <div className="neon-card rounded-2xl p-5 mb-1">
+        <div className="flex items-end justify-center gap-3" style={{ height: 160 }}>
+          {ordered.map((item, i) => {
+            const actualRank = actualRanks[i];
+            const style = PODIUM_STYLES[i];
+            const medal = getMedal(actualRank);
+            return (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                <p className="text-xs font-bold text-slate-700 text-center leading-tight truncate w-full px-1">
+                  {getName(item).split(" ")[0]}
+                </p>
+                <div
+                  className={`w-full ${style.height} rounded-t-xl flex items-center justify-center`}
+                  style={{ background: style.bg }}
+                >
+                  <span className="text-lg font-bold" style={{ color: style.textColor }}>
+                    {medal}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Find the current user's rank
+  const myIndividualRank = individuals.findIndex(p => p.name === user?.name);
+  const myTeamRank = -1; // teams don't have a "you" concept the same way
 
   return (
     <div className="min-h-screen px-5 pt-6 pb-28 space-y-6">
 
       {/* Header */}
       <div>
-        <p
-          className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
-          style={{
-            background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
+        <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
+          style={{ background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
           Queers & Allies Fitness
         </p>
         <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">
@@ -125,25 +148,21 @@ export default function LeaderboardPage() {
       <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
         <button
           onClick={() => setTab("teams")}
-          className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all ${
-            tab === "teams" ? "text-slate-900" : "text-slate-400"
-          }`}
+          className="flex-1 py-2.5 rounded-full text-sm font-bold transition-all"
           style={tab === "teams" ? {
             background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
             color: "#1a1a1a",
-          } : {}}
+          } : { color: "#8E8E93" }}
         >
           Teams
         </button>
         <button
           onClick={() => setTab("individual")}
-          className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all ${
-            tab === "individual" ? "text-slate-900" : "text-slate-400"
-          }`}
+          className="flex-1 py-2.5 rounded-full text-sm font-bold transition-all"
           style={tab === "individual" ? {
             background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #4fc3f7, #667eea)",
             color: "#1a1a1a",
-          } : {}}
+          } : { color: "#8E8E93" }}
         >
           Individual
         </button>
@@ -164,63 +183,26 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <>
-              {/* Podium — top 3 */}
               {teams.length >= 2 && (
-                <div className="neon-card rounded-2xl p-5 mb-2">
-                  <div className="flex items-end justify-center gap-3 h-36">
-                    {podiumOrder(teams.slice(0, 3)).map((team: TeamStanding, i: number) => {
-                      const actualRank = teams.indexOf(team) + 1;
-                      const heights = ["h-20", "h-28", "h-16"];
-                      const isFirst = actualRank === 1;
-                      return (
-                        <div key={team.id} className="flex flex-col items-center gap-2 flex-1">
-                          <div
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
-                            style={{ background: AVATAR_COLORS[i], flexShrink: 0 }}
-                          >
-                            {getMedal(actualRank) || actualRank}
-                          </div>
-                          <p className="text-xs font-bold text-slate-700 text-center leading-tight">
-                            {team.name.replace("Team ", "")}
-                          </p>
-                          <div
-                            className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
-                            style={isFirst ? {
-                              // 1st — soft rainbow pastel
-                              background: "linear-gradient(180deg, #ffb3c8, #ffd4a3, #fff5a3, #b3f0dc, #b3d4f7)",
-                            } : actualRank === 2 ? {
-                              // 2nd — soft trans flag (sky blue → blush pink)
-                              background: "linear-gradient(180deg, #a8e6f8, #ffffff, #f9c6d4)",
-                            } : {
-                              // 3rd — soft pan flag (blush → butter → sky)
-                              background: "linear-gradient(180deg, #f9a8d4, #fde68a, #a5d8f3)",
-                            }}
-                          >
-                            <span className="font-bold text-sm" style={{ color: "#666" }}>{actualRank}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <Podium
+                  items={teams}
+                  getName={(t) => t.name}
+                  getPoints={(t) => t.avg_points}
+                />
               )}
 
-              {/* Full list */}
-              {teams.map((team, index) => {
-                const rank = index + 1;
-                const medal = getMedal(rank);
-                return (
-                  <div
-                    key={team.id}
-                    className={`neon-card rounded-2xl overflow-hidden ${rank === 1 ? "shadow-md" : ""}`}
-                  >
-                    {rank === 1 && <div className="h-1 w-full rainbow-cta" />}
-                    <div className="px-5 py-4 flex items-center gap-4">
-                      <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
-                        style={{ background: AVATAR_COLORS[index % AVATAR_COLORS.length] }}
-                      >
-                        {medal || rank}
+              {/* Rank list — clean, no circles */}
+              <div className="neon-card rounded-2xl overflow-hidden">
+                {teams.map((team, index) => {
+                  const rank = index + 1;
+                  const medal = getMedal(rank);
+                  return (
+                    <div key={team.id} className="flex items-center gap-4 px-5 py-4 border-b border-slate-100 last:border-0">
+                      <div className="w-6 text-center flex-shrink-0">
+                        {medal
+                          ? <span className="text-base">{medal}</span>
+                          : <span className="text-sm font-bold text-slate-400">{rank}</span>
+                        }
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-900">{team.name}</p>
@@ -230,12 +212,12 @@ export default function LeaderboardPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-2xl font-extrabold text-slate-900">{team.avg_points}</p>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wide">avg pts</p>
+                        <p className="text-xs text-slate-400 font-medium">avg pts</p>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
 
               <div className="neon-card rounded-2xl px-5 py-3 text-center">
                 <p className="text-xs text-slate-500 font-medium">
@@ -257,88 +239,82 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <>
-              {/* Podium — top 3 */}
               {individuals.length >= 2 && (
-                <div className="neon-card rounded-2xl p-5 mb-2">
-                  <div className="flex items-end justify-center gap-3 h-36">
-                    {podiumOrder(individuals.slice(0, 3)).map((person: LeaderboardUser, i: number) => {
-                      const actualRank = individuals.indexOf(person) + 1;
-                      const heights = ["h-20", "h-28", "h-16"];
-                      const isFirst = actualRank === 1;
-                      const initials = person.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
-                      return (
-                        <div key={person.id} className="flex flex-col items-center gap-2 flex-1">
-                          <div
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                            style={{ background: AVATAR_COLORS[i] }}
-                          >
-                            {getMedal(actualRank) || initials}
-                          </div>
-                          <p className="text-xs font-bold text-slate-700 text-center leading-tight truncate w-full px-1">
-                            {person.name?.split(" ")[0] || "User"}
-                          </p>
-                          <div
-                            className={`w-full ${heights[i]} rounded-t-xl flex items-center justify-center`}
-                            style={isFirst ? {
-                              // 1st — soft rainbow pastel
-                              background: "linear-gradient(180deg, #ffb3c8, #ffd4a3, #fff5a3, #b3f0dc, #b3d4f7)",
-                            } : actualRank === 2 ? {
-                              // 2nd — soft trans flag (sky blue → white → blush pink)
-                              background: "linear-gradient(180deg, #a8e6f8, #ffffff, #f9c6d4)",
-                            } : {
-                              // 3rd — soft pan flag (blush → butter → sky)
-                              background: "linear-gradient(180deg, #f9a8d4, #fde68a, #a5d8f3)",
-                            }}
-                          >
-                            <span className="font-bold text-sm" style={{ color: "#666" }}>{actualRank}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <Podium
+                  items={individuals}
+                  getName={(p) => p.name || "User"}
+                  getPoints={(p) => p.total_points || 0}
+                />
               )}
 
-              {/* Full individual list */}
-              {individuals.map((person, index) => {
-                const rank = index + 1;
-                const medal = getMedal(rank);
-                const initials = person.name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
-                const isMe = user?.name === person.name;
-                return (
-                  <div
-                    key={person.id}
-                    className="neon-card rounded-2xl overflow-hidden"
-                    style={isMe ? { background: "#1C1C1E" } : {}}
-                  >
-                    {rank === 1 && !isMe && <div className="h-1 w-full rainbow-cta" />}
-                    <div className="px-5 py-4 flex items-center gap-4">
-                      <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                        style={{ background: isMe ? "#FF6B9D" : AVATAR_COLORS[index % AVATAR_COLORS.length] }}
-                      >
-                        <span style={isMe ? { color: "white" } : {}}>{medal || initials}</span>
+              {/* Rank list — clean, no circles */}
+              <div className="neon-card rounded-2xl overflow-hidden">
+                {individuals.map((person, index) => {
+                  const rank = index + 1;
+                  const medal = getMedal(rank);
+                  const isMe = user?.name === person.name;
+                  if (isMe) return null; // render "You" card separately below
+                  return (
+                    <div key={person.id} className="flex items-center gap-4 px-5 py-4 border-b border-slate-100 last:border-0">
+                      <div className="w-6 text-center flex-shrink-0">
+                        {medal
+                          ? <span className="text-base">{medal}</span>
+                          : <span className="text-sm font-bold text-slate-400">{rank}</span>
+                        }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-bold ${isMe ? "text-white" : "text-slate-900"}`}>
-                          {person.name}{isMe && " (You)"}
-                        </p>
-                        <p className={`text-xs mt-0.5 font-medium ${isMe ? "text-white/40" : "text-slate-500"}`}>
+                        <p className="font-bold text-slate-900">{person.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">
                           🔥 {person.streak || 0}-day streak
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className={`text-2xl font-extrabold ${isMe ? "text-white" : "text-slate-900"}`}>
-                          {person.total_points || 0}
-                        </p>
-                        <p className={`text-xs font-bold uppercase tracking-wide ${isMe ? "text-white/40" : "text-slate-400"}`}>
-                          points
-                        </p>
+                        <p className="text-2xl font-extrabold text-slate-900">{person.total_points || 0}</p>
+                        <p className="text-xs text-slate-400 font-medium">points</p>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Dark "You" card pinned at bottom */}
+              {myIndividualRank >= 0 && (
+                <div
+                  className="rounded-2xl px-5 py-4 flex items-center gap-4"
+                  style={{ background: "#1C1C1E" }}
+                >
+                  <div className="w-6 text-center flex-shrink-0">
+                    {getMedal(myIndividualRank + 1)
+                      ? <span className="text-base">{getMedal(myIndividualRank + 1)}</span>
+                      : <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>#{myIndividualRank + 1}</span>
+                    }
                   </div>
-                );
-              })}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white">
+                      {individuals[myIndividualRank].name} <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>(You)</span>
+                    </p>
+                    <p className="text-xs mt-0.5 font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      🔥 {individuals[myIndividualRank].streak || 0}-day streak
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-2xl font-extrabold text-white">
+                      {individuals[myIndividualRank].total_points || 0}
+                    </p>
+                    <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>points</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Nudge if not in top 3 */}
+              {myIndividualRank > 2 && individuals[myIndividualRank - 1] && (
+                <div className="neon-card rounded-2xl px-5 py-3 flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#FF6B9D" }} />
+                  <p className="text-xs font-semibold text-slate-500">
+                    You're <strong className="text-slate-900">{(individuals[myIndividualRank - 1].total_points || 0) - (individuals[myIndividualRank].total_points || 0)} pts</strong> away from passing {individuals[myIndividualRank - 1].name}
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
