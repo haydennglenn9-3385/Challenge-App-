@@ -100,14 +100,16 @@ export default function TeamsPage() {
 
     if (messageModal.type === "team") {
       await supabase.from("messages").insert({
-        user_id: userId,
+        author_id: userId,
+        topic: `team:${messageModal.id}`,
         team_id: messageModal.id,
         text: messageText.trim(),
       });
     } else {
-      // Individual — DM via messages with both user IDs noted
+      // Individual — prefix with @name so it's clear who it's for
       await supabase.from("messages").insert({
-        user_id: userId,
+        author_id: userId,
+        topic: `team:${messageModal.teamId}`,
         team_id: messageModal.teamId || null,
         text: `@${messageModal.name}: ${messageText.trim()}`,
       });

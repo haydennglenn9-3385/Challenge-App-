@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getChallenges, Challenge } from "@/lib/storage";
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
 
@@ -10,7 +9,7 @@ type MsgTab = "community" | "groups" | "dms";
 export default function MessagesPage() {
   const router = useRouter();
   const { user, getUserParams } = useUser();
-  const [challenges, setChallenges]   = useState<Challenge[]>([]);
+  const [challenges, setChallenges]   = useState<any[]>([]);
   const [postText, setPostText]       = useState("");
   const [posting, setPosting]         = useState(false);
   const [loading, setLoading]         = useState(true);
@@ -21,9 +20,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     async function load() {
-      const data = await getChallenges();
-      setChallenges(data);
-
+      // Activity feed
       const { data: fData } = await supabase
         .from("activity_feed")
         .select("*")
@@ -31,6 +28,19 @@ export default function MessagesPage() {
         .order("created_at", { ascending: false })
         .limit(20);
       setFeed(fData || []);
+
+      // User's joined challenges (replaces broken getChallenges from Wix)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: joined } = await supabase
+          .from("challenge_members")
+          .select("challenge_id, challenges(id, name, member_count)")
+          .eq("user_id", authUser.id);
+        if (joined) {
+          setChallenges(joined.map((j: any) => j.challenges).filter(Boolean));
+        }
+      }
+
       setLoading(false);
     }
     load();
@@ -129,8 +139,9 @@ export default function MessagesPage() {
 
           {/* Feed */}
           {loading ? (
-            <div className="neon-card rounded-2xl p-8 text-center">
-              <p className="text-slate-400 text-sm font-medium">Loading...</p>
+            <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+              <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
             </div>
           ) : feed.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -163,7 +174,12 @@ export default function MessagesPage() {
       {/* ── GROUPS TAB ── */}
       {tab === "groups" && (
         <div className="px-5 flex flex-col gap-3">
-          {challenges.length === 0 ? (
+          {loading ? (
+            <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+              <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
+              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+            </div>
+          ) : challenges.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
               <p className="text-2xl mb-2">⚡</p>
               <p className="font-bold text-slate-800">No challenge chats yet</p>
@@ -207,12 +223,18 @@ export default function MessagesPage() {
             <p className="text-2xl mb-2">💬</p>
             <p className="font-bold text-slate-800">Direct Messages</p>
             <p className="text-sm text-slate-500 mt-2">
-              DMs are coming soon — for now, chat in your challenge groups!
+              DMs are coming soon — for now, chat in your challenge groups or message teammates from the Teams page!
             </p>
-            <button onClick={() => setTab("groups")}
-              className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm mt-4">
-              Go to Group Chats
-            </button>
+            <div className="flex gap-3 justify-center mt-4">
+              <button onClick={() => setTab("groups")}
+                className="rainbow-cta rounded-xl px-5 py-3 font-bold text-sm">
+                Group Chats
+              </button>
+              <button onClick={() => navigate("/embed/teams")}
+                className="rounded-xl px-5 py-3 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
+                My Teams
+              </button>
+            </div>
           </div>
         </div>
       )}
