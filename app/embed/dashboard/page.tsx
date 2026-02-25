@@ -40,7 +40,7 @@ const ACTIONS = [
   { icon: "➕", label: "New Challenge", iconBg: "#fde0ef", route: "/embed/challenges/new" },
   { icon: "🔥", label: "My Streak",     iconBg: "#fde0ef", route: "/embed/profile"       },
   { icon: "⚡", label: "My Challenges", iconBg: "#d4f5e2", route: "/embed/challenges"    },
-  { icon: "🏆", label: "My Team",       iconBg: "#e8d9f7", route: "/embed/leaderboard"   },
+  { icon: "🏆", label: "My Teams",      iconBg: "#e8d9f7", route: "/embed/teams"        },
 ];
 
 const CARD_COLORS = [
