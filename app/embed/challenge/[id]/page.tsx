@@ -651,7 +651,7 @@ export default function ChallengeDetailPage() {
               <button
                 className="stepper-btn"
                 onClick={() => setCalMonth(p => { const d = new Date(p.y, p.m - 1); return { y: d.getFullYear(), m: d.getMonth() }; })}
-                disabled={challenge.start_date && toDateStr(calMonth.y, calMonth.m, 1) <= challenge.start_date.slice(0, 7) + "-01"}
+                disabled={challenge.start_date && toDateStr(calMonth.y, calMonth.m, 1) < challenge.start_date.slice(0, 7) + "-01"}
               >‹</button>
               <p style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
                 {MONTH_NAMES[calMonth.m]} {calMonth.y}
