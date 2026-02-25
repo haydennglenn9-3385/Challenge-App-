@@ -416,7 +416,7 @@ export default function HomePage() {
           <div className={`fade-in ${mounted ? "visible" : ""}`}>
             <div className="pill-badge">
               <span className="pill-dot" />
-              Sacramento, CA · Est. 2024
+              Sacramento, CA · Est. 2022
             </div>
           </div>
 
