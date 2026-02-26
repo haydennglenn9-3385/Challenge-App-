@@ -3,43 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { createChallenge } from "@/lib/storage";
 
-type ChallengeMode = "individual" | "compete" | "teams";
-type ScoringType =
-  | "total_points"
-  | "average_points"
-  | "tiered"
-  | "streak"
-  | "progressive";
-
-const MODES: { value: ChallengeMode; label: string; icon: string; desc: string }[] = [
-  {
-    value: "individual",
-    label: "You vs You",
-    icon: "🧘",
-    desc: "Personal progress only. No leaderboard.",
-  },
-  {
-    value: "compete",
-    label: "Individuals Compete",
-    icon: "⚡",
-    desc: "Everyone on a shared leaderboard. No teams.",
-  },
-  {
-    value: "teams",
-    label: "Teams Compete",
-    icon: "🏳️‍🌈",
-    desc: "Team leaderboard with individual standings inside each team.",
-  },
-];
-
-const SCORING: { value: ScoringType; label: string; desc: string }[] = [
-  { value: "total_points",   label: "Total Points",    desc: "Sum of all points earned" },
-  { value: "average_points", label: "Average Points",  desc: "Points ÷ members — fair for different team sizes" },
-  { value: "tiered",         label: "Tiered",          desc: "Different points for 50% vs 100% completion" },
-  { value: "streak",         label: "Streak-Based",    desc: "Bonus points for daily consistency" },
-  { value: "progressive",    label: "Progressive",     desc: "Difficulty increases weekly" },
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DURATION_UNITS = [
   { value: "days",   label: "Days"   },
@@ -47,327 +13,447 @@ const DURATION_UNITS = [
   { value: "months", label: "Months" },
 ];
 
+const SCORING_SYSTEMS = [
+  {
+    value: "total_points",
+    label: "Total Points",
+    description: "Team score = sum of all member points",
+    needsTarget: false,
+  },
+  {
+    value: "average_points",
+    label: "Average Points Per Member",
+    description: "Fair for teams of different sizes — divides total by member count",
+    needsTarget: false,
+  },
+  {
+    value: "tiered",
+    label: "Tiered Completion",
+    description: "50%+ of target = 1 pt · 100%+ of target = 2 pts",
+    needsTarget: true,
+  },
+  {
+    value: "streak",
+    label: "Streak-Based",
+    description: "Points for showing up consistently — one tap check-in",
+    needsTarget: false,
+  },
+  {
+    value: "task_completion",
+    label: "Task Completion",
+    description: "Members check in when they complete the task",
+    needsTarget: false,
+  },
+  {
+    value: "progressive",
+    label: "Progressive Challenge",
+    description: "Target escalates each period — week 2 = 2×, week 3 = 3×, etc.",
+    needsTarget: true,
+  },
+];
+
+const TARGET_UNITS = [
+  "reps", "minutes", "hours", "miles", "km",
+  "kg", "lbs", "pages", "steps", "calories", "sessions",
+];
+
+const PROGRESSION_TYPES = [
+  { value: "daily",          label: "Every day" },
+  { value: "every_other_day",label: "Every other day" },
+  { value: "weekdays_only",  label: "Weekdays only (Mon–Fri)" },
+  { value: "weekly",         label: "Once per week" },
+  { value: "monthly",        label: "Once per month" },
+  { value: "every_x_days",   label: "Every X days" },
+];
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function NewChallengePage() {
   const router = useRouter();
 
-  const [userId, setUserId]           = useState<string | null>(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [session,        setSession]        = useState<any>(null);
+  const [loadingSession, setLoadingSession] = useState(true);
 
-  const [title, setTitle]               = useState("");
-  const [description, setDescription]   = useState("");
-  const [mode, setMode]                 = useState<ChallengeMode>("compete");
-  const [scoringType, setScoringType]   = useState<ScoringType>("average_points");
+  // Core fields
+  const [title,         setTitle]         = useState("");
   const [durationValue, setDurationValue] = useState(21);
-  const [durationUnit, setDurationUnit]   = useState("days");
-  const [isPublic, setIsPublic]         = useState(true);
+  const [durationUnit,  setDurationUnit]  = useState("days");
+  const [description,   setDescription]   = useState("");
+  const [isPublic,      setIsPublic]      = useState(true);
+  const [scoringType,   setScoringType]   = useState("average_points");
+
+  // Target fields
+  const [dailyTarget,      setDailyTarget]      = useState<number | "">("");
+  const [targetUnit,       setTargetUnit]       = useState("reps");
+  const [progressionType,  setProgressionType]  = useState("daily");
+  const [everyXDaysValue,  setEveryXDaysValue]  = useState<number | "">(2);
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState("");
+  const [error,      setError]      = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/auth"); return; }
-      setUserId(session.user.id);
-      setLoadingAuth(false);
-    });
+      setSession(session);
+      setLoadingSession(false);
+    }
+    load();
   }, [router]);
 
-  const toDays = () => {
+  function convertToDays() {
     const map: Record<string, number> = { days: 1, weeks: 7, months: 30 };
     return Math.ceil(durationValue * (map[durationUnit] ?? 1));
-  };
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const selectedScoring = SCORING_SYSTEMS.find(s => s.value === scoringType);
+  const targetRequired  = selectedScoring?.needsTarget ?? false;
+  const showTarget      = scoringType !== "streak";
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!title.trim()) { setError("Challenge name is required."); return; }
-    if (!userId) { setError("You must be logged in."); return; }
-
-    setSubmitting(true);
-
-    const days      = toDays();
-    const startDate = new Date().toISOString().split("T")[0];
-    const endDate   = new Date(Date.now() + days * 86400000).toISOString().split("T")[0];
-    const joinCode  = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-    // Only create a team row when mode = teams
-    let teamId: string | null = null;
-    if (mode === "teams") {
-      const { data: team, error: teamErr } = await supabase
-        .from("teams")
-        .insert({ name: `${title.trim()} Team` })
-        .select("id")
-        .single();
-
-      if (teamErr || !team) {
-        setError(`Failed to create team: ${teamErr?.message ?? "unknown error"}`);
-        setSubmitting(false);
-        return;
-      }
-      teamId = team.id;
+    if (!title.trim()) { setError("Please enter a challenge name."); return; }
+    if (targetRequired && !dailyTarget) {
+      setError("A daily target is required for this scoring type.");
+      return;
     }
-
-    const { data: challenge, error: challengeErr } = await supabase
-      .from("challenges")
-      .insert({
-        name:                    title.trim(),
-        description:             description.trim() || null,
-        join_code:               joinCode,
-        creator_id:              userId,
-        team_id:                 teamId,
-        start_date:              startDate,
-        end_date:                endDate,
-        is_public:               isPublic,
-        scoring_type:            scoringType,
-        mode:                    mode,
-        local_points_per_checkin: 10,
-      })
-      .select("id")
-      .single();
-
-    if (challengeErr || !challenge) {
-      setError(`Failed to create challenge: ${challengeErr?.message ?? "unknown error"}`);
-      setSubmitting(false);
+    if (progressionType === "every_x_days" && (!everyXDaysValue || Number(everyXDaysValue) < 2)) {
+      setError("Please enter a valid number of days (2 or more).");
       return;
     }
 
-    // Auto-join creator
-    await supabase.from("challenge_members").insert({
-      challenge_id: challenge.id,
-      user_id: userId,
+    setSubmitting(true);
+    const challenge = await createChallenge({
+      name:             title.trim(),
+      duration:         convertToDays(),
+      description:      description.trim() || undefined,
+      creatorId:        session.user.id,
+      isPublic,
+      scoringType,
+      dailyTarget:      dailyTarget !== "" ? Number(dailyTarget) : null,
+      targetUnit:       dailyTarget !== "" ? targetUnit : null,
+      progressionType,
+      everyXDaysValue:  progressionType === "every_x_days" && everyXDaysValue !== ""
+                          ? Number(everyXDaysValue)
+                          : null,
     });
 
-    if (teamId) {
-      await supabase.from("team_members").insert({
-        team_id: teamId,
-        user_id: userId,
-      });
+    if (challenge) {
+      router.push(`/embed/challenge/${challenge.id}`);
+    } else {
+      setError("Failed to create challenge. Please try again.");
+      setSubmitting(false);
     }
-
-    router.push(`/embed/challenge/${challenge.id}`);
-  };
-
-  if (loadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-400 font-semibold">Loading…</p>
-      </div>
-    );
   }
 
-  return (
-    <div className="min-h-screen px-5 pt-6 pb-28 space-y-6">
+  if (loadingSession) return (
+    <div className="page-padding">
+      <p className="text-center text-slate-600">Loading…</p>
+    </div>
+  );
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
+  return (
+    <div className="page-padding space-y-8">
+
+      {/* Nav */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <button
           onClick={() => router.push("/embed/challenges")}
-          className="w-9 h-9 rounded-full neon-card flex items-center justify-center text-slate-600 hover:bg-white transition flex-shrink-0"
+          className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
         >
-          ←
+          ← Back to Challenges
         </button>
-        <div>
-          <p className="text-xs font-bold tracking-[0.2em] uppercase" style={{
-            background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>
-            New Challenge
-          </p>
-          <h1 className="text-2xl font-display font-extrabold text-slate-900 tracking-tight">
-            Create a Challenge
-          </h1>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push("/embed/home")}
+            className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
+          >
+            Home
+          </button>
+          <button
+            onClick={() => router.push("/embed/dashboard")}
+            className="rainbow-cta rounded-full px-5 py-2 font-semibold text-sm hover:shadow-xl transition-shadow"
+          >
+            Dashboard
+          </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid gap-8 lg:grid-cols-2 items-start">
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-            <p className="text-sm text-red-600 font-medium">{error}</p>
+        {/* ── Left: Form ─────────────────────────────────────────────── */}
+        <div className="space-y-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">CREATE</p>
+            <h2 className="text-4xl font-display mb-2">New Challenge</h2>
+            <p className="text-slate-600">Start a fresh streak and invite your crew.</p>
           </div>
-        )}
 
-        {/* Name */}
-        <div className="neon-card rounded-2xl p-5 space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-            Challenge Name
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Summer Shred, 75 Hard, Daily Steps"
-            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-300"
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="neon-card rounded-3xl p-8 space-y-6">
 
-        {/* Description */}
-        <div className="neon-card rounded-2xl p-5 space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-            Description <span className="normal-case font-normal">(optional)</span>
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What's this challenge about?"
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
-          />
-        </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
-        {/* Mode picker */}
-        <div className="neon-card rounded-2xl p-5 space-y-3">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-            Challenge Type
-          </label>
-          <div className="space-y-2">
-            {MODES.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => setMode(m.value)}
-                className="w-full flex items-center gap-4 rounded-xl border-2 px-4 py-3 text-left transition-all"
-                style={{
-                  borderColor: mode === m.value ? "#a855f7" : "transparent",
-                  background: mode === m.value
-                    ? "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(102,126,234,0.08))"
-                    : "rgba(0,0,0,0.03)",
-                }}
-              >
-                <span className="text-2xl">{m.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900">{m.label}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{m.desc}</p>
-                </div>
-                <div
-                  className="w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all"
-                  style={{
-                    borderColor: mode === m.value ? "#a855f7" : "#cbd5e1",
-                    background: mode === m.value ? "#a855f7" : "transparent",
-                  }}
+            {/* Name */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Challenge Name</label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. 30-Day Push-up Challenge"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Description <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="What's this challenge about?"
+                rows={3}
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
+            </div>
+
+            {/* Duration */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Duration</label>
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={durationValue}
+                  onChange={e => setDurationValue(Number(e.target.value))}
+                  className="w-24 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Scoring */}
-        <div className="neon-card rounded-2xl p-5 space-y-3">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-            Scoring System
-          </label>
-          <div className="space-y-2">
-            {SCORING.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => setScoringType(s.value)}
-                className="w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all"
-                style={{
-                  borderColor: scoringType === s.value ? "#667eea" : "transparent",
-                  background: scoringType === s.value
-                    ? "rgba(102,126,234,0.08)"
-                    : "rgba(0,0,0,0.03)",
-                }}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900">{s.label}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
-                </div>
-                <div
-                  className="w-4 h-4 rounded-full border-2 flex-shrink-0"
-                  style={{
-                    borderColor: scoringType === s.value ? "#667eea" : "#cbd5e1",
-                    background: scoringType === s.value ? "#667eea" : "transparent",
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Duration */}
-        <div className="neon-card rounded-2xl p-5 space-y-3">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-            Duration
-          </label>
-          <div className="flex gap-3">
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={durationValue}
-              onChange={(e) => setDurationValue(Number(e.target.value))}
-              className="w-24 rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-semibold text-center focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
-            <div className="flex gap-2 flex-1">
-              {DURATION_UNITS.map((u) => (
-                <button
-                  key={u.value}
-                  type="button"
-                  onClick={() => setDurationUnit(u.value)}
-                  className="flex-1 rounded-xl border-2 py-3 text-sm font-bold transition-all"
-                  style={{
-                    borderColor: durationUnit === u.value ? "#a855f7" : "#e2e8f0",
-                    background: durationUnit === u.value ? "rgba(168,85,247,0.08)" : "white",
-                    color: durationUnit === u.value ? "#7c3aed" : "#64748b",
-                  }}
+                <select
+                  value={durationUnit}
+                  onChange={e => setDurationUnit(e.target.value)}
+                  className="flex-1 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 >
-                  {u.label}
+                  {DURATION_UNITS.map(u => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Visibility */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Visibility</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(true)}
+                  className={`flex-1 px-4 py-3 rounded-2xl border-2 transition text-left ${
+                    isPublic ? "border-slate-700 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="font-semibold">🌍 Public</p>
+                  <p className="text-xs text-slate-600">Anyone can join</p>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPublic(false)}
+                  className={`flex-1 px-4 py-3 rounded-2xl border-2 transition text-left ${
+                    !isPublic ? "border-slate-700 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="font-semibold">🔒 Private</p>
+                  <p className="text-xs text-slate-600">Invite-only</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Scoring System */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Scoring System</label>
+              <div className="grid grid-cols-1 gap-2">
+                {SCORING_SYSTEMS.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setScoringType(s.value)}
+                    className={`text-left px-4 py-3 rounded-2xl border-2 transition ${
+                      scoringType === s.value
+                        ? "border-slate-700 bg-slate-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <p className="font-semibold text-sm">{s.label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{s.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Target block (hidden for streak) ─────────────────── */}
+            {showTarget && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  Daily Target
+                  {targetRequired
+                    ? <span className="text-red-500 ml-1">*</span>
+                    : <span className="text-slate-400 font-normal ml-1">(optional)</span>
+                  }
+                </p>
+
+                {/* Amount + unit */}
+                <div className="flex gap-3">
+                  <input
+                    type="number"
+                    min={1}
+                    value={dailyTarget}
+                    onChange={e => setDailyTarget(e.target.value === "" ? "" : Number(e.target.value))}
+                    placeholder={scoringType === "progressive" ? "e.g. 5" : "e.g. 30"}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                  <select
+                    value={targetUnit}
+                    onChange={e => setTargetUnit(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  >
+                    {TARGET_UNITS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Progression type */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Check-in Frequency
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PROGRESSION_TYPES.map(p => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setProgressionType(p.value)}
+                        className={`text-left px-3 py-2 rounded-xl border-2 transition text-xs font-semibold ${
+                          progressionType === p.value
+                            ? "border-slate-700 bg-white"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Every X days value */}
+                {progressionType === "every_x_days" && (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-slate-600">Every</p>
+                    <input
+                      type="number"
+                      min={2}
+                      value={everyXDaysValue}
+                      onChange={e => setEveryXDaysValue(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                    <p className="text-sm text-slate-600">days</p>
+                  </div>
+                )}
+
+                {/* Contextual hint */}
+                <p className="text-xs text-slate-500">
+                  {scoringType === "progressive"
+                    ? `Target increases each period. Week 1 = ${dailyTarget || "?"} ${targetUnit}, Week 2 = ${dailyTarget ? Number(dailyTarget) * 2 : "?"} ${targetUnit}, etc.`
+                    : scoringType === "tiered"
+                    ? `50%+ = 1 pt · 100%+ = 2 pts`
+                    : dailyTarget
+                    ? `Members enter how much they completed. Points are proportional to target.`
+                    : `No target set — check-in will be a single tap.`
+                  }
+                </p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rainbow-cta rounded-full px-6 py-3 font-semibold hover:shadow-xl transition-shadow disabled:opacity-50"
+            >
+              {submitting ? "Creating…" : "Create Challenge"}
+            </button>
+
+          </form>
+        </div>
+
+        {/* ── Right: Tips ─────────────────────────────────────────────── */}
+        <div className="space-y-6">
+          <div className="neon-card rounded-3xl p-8">
+            <h3 className="text-xl font-semibold mb-4">💡 Scoring Guide</h3>
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="font-semibold text-slate-900">Total / Average Points</p>
+                <p className="text-slate-600">Simple check-in — one tap earns the set points. Great for mindfulness, habits, anything without a number.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Tiered Completion</p>
+                <p className="text-slate-600">Members enter how much they did. 50%+ of target = 1 pt, 100%+ = 2 pts. Good for workouts with a rep or time target.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Progressive</p>
+                <p className="text-slate-600">Target escalates every period. Week 1 = base, Week 2 = 2×, Week 3 = 3×. Great for fitness challenges that build over time.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Streak-Based</p>
+                <p className="text-slate-600">No numeric target — just show up. Points for consistency.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="neon-card rounded-3xl p-8">
+            <h3 className="text-xl font-semibold mb-4">✨ After You Create</h3>
+            <div className="space-y-3 text-slate-700">
+              {[
+                { n: "1️⃣", title: "Share your code",    sub: "Invite friends to join"     },
+                { n: "2️⃣", title: "Check in regularly", sub: "Build your streak"           },
+                { n: "3️⃣", title: "Use the chat",       sub: "Encourage each other"       },
+              ].map(item => (
+                <div key={item.n} className="flex gap-3">
+                  <span className="text-2xl">{item.n}</span>
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-slate-600">{item.sub}</p>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-          <p className="text-xs text-slate-400">
-            Ends {new Date(Date.now() + toDays() * 86400000).toLocaleDateString("en-US", {
-              month: "long", day: "numeric", year: "numeric",
-            })}
-          </p>
         </div>
 
-        {/* Visibility */}
-        <div className="neon-card rounded-2xl p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-slate-900">
-                {isPublic ? "🌍 Public" : "🔒 Private"}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {isPublic
-                  ? "Anyone can see and join this challenge"
-                  : "Only people with the join code can join"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsPublic(!isPublic)}
-              className="w-12 h-6 rounded-full transition-all flex-shrink-0"
-              style={{
-                background: isPublic
-                  ? "linear-gradient(90deg,#ff6b9d,#667eea)"
-                  : "#e2e8f0",
-              }}
-            >
-              <div
-                className="w-5 h-5 bg-white rounded-full shadow transition-transform mx-0.5"
-                style={{ transform: isPublic ? "translateX(24px)" : "translateX(0)" }}
-              />
-            </button>
-          </div>
-        </div>
+      </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={submitting || !title.trim()}
-          className="w-full rainbow-cta rounded-2xl py-4 font-bold text-base disabled:opacity-50 transition-all"
-        >
-          {submitting ? "Creating…" : "Create Challenge"}
-        </button>
-
-      </form>
+      <style>{`
+        .page-padding {
+          padding-left: 16px;
+          padding-right: 16px;
+          padding-top: 24px;
+        }
+        @media (min-width: 768px) {
+          .page-padding {
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 32px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
