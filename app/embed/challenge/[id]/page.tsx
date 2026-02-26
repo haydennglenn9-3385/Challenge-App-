@@ -409,11 +409,14 @@ export default function ChallengeDetailPage() {
     }
 
     // Recalc total_points
+    // ✅ Fixed — sums global_points_earned across all logs
     const { data: allLogs } = await supabase
-      .from("daily_logs").select("points_earned").eq("user_id", userId);
-    const totalPts = (allLogs || []).reduce((s: number, l: any) => s + (l.points_earned || 0), 0);
-    await supabase.from("users").update({ total_points: totalPts }).eq("id", userId);
-    setUserTotalPoints(totalPts);
+     .from("daily_logs").select("global_points_earned").eq("user_id", userId);
+    const totalGlobal = (allLogs || []).reduce(
+      (s: number, l: any) => s + (l.global_points_earned || 0), 0
+    );
+    await supabase.from("users").update({ total_points: totalGlobal }).eq("id", userId);
+    setUserTotalPoints(totalGlobal);
 
     // Reload streak
     const freshLogs = await loadLogs(userId);
