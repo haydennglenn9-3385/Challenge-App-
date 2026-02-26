@@ -45,8 +45,8 @@ interface TeamStanding {
 interface PRRecord {
   id: string;
   user_id: string;
-  user_name: string;
-  user_avatar: string;
+  user_name?: string;
+  user_avatar?: string;
   type: PRCategory;
   label: string;
   value: number;
@@ -187,7 +187,8 @@ export default function LeaderboardPage() {
   }, [router]);
 
   // ── Load PRs when switching to PR tab ──────────────────────────────────────
-  const loadPRs = useCallback(async (cat: PRCategory) => {
+const loadPRs = useCallback(
+  async (cat: PRCategory) => {
     if (!userId) return;
     setLoadingPRs(true);
 
@@ -200,32 +201,49 @@ export default function LeaderboardPage() {
       `)
       .eq("type", cat)
       .eq("is_public", true)
-      .order("value", { ascending: cat === "cardio" || cat === "endurance" ? true : false })
+      .order("value", {
+        ascending: cat === "cardio" || cat === "endurance",
+      })
       .limit(20);
 
     if (community) {
-      setCommunityPRs(community.map((r: any) => ({
-        ...r,
-        user_name:   r.users?.name || "Member",
-        user_avatar: r.users?.avatar_emoji || "😊",
-      })));
+      setCommunityPRs(
+        community.map((r: any) => ({
+          ...r,
+          user_name: r.users?.name || "Member",
+          user_avatar: r.users?.avatar_emoji || "😊",
+        }))
+      );
     }
 
     // My PRs for category
     const { data: mine } = await supabase
       .from("performance_records")
-      .select("id, user_id, type, label, value, unit, date, previous_value, notes")
+      .select(
+        "id, user_id, type, label, value, unit, date, previous_value, notes"
+      )
       .eq("user_id", userId)
       .eq("type", cat)
       .order("date", { ascending: false });
 
-    setMyPRs(mine || []);
-    setLoadingPRs(false);
-  }, [userId]);
+    setMyPRs(
+      (mine || []).map((r: any) => ({
+        ...r,
+        user_name: undefined,
+        user_avatar: undefined,
+      }))
+    );
 
-  useEffect(() => {
-    if (tab === "prs" && userId) loadPRs(prCategory);
-  }, [tab, prCategory, userId, loadPRs]);
+    setLoadingPRs(false);
+  },
+  [userId] // dependencies for useCallback
+);
+
+useEffect(() => {
+  if (tab === "prs" && userId) loadPRs(prCategory);
+}, [tab, prCategory, userId, loadPRs]);
+
+
 
   // ── Load challenge standings ────────────────────────────────────────────────
   const loadChallengeStandings = async (challenge: UserChallenge) => {
