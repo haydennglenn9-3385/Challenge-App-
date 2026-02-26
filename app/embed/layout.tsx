@@ -69,31 +69,45 @@ function BottomNav() {
           borderTop: "1px solid rgba(0,0,0,0.06)",
         }}
       >
-        {NAV_ITEMS.map((item) =>
-          item.label === "Activity" ? (
-            <button key={item.label} onClick={() => nav(item.path)}
-              className="flex flex-col items-center gap-1 -mt-5">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.path);
+          const isCentre = item.label === "Activity";
+
+          return (
+            <button
+              key={item.label}
+              onClick={() => nav(item.path)}
+              className={`flex flex-col items-center gap-1 ${isCentre ? "-mt-5" : "px-2"}`}
+            >
+              <div
+                className={`flex items-center justify-center text-xl transition-all ${
+                  isCentre ? "w-14 h-14 rounded-2xl text-2xl" : "w-9 h-9 rounded-xl"
+                }`}
                 style={{
-                  background: "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
-                  boxShadow: "0 6px 20px rgba(102,126,234,0.4)",
-                }}>
+                  background: active
+                    ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)"
+                    : isCentre
+                    ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)"
+                    : "rgba(0,0,0,0.04)",
+                  boxShadow: active
+                    ? "0 6px 20px rgba(102,126,234,0.4)"
+                    : isCentre
+                    ? "0 4px 12px rgba(102,126,234,0.25)"
+                    : "none",
+                  opacity: !active && !isCentre ? 0.5 : 1,
+                }}
+              >
                 {item.icon}
               </div>
-              <span className="text-[10px] font-bold text-slate-400">{item.label}</span>
-            </button>
-          ) : (
-            <button key={item.label} onClick={() => nav(item.path)}
-              className="flex flex-col items-center gap-1 px-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${isActive(item.path) ? "bg-slate-900" : "bg-transparent"}`}>
-                {item.icon}
-              </div>
-              <span className={`text-[10px] font-bold transition-colors ${isActive(item.path) ? "text-slate-900" : "text-slate-400"}`}>
+              <span
+                className="text-[10px] font-bold transition-colors"
+                style={{ color: active ? "#0e0e0e" : "#94a3b8" }}
+              >
                 {item.label}
               </span>
             </button>
-          )
-        )}
+          );
+        })}
       </div>
     </nav>
   );
