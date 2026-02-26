@@ -1,6 +1,6 @@
 "use client";
 
-// app/embed/challenge/[id]/page.tsx — Challenge Detail + Edit Past Days
+// app/embed/challenge/[id]/page.tsx --- Challenge Detail + Edit Past Days
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -10,20 +10,20 @@ import { supabase } from "@/lib/supabase/client";
 
 const EXERCISES: Record<number, { name: string; emoji: string }> = {
   0: { name: "Jumping Jacks", emoji: "⭐" },
-  1: { name: "Lunges",        emoji: "🦵" },
-  2: { name: "Push-ups",      emoji: "💪" },
+  1: { name: "Lunges", emoji: "🦵" },
+  2: { name: "Push-ups", emoji: "💪" },
   3: { name: "Glute Bridges", emoji: "🍑" },
-  4: { name: "Crunches",      emoji: "🔥" },
-  5: { name: "Squats",        emoji: "🏋️" },
-  6: { name: "Bird Dogs",     emoji: "🐦" },
+  4: { name: "Crunches", emoji: "🔥" },
+  5: { name: "Squats", emoji: "🏋️" },
+  6: { name: "Bird Dogs", emoji: "🐦" },
 };
 
-const BASE_REPS        = 5;
-const REPS_INCREMENT   = 5;
-const BASE_CARDIO      = 5;
+const BASE_REPS = 5;
+const REPS_INCREMENT = 5;
+const BASE_CARDIO = 5;
 const CARDIO_INCREMENT = 5;
-const MONTH_NAMES      = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAY_LABELS       = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_LABELS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -38,16 +38,16 @@ function getRepsTarget(date: string, challengeStart: string) {
 }
 
 function calcPoints(repsCompleted: number, repsTarget: number): { points: number; level: string } {
-  if (repsCompleted >= repsTarget)                  return { points: 2, level: "100" };
-  if (repsCompleted >= Math.ceil(repsTarget * 0.5)) return { points: 1, level: "50"  };
+  if (repsCompleted >= repsTarget) return { points: 2, level: "100" };
+  if (repsCompleted >= Math.ceil(repsTarget * 0.5)) return { points: 1, level: "50" };
   return { points: 0, level: "0" };
 }
 
 function computeStreak(logs: { date: string }[]): number {
   if (!logs.length) return 0;
   const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
-  const today  = new Date().toISOString().split("T")[0];
-  const last   = sorted[sorted.length - 1].date;
+  const today = new Date().toISOString().split("T")[0];
+  const last = sorted[sorted.length - 1].date;
   const daysSinceLast = Math.round((new Date(today).getTime() - new Date(last).getTime()) / 86400000);
   if (daysSinceLast > 1) return 0;
   let streak = 1;
@@ -82,49 +82,41 @@ interface EditCard {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ChallengeDetailPage() {
-  const params      = useParams<{ id: string }>();
-  const router      = useRouter();
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
   const challengeId = typeof params?.id === "string" ? params.id : "";
 
-  const [challenge,       setChallenge]       = useState<any>(null);
-  const [members,         setMembers]         = useState<any[]>([]);
-  const [messages,        setMessages]        = useState<any[]>([]);
-  const [messageText,     setMessageText]     = useState("");
-  const [loading,         setLoading]         = useState(true);
-  const [notFound,        setNotFound]        = useState(false);
-
-  const [userId,          setUserId]          = useState("");
-  const [isMember,        setIsMember]        = useState(false);
-  const [userTeam,        setUserTeam]        = useState("");
+  const [challenge, setChallenge] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [isMember, setIsMember] = useState(false);
+  const [userTeam, setUserTeam] = useState("");
   const [userTotalPoints, setUserTotalPoints] = useState(0);
-  const [challengeLogs,   setChallengeLogs]   = useState<any[]>([]);
+  const [challengeLogs, setChallengeLogs] = useState<any[]>([]);
   const [challengeStreak, setChallengeStreak] = useState(0);
-  const [checkedInToday,  setCheckedInToday]  = useState(false);
-  const [todayPoints,     setTodayPoints]     = useState(0);
-  const [checkingIn,      setCheckingIn]      = useState(false);
-  const [cardioChecked,   setCardioChecked]   = useState(false);
-  const [successMessage,  setSuccessMessage]  = useState("");
 
-  // ── Edit past days ─────────────────────────────────────────────────────────
-  const [showCalendar,  setShowCalendar]  = useState(false);
-  const [calMonth,      setCalMonth]      = useState(() => {
+  // ── Edit past days ────────────────────────────────────────────────────────
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
   });
-  const [selectedDays,  setSelectedDays]  = useState<Set<string>>(new Set());
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [showEditPanel, setShowEditPanel] = useState(false);
-  const [editCards,     setEditCards]     = useState<EditCard[]>([]);
-  const [saving,        setSaving]        = useState(false);
-  const [saveSuccess,   setSaveSuccess]   = useState(false);
+  const [editCards, setEditCards] = useState<EditCard[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const today         = new Date();
-  const todayStr      = today.toISOString().split("T")[0];
-  const todayExercise = EXERCISES[today.getDay()];
-  const currentReps   = challenge ? getRepsTarget(todayStr, challenge.start_date) : BASE_REPS;
-  const currentCardio = BASE_CARDIO + (getWeekNum(todayStr, challenge?.start_date || todayStr) - 1) * CARDIO_INCREMENT;
-  const currentWeek   = challenge ? getWeekNum(todayStr, challenge.start_date) : 1;
-  const daysLeft      = challenge ? Math.max(0, Math.ceil((new Date(challenge.end_date).getTime() - Date.now()) / 86400000)) : 0;
-  const isCreator     = userId && challenge && userId === challenge.creator_id;
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const currentReps = challenge ? getRepsTarget(todayStr, challenge.start_date) : BASE_REPS;
+  const currentWeek = challenge ? getWeekNum(todayStr, challenge.start_date) : 1;
+  const daysLeft = challenge ? Math.max(0, Math.ceil((new Date(challenge.end_date).getTime() - Date.now()) / 86400000)) : 0;
+  const isCreator = userId && challenge && userId === challenge.creator_id;
 
   // O(1) date → log lookup
   const logsByDate = useMemo(() => {
@@ -133,7 +125,8 @@ export default function ChallengeDetailPage() {
     return map;
   }, [challengeLogs]);
 
-  // ─── Load logs helper (reused after check-in and saves) ───────────────────
+  // ─── Load logs helper (reused after saves) ────────────────────────────────
+
   async function loadLogs(uid: string) {
     const { data: logs } = await supabase
       .from("daily_logs").select("*")
@@ -141,14 +134,14 @@ export default function ChallengeDetailPage() {
       .order("date", { ascending: true });
     setChallengeLogs(logs || []);
     setChallengeStreak(computeStreak(logs || []));
-    const todayLog = (logs || []).find((l: any) => l.date === todayStr);
-    if (todayLog) { setCheckedInToday(true); setTodayPoints(todayLog.points_earned); }
     return logs || [];
   }
 
   // ─── Initial load ─────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!challengeId) return;
+
     async function load() {
       const { data: ch } = await supabase.from("challenges").select("*").eq("id", challengeId).maybeSingle();
       if (!ch) { setNotFound(true); setLoading(false); return; }
@@ -180,35 +173,15 @@ export default function ChallengeDetailPage() {
         const { data: teamRow } = await supabase.from("team_members").select("team_id, teams(name)").eq("user_id", user.id).maybeSingle();
         if (teamRow?.teams) setUserTeam((teamRow.teams as any).name);
       }
+
       setLoading(false);
     }
+
     load();
   }, [challengeId]);
 
-  // ─── Check-in ─────────────────────────────────────────────────────────────
-  async function handleCheckIn(level: "50" | "100") {
-    if (!userId || !challengeId || checkedInToday) return;
-    setCheckingIn(true);
-    const points = level === "100" ? 2 : 1;
-    const { error } = await supabase.from("daily_logs").insert({
-      user_id: userId, challenge_id: challengeId, date: todayStr,
-      exercise: todayExercise.name, completion_level: level,
-      reps_completed: level === "100" ? currentReps : Math.ceil(currentReps * 0.5),
-      reps_target: currentReps, points_earned: points,
-    });
-    if (!error) {
-      const { data: profile } = await supabase.from("users").select("total_points").eq("id", userId).maybeSingle();
-      const newPoints = (profile?.total_points || 0) + points;
-      await supabase.from("users").update({ total_points: newPoints }).eq("id", userId);
-      setCheckedInToday(true); setTodayPoints(points); setUserTotalPoints(newPoints);
-      setSuccessMessage(level === "100" ? "🔥 100%+ done! You earned 2 points!" : "✅ 50%+ done! You earned 1 point!");
-      setTimeout(() => setSuccessMessage(""), 5000);
-      await loadLogs(userId);
-    }
-    setCheckingIn(false);
-  }
-
   // ─── Send message ─────────────────────────────────────────────────────────
+
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!messageText.trim() || !userId) return;
@@ -222,11 +195,13 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Join / Leave ─────────────────────────────────────────────────────────
+
   async function handleJoin() {
     if (!userId) return;
     const { error } = await supabase.from("challenge_members").insert({ user_id: userId, challenge_id: challengeId });
     if (!error) window.location.reload();
   }
+
   async function handleLeave() {
     if (!userId) return;
     const { error } = await supabase.from("challenge_members").delete().eq("user_id", userId).eq("challenge_id", challengeId);
@@ -234,9 +209,10 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Calendar helpers ─────────────────────────────────────────────────────
+
   function buildCalendarDays() {
     const { y, m } = calMonth;
-    const firstDow  = new Date(y, m, 1).getDay();
+    const firstDow = new Date(y, m, 1).getDay();
     const daysInMon = new Date(y, m + 1, 0).getDate();
     const cells: (number | null)[] = [];
     for (let i = 0; i < firstDow; i++) cells.push(null);
@@ -256,17 +232,17 @@ export default function ChallengeDetailPage() {
     if (!challenge) return;
     const sorted = [...selectedDays].sort();
     const cards: EditCard[] = sorted.map(dateStr => {
-      const dow      = new Date(dateStr + "T12:00:00").getDay();
-      const ex       = EXERCISES[dow];
-      const target   = getRepsTarget(dateStr, challenge.start_date);
+      const dow = new Date(dateStr + "T12:00:00").getDay();
+      const ex = EXERCISES[dow];
+      const target = getRepsTarget(dateStr, challenge.start_date);
       const existing = logsByDate[dateStr];
       return {
-        date:           dateStr,
-        exercise:       ex.name,
-        exerciseEmoji:  ex.emoji,
-        reps_target:    target,
+        date: dateStr,
+        exercise: ex.name,
+        exerciseEmoji: ex.emoji,
+        reps_target: target,
         reps_completed: existing?.reps_completed ?? target,
-        log_id:         existing?.id,
+        log_id: existing?.id,
       };
     });
     setEditCards(cards);
@@ -274,26 +250,25 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Save edits ───────────────────────────────────────────────────────────
+
   async function handleSaveEdits() {
     if (!userId || !challenge) return;
     setSaving(true);
-
     for (const card of editCards) {
       const { points, level } = calcPoints(card.reps_completed, card.reps_target);
       const dow = new Date(card.date + "T12:00:00").getDay();
       const payload = {
-        user_id:          userId,
-        challenge_id:     challengeId,
-        date:             card.date,
-        exercise:         EXERCISES[dow].name,
-        reps_completed:   card.reps_completed,
-        reps_target:      card.reps_target,
+        user_id: userId,
+        challenge_id: challengeId,
+        date: card.date,
+        exercise: EXERCISES[dow].name,
+        reps_completed: card.reps_completed,
+        reps_target: card.reps_target,
         completion_level: level,
-        points_earned:    points,
-        edited_by:        userId,
-        edited_at:        new Date().toISOString(),
+        points_earned: points,
+        edited_by: userId,
+        edited_at: new Date().toISOString(),
       };
-
       if (card.log_id) {
         await supabase.from("daily_logs").update(payload).eq("id", card.log_id);
       } else {
@@ -313,7 +288,6 @@ export default function ChallengeDetailPage() {
     const newStreak = computeStreak(freshLogs);
     await supabase.from("users").update({ streak: newStreak }).eq("id", userId);
     setChallengeStreak(newStreak);
-
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => {
@@ -326,6 +300,7 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Loading / not found ──────────────────────────────────────────────────
+
   if (loading) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)" }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
@@ -346,6 +321,7 @@ export default function ChallengeDetailPage() {
   const calDays = buildCalendarDays();
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <>
       <style>{`
@@ -437,13 +413,6 @@ export default function ChallengeDetailPage() {
           )}
         </div>
 
-        {/* Success banner */}
-        {successMessage && (
-          <div className="neon-card rounded-2xl p-4 border border-green-200 bg-green-50">
-            <p className="text-sm font-semibold text-green-800">{successMessage}</p>
-          </div>
-        )}
-
         {/* Hero */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1.5 w-full rainbow-cta" />
@@ -480,9 +449,9 @@ export default function ChallengeDetailPage() {
         {isMember && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value: `🔥 ${challengeStreak}`, label: "Day Streak"   },
+              { value: `🔥 ${challengeStreak}`, label: "Day Streak" },
               { value: `⭐ ${userTotalPoints}`, label: "Total Points" },
-              { value: `${currentReps}`,        label: "Reps Target"  },
+              { value: `${currentReps}`, label: "Reps Target" },
             ].map(({ value, label }) => (
               <div key={label} className="neon-card rounded-2xl px-3 py-4 text-center">
                 <p className="text-xl font-bold">{value}</p>
@@ -492,79 +461,14 @@ export default function ChallengeDetailPage() {
           </div>
         )}
 
-        {/* Today's check-in */}
+        {/* Edit Past Days */}
         {isMember && (
-          <div className="neon-card rounded-2xl overflow-hidden">
-            <div className="h-1 w-full rainbow-cta" />
-            <div className="px-5 py-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">Today's Exercise</p>
-                  <h3 className="text-2xl font-semibold">{todayExercise.emoji} {todayExercise.name}</h3>
-                  <p className="text-sm text-slate-600 mt-1">
-                    Target: <strong>{currentReps} reps</strong> · 50% = {Math.ceil(currentReps * 0.5)} reps
-                  </p>
-                </div>
-                {checkedInToday && (
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-green-600">+{todayPoints}</p>
-                    <p className="text-xs text-slate-500">pts earned</p>
-                  </div>
-                )}
-              </div>
-
-              {checkedInToday ? (
-                <div className="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
-                  <p className="text-green-700 font-semibold">✅ Checked in today! Come back tomorrow 💪</p>
-                </div>
-              ) : !userId ? (
-                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-center">
-                  <p className="text-amber-700 text-sm">
-                    <button onClick={() => router.push("/auth")} className="underline font-semibold">Log in</button> to check in
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => handleCheckIn("50")} disabled={checkingIn}
-                    className="rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-400 hover:shadow-md transition-all p-4 text-left disabled:opacity-50">
-                    <p className="text-2xl mb-1">🎈</p>
-                    <p className="font-bold text-lg">50%+</p>
-                    <p className="text-sm text-slate-600">{Math.ceil(currentReps * 0.5)}+ reps</p>
-                    <p className="text-xs font-semibold text-slate-500 mt-2">+1 point</p>
-                  </button>
-                  <button onClick={() => handleCheckIn("100")} disabled={checkingIn}
-                    className="rainbow-cta rounded-2xl p-4 text-left hover:shadow-xl transition-all disabled:opacity-50">
-                    <p className="text-2xl mb-1">💯</p>
-                    <p className="font-bold text-lg">100%+</p>
-                    <p className="text-sm">{currentReps}+ reps</p>
-                    <p className="text-xs font-semibold mt-2">+2 points</p>
-                  </button>
-                </div>
-              )}
-
-              {/* Cardio */}
-              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">🏃 Weekly Cardio Goal</p>
-                    <p className="text-sm text-slate-600">{currentCardio} minutes this week</p>
-                  </div>
-                  <button onClick={() => setCardioChecked(!cardioChecked)}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold transition ${cardioChecked ? "bg-green-100 text-green-700 border border-green-300" : "border border-slate-300 bg-white hover:bg-slate-50"}`}>
-                    {cardioChecked ? "✅ Done!" : "Mark done"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Edit Past Days */}
-              <button
-                onClick={() => { setShowCalendar(true); setSelectedDays(new Set()); setSaveSuccess(false); }}
-                className="w-full py-3 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                📅 Edit Past Days
-              </button>
-            </div>
-          </div>
+          <button
+            onClick={() => { setShowCalendar(true); setSelectedDays(new Set()); setSaveSuccess(false); }}
+            className="w-full py-3 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            📅 Edit Past Days
+          </button>
         )}
 
         {/* Community */}
@@ -622,11 +526,13 @@ export default function ChallengeDetailPage() {
             <button onClick={() => router.push("/auth")} className="rainbow-cta px-6 py-3 rounded-full font-semibold">Log in / Sign up</button>
           </div>
         )}
+
         {userId && !isMember && (
           <div className="neon-card rounded-2xl p-6 text-center">
             <button onClick={handleJoin} className="rainbow-cta px-6 py-3 rounded-full font-semibold">Join Challenge</button>
           </div>
         )}
+
         {userId && isMember && (
           <div className="neon-card rounded-2xl p-5 text-center">
             <button onClick={handleLeave}
@@ -635,11 +541,12 @@ export default function ChallengeDetailPage() {
             </button>
           </div>
         )}
+
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
           SHEET 1 — Month Calendar
-      ══════════════════════════════════════════════════════════════ */}
+          ══════════════════════════════════════════════════════════════ */}
       {showCalendar && (
         <div className="sheet-backdrop"
           onClick={(e) => { if (e.target === e.currentTarget) { setShowCalendar(false); setSelectedDays(new Set()); } }}>
@@ -672,7 +579,7 @@ export default function ChallengeDetailPage() {
                 { bg: "#f3e8ff", label: "Selected", border: "2px solid #7b2d8b" },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: "50%", background: s.bg, border: s.border || "none", flexShrink: 0 }} />
+                  <div style={{ width: 14, height: 14, borderRadius: "50%", background: s.bg, border: (s as any).border || "none", flexShrink: 0 }} />
                   <span style={{ fontSize: 11, color: "#666", fontWeight: 600 }}>{s.label}</span>
                 </div>
               ))}
@@ -693,24 +600,22 @@ export default function ChallengeDetailPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px 4px", justifyItems: "center", marginBottom: 28 }}>
               {calDays.map((day, idx) => {
                 if (day === null) return <div key={`b${idx}`} style={{ width: 38, height: 38 }} />;
-                const dateStr       = toDateStr(calMonth.y, calMonth.m, day);
-                const isToday       = dateStr === todayStr;
-                const isFuture      = dateStr > todayStr;
+                const dateStr = toDateStr(calMonth.y, calMonth.m, day);
+                const isToday = dateStr === todayStr;
+                const isFuture = dateStr > todayStr;
                 const isBeforeStart = challenge.start_date && dateStr < challenge.start_date;
-                const log           = logsByDate[dateStr];
-                const isLogged      = !!log;
-                const isEdited      = !!log?.edited_at;
-                const isSelected    = selectedDays.has(dateStr);
-                const disabled      = isFuture || !!isBeforeStart;
-
+                const log = logsByDate[dateStr];
+                const isLogged = !!log;
+                const isEdited = !!log?.edited_at;
+                const isSelected = selectedDays.has(dateStr);
+                const disabled = isFuture || !!isBeforeStart;
                 let cls = "cal-day ";
-                if (disabled)               cls += "future";
+                if (disabled) cls += "future";
                 else if (isLogged && isSelected) cls += "selected-logged";
-                else if (isLogged)          cls += "logged";
-                else if (isSelected)        cls += "selected-unlogged";
-                else                        cls += "missed";
-                if (isToday && !disabled)   cls += " today-ring";
-
+                else if (isLogged) cls += "logged";
+                else if (isSelected) cls += "selected-unlogged";
+                else cls += "missed";
+                if (isToday && !disabled) cls += " today-ring";
                 return (
                   <button key={dateStr} className={cls} onClick={() => !disabled && toggleDay(dateStr)} disabled={disabled}>
                     {day}
@@ -741,7 +646,7 @@ export default function ChallengeDetailPage() {
 
       {/* ══════════════════════════════════════════════════════════════
           SHEET 2 — Edit cards
-      ══════════════════════════════════════════════════════════════ */}
+          ══════════════════════════════════════════════════════════════ */}
       {showEditPanel && (
         <div className="sheet-backdrop"
           onClick={(e) => { if (e.target === e.currentTarget) setShowEditPanel(false); }}>
@@ -832,9 +737,10 @@ export default function ChallengeDetailPage() {
                           <div style={{
                             height: "100%", borderRadius: 99,
                             width: `${pct}%`,
-                            background: pct >= 100 ? "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
-                                      : pct >= 50  ? "linear-gradient(90deg,#48cfad,#667eea)"
-                                      : "#e5e7eb",
+                            background: pct >= 100
+                              ? "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
+                              : pct >= 50 ? "linear-gradient(90deg,#48cfad,#667eea)"
+                              : "#e5e7eb",
                             transition: "width 0.25s ease",
                           }} />
                         </div>
@@ -844,7 +750,7 @@ export default function ChallengeDetailPage() {
                 </div>
 
                 <button className="rainbow-btn" onClick={handleSaveEdits} disabled={saving}>
-                  {saving ? "Saving & recalculating…" : `Save All ${editCards.length} Day${editCards.length !== 1 ? "s" : ""} 🔥`}
+                  {saving ? "Saving & recalculating..." : `Save All ${editCards.length} Day${editCards.length !== 1 ? "s" : ""} 🔥`}
                 </button>
               </>
             )}
