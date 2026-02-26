@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import PRLogModal from "@/components/PRLogModal";
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg, #ff6b9d, #ff9f43)",
@@ -18,6 +19,8 @@ function ProfileContent() {
   const [teamMembers, setTeamMembers]             = useState<any[]>([]);
   const [loading, setLoading]                     = useState(true);
   const [authed, setAuthed]                       = useState<boolean | null>(null);
+  const [showPRModal, setShowPRModal] = useState(false);
+
 
   // Delete flow
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
@@ -351,6 +354,12 @@ function ProfileContent() {
           <button onClick={() => router.push("/embed/leaderboard")} className="w-full rounded-xl py-3.5 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
             View Leaderboard
           </button>
+          <button
+             onClick={() => setShowPRModal(true)}
+             className="w-full rounded-xl py-3 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              🏆 Log a PR
+            </button>
         </div>
 
         {/* Account — danger zone */}
@@ -436,7 +445,13 @@ function ProfileContent() {
                 </div>
               </>
             )}
-
+            {showPRModal && profile?.id && (
+              <PRLogModal
+                userId={profile.id}
+                onClose={() => setShowPRModal(false)}
+                onSaved={() => setShowPRModal(false)}
+              />
+            )}
           </div>
         </div>
       )}
