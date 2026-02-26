@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase/client";
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_LABELS  = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-const GLOBAL_POINTS_PER_CHECKIN = 10;
+const GLOBAL_POINTS_PER_CHECKIN = 5;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -57,7 +57,7 @@ export interface Message {
 }
 
 // How many global points a check-in earns regardless of challenge
-const GLOBAL_POINTS_PER_CHECKIN = 10;
+const GLOBAL_POINTS_PER_CHECKIN = 5;
 
 // ======================
 // USERS
@@ -254,7 +254,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       end_date: endDate,
       is_public: challengeData.isPublic ?? true,
       scoring_type: challengeData.scoringType ?? "average_points",
-      local_points_per_checkin: challengeData.localPointsPerCheckin ?? 10,
+      local_points_per_checkin: challengeData.localPointsPerCheckin ?? 5,
       description: challengeData.description || null,
 
       // NEW
@@ -438,7 +438,7 @@ export async function recordCheckIn(
     .eq("id", challengeId)
     .single();
 
-  const localPointsPerCheckin = challenge?.local_points_per_checkin ?? 10;
+  const localPointsPerCheckin = challenge?.local_points_per_checkin ?? 5;
 
   const completionRatio = repsTarget > 0 ? repsCompleted / repsTarget : 1;
   const localPointsEarned = Math.round(completionRatio * localPointsPerCheckin);
