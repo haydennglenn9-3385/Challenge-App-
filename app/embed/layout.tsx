@@ -1,11 +1,13 @@
+// app/embed/layout.tsx
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { UserProvider } from "@/lib/UserContext";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
-// ─── Branded loading screen ───────────────────────────────────────────────────
+// ─── Loading screen ───────────────────────────────────────────────────────────
 function LoadingScreen() {
   return (
     <>
@@ -37,7 +39,7 @@ function LoadingScreen() {
   );
 }
 
-// ─── Nav items ────────────────────────────────────────────────────────────────
+// ─── Static nav items ─────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { label: "Activity",   icon: "🏳️‍🌈", path: "/embed/dashboard"   },
   { label: "Challenges", icon: "⚡",    path: "/embed/challenges"  },
@@ -46,11 +48,35 @@ const NAV_ITEMS = [
   { label: "Profile",    icon: "👤",    path: "/embed/profile"     },
 ];
 
-// ─── Bottom nav (mobile) ──────────────────────────────────────────────────────
+const ADMIN_ITEM = { label: "Admin", icon: "⚙️", path: "/embed/admin" };
+
+// ─── Hook: check admin role once ─────────────────────────────────────────────
+function useIsAdmin() {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.role === "admin") setIsAdmin(true);
+        });
+    });
+  }, []);
+
+  return isAdmin;
+}
+
+// ─── Bottom nav ───────────────────────────────────────────────────────────────
 function BottomNav() {
-  const pathname    = usePathname();
+  const pathname     = usePathname();
   const searchParams = useSearchParams();
-  const router      = useRouter();
+  const router       = useRouter();
+  const isAdmin      = useIsAdmin();
 
   const nav = (path: string) => {
     const params = searchParams.toString();
@@ -58,6 +84,8 @@ function BottomNav() {
   };
 
   const isActive = (path: string) => pathname.includes(path);
+
+  const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
@@ -69,55 +97,59 @@ function BottomNav() {
           borderTop: "1px solid rgba(0,0,0,0.06)",
         }}
       >
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.path);
-          const isCentre = item.label === "Activity";
-
-          return (
+        {items.map((item) =>
+          item.label === "Activity" ? (
             <button
               key={item.label}
               onClick={() => nav(item.path)}
-              className={`flex flex-col items-center gap-1 ${isCentre ? "-mt-5" : "px-2"}`}
+              className="flex flex-col items-center gap-1 -mt-5"
             >
               <div
-                className={`flex items-center justify-center text-xl transition-all ${
-                  isCentre ? "w-14 h-14 rounded-2xl text-2xl" : "w-9 h-9 rounded-xl"
-                }`}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
                 style={{
-                  background: active
-                    ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)"
-                    : isCentre
-                    ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)"
-                    : "rgba(0,0,0,0.04)",
-                  boxShadow: active
-                    ? "0 6px 20px rgba(102,126,234,0.4)"
-                    : isCentre
-                    ? "0 4px 12px rgba(102,126,234,0.25)"
-                    : "none",
-                  opacity: !active && !isCentre ? 0.5 : 1,
+                  background:
+                    "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
+                  boxShadow: "0 6px 20px rgba(102,126,234,0.4)",
                 }}
               >
                 {item.icon}
               </div>
+              <span className="text-[10px] font-bold text-slate-400">{item.label}</span>
+            </button>
+          ) : (
+            <button
+              key={item.label}
+              onClick={() => nav(item.path)}
+              className="flex flex-col items-center gap-1 px-2"
+            >
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
+                  isActive(item.path) ? "bg-slate-900" : "bg-transparent"
+                }`}
+              >
+                {item.icon}
+              </div>
               <span
-                className="text-[10px] font-bold transition-colors"
-                style={{ color: active ? "#0e0e0e" : "#94a3b8" }}
+                className={`text-[10px] font-bold transition-colors ${
+                  isActive(item.path) ? "text-slate-900" : "text-slate-400"
+                }`}
               >
                 {item.label}
               </span>
             </button>
-          );
-        })}
+          )
+        )}
       </div>
     </nav>
   );
 }
 
-// ─── Left sidebar (desktop) ───────────────────────────────────────────────────
+// ─── Sidebar (desktop) ────────────────────────────────────────────────────────
 function Sidebar() {
-  const pathname    = usePathname();
+  const pathname     = usePathname();
   const searchParams = useSearchParams();
-  const router      = useRouter();
+  const router       = useRouter();
+  const isAdmin      = useIsAdmin();
 
   const nav = (path: string) => {
     const params = searchParams.toString();
@@ -125,31 +157,25 @@ function Sidebar() {
   };
 
   const isActive = (path: string) => pathname.includes(path);
+  const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
-    <aside style={{
-      width: 240,
-      flexShrink: 0,
-      position: "sticky",
-      top: 0,
-      height: "100dvh",
-      display: "flex",
-      flexDirection: "column",
-      padding: "32px 16px 24px",
-      borderRight: "1px solid rgba(0,0,0,0.06)",
-      background: "#fff",
-    }}>
+    <aside
+      style={{
+        width: 240, flexShrink: 0, position: "sticky", top: 0,
+        height: "100dvh", display: "flex", flexDirection: "column",
+        padding: "32px 16px 24px",
+        borderRight: "1px solid rgba(0,0,0,0.06)",
+        background: "#fff",
+      }}
+    >
       {/* Logo */}
       <div style={{ paddingLeft: 12, marginBottom: 36 }}>
         <div style={{ fontSize: 28 }}>🏳️‍🌈</div>
         <p style={{
-          fontFamily: "'Bebas Neue', cursive",
-          fontSize: 13,
-          letterSpacing: 2,
+          fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2,
           background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          marginTop: 2,
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginTop: 2,
         }}>
           Queers & Allies Fitness
         </p>
@@ -157,7 +183,7 @@ function Sidebar() {
 
       {/* Nav items */}
       <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = isActive(item.path);
           return (
             <button
@@ -169,6 +195,8 @@ function Sidebar() {
                 cursor: "pointer", textAlign: "left", transition: "all 0.15s",
                 background: active
                   ? "linear-gradient(90deg, rgba(255,107,157,0.12), rgba(102,126,234,0.12))"
+                  : item.label === "Admin"
+                  ? "rgba(123,45,139,0.06)"
                   : "transparent",
                 fontFamily: "'DM Sans', sans-serif",
               }}
@@ -179,24 +207,25 @@ function Sidebar() {
                 fontSize: 18,
                 background: active
                   ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
+                  : item.label === "Admin"
+                  ? "rgba(123,45,139,0.12)"
                   : "rgba(0,0,0,0.04)",
                 boxShadow: active ? "0 3px 10px rgba(102,126,234,0.3)" : "none",
               }}>
                 {item.icon}
               </span>
               <span style={{
-                fontSize: 15, fontWeight: active ? 800 : 600,
-                color: active ? "#0e0e0e" : "#64748b",
+                fontSize: 15,
+                fontWeight: active ? 800 : 600,
+                color: active ? "#0e0e0e" : item.label === "Admin" ? "#7b2d8b" : "#64748b",
                 letterSpacing: active ? "0.01em" : 0,
               }}>
                 {item.label}
               </span>
               {active && (
                 <div style={{
-                  marginLeft: "auto", width: 6, height: 6,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg,#ff6b9d,#667eea)",
-                  flexShrink: 0,
+                  marginLeft: "auto", width: 6, height: 6, borderRadius: "50%",
+                  background: "linear-gradient(135deg,#ff6b9d,#667eea)", flexShrink: 0,
                 }} />
               )}
             </button>
@@ -217,23 +246,15 @@ export default function EmbedLayout({ children }: { children: React.ReactNode })
   return (
     <Suspense fallback={<LoadingScreen />}>
       <UserProvider>
-        {/* Mobile: plain full-width */}
         <div className="lg:hidden min-h-screen w-full">
           {children}
           <BottomNav />
         </div>
-
-        {/* Desktop: Duolingo-style sidebar + content */}
         <div className="hidden lg:flex min-h-screen w-full" style={{ background: "#f8f9fa" }}>
           <Sidebar />
-
-          {/* Main scrollable content — capped width, centered */}
           <main style={{
-            flex: 1,
-            overflowY: "auto",
-            display: "flex",
-            justifyContent: "center",
-            padding: "0 24px",
+            flex: 1, overflowY: "auto", display: "flex",
+            justifyContent: "center", padding: "0 24px",
           }}>
             <div style={{ width: "100%", maxWidth: 680, paddingBottom: 60 }}>
               {children}

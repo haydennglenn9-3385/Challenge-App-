@@ -1,4 +1,3 @@
-// app/embed/challenge/[id]/manage/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import LoadingScreen from "@/components/LoadingScreen";
 import MemberEditModal from "@/components/manage/MemberEditModal";
 import TeamColorSelector, { PRIDE_GRADIENTS } from "@/components/manage/TeamColorSelector";
+import DirectAddMember from "@/components/manage/DirectAddMember";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -626,7 +626,7 @@ export default function ManageChallengePage() {
             <div className="h-1 w-full rainbow-cta" />
             <div className="p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-extrabold text-slate-900">
+                <p className="font-extrabold text-slate-9ƒ00">
                   Teams ({teams.length})
                 </p>
               </div>
@@ -696,52 +696,7 @@ export default function ManageChallengePage() {
           </div>
         )}
 
-        {/* ── All Members ── */}
-        <div className="neon-card rounded-2xl overflow-hidden">
-          <div className="h-1 w-full rainbow-cta" />
-          <div className="p-5 space-y-3">
-            <p className="font-extrabold text-slate-900">
-              All Members ({members.length})
-            </p>
-
-            {members.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-6">
-                No members yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {members.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center gap-3 py-3 px-4 rounded-xl border border-slate-100 bg-white/60 hover:bg-white transition"
-                  >
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                      style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
-                    >
-                      {m.name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{m.name}</p>
-                      <p className="text-xs text-slate-400">
-                        {m.total_points} pts · {m.streak}🔥
-                        {m.team_name && (
-                          <span className="ml-1.5 text-slate-400">· {m.team_name}</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setEditingMember(m)}
-                      className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition whitespace-nowrap"
-                    >
-                      Edit Member
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        
 
         {/* ── Danger Zone ── */}
         <div className="neon-card rounded-2xl overflow-hidden border border-red-100">
