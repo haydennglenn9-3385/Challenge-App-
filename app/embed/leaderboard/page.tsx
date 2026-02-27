@@ -371,12 +371,11 @@ useEffect(() => {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all capitalize"
-            style={tab === t ? {
-              background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)",
-              color: "#1a1a1a",
-              boxShadow: "0 2px 8px rgba(102,126,234,0.25)",
-            } : { color: "#94a3b8" }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all capitalize ${
+              tab === t
+                ? "rainbow-cta text-[#1a1a1a] shadow-[0_2px_8px_rgba(102,126,234,0.25)]"
+                : "text-[#94a3b8]"
+            }`}
           >
             {t === "global" ? "🌍 Global" : t === "challenges" ? "⚡ Challenges" : "🏆 PRs"}
           </button>

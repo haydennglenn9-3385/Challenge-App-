@@ -178,7 +178,7 @@ export default function PRPage() {
         .pr-sheet {
           background: #fff; border-radius: 28px 28px 0 0;
           max-height: 92dvh; overflow-y: auto;
-          padding: 8px 20px 52px;
+          padding: 8px 20px 150px;
           -webkit-overflow-scrolling: touch;
         }
         .pr-handle {
