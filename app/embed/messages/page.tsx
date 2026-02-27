@@ -94,12 +94,13 @@ export default function MessagesPage() {
       <div className="px-5 mb-4">
         <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex-1 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1"
-              style={tab === t.id ? {
-                background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
-                color: "#1a1a1a",
-              } : { color: "#8E8E93" }}>
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                tab === t.id ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
+              }`}
+            >
               <span>{t.icon}</span>
               <span>{t.label}</span>
             </button>
