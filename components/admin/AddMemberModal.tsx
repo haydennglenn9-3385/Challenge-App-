@@ -1,3 +1,4 @@
+// components/admin/AddMemberModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -31,6 +32,37 @@ interface Props {
   onCreated: (member: NewMember) => void;
 }
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  background: "#f8fafc",
+  padding: "12px 16px",
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  display: "block",
+  marginBottom: 6,
+};
+
+const sectionLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  marginBottom: 10,
+};
+
 export default function AddMemberModal({ challenges, teams, onClose, onCreated }: Props) {
   const [name,        setName]        = useState("");
   const [email,       setEmail]       = useState("");
@@ -61,7 +93,11 @@ export default function AddMemberModal({ challenges, teams, onClose, onCreated }
     const res = await fetch("/api/admin/create-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), email: email.trim(), password: password.trim() }),
+      body: JSON.stringify({
+        name:     name.trim(),
+        email:    email.trim(),
+        password: password.trim(),
+      }),
     });
 
     const json = await res.json();
@@ -92,112 +128,166 @@ export default function AddMemberModal({ challenges, teams, onClose, onCreated }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
-      style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(0,0,0,0.4)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
     >
-      <div className="w-full sm:w-[460px] sm:max-w-[460px] bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl">
+      <div style={{
+        width: "100%",
+        maxWidth: 460,
+        background: "#fff",
+        borderRadius: "24px 24px 0 0",
+        overflow: "hidden",
+        boxShadow: "0 -4px 40px rgba(0,0,0,0.15)",
+      }}>
 
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-0">
-          <div className="w-10 h-1 rounded-full bg-slate-200" />
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 4 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 99, background: "#e2e8f0" }} />
         </div>
 
         {/* Rainbow strip */}
-        <div
-          className="h-1 w-full mt-3"
-          style={{ background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)" }}
-        />
+        <div style={{
+          height: 4, width: "100%", marginTop: 8,
+          background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
+        }} />
 
-        <div className="p-6 pb-10 space-y-4 max-h-[85dvh] overflow-y-auto">
+        {/* Scrollable content */}
+        <div style={{ padding: "20px 24px 40px", overflowY: "auto", maxHeight: "80dvh" }}>
 
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div style={{
+            display: "flex", alignItems: "flex-start",
+            justifyContent: "space-between", marginBottom: 20,
+          }}>
             <div>
-              <p className="font-extrabold text-slate-900 text-lg">Add New Member</p>
-              <p className="text-xs text-slate-400 mt-0.5">Creates an account and optionally enrolls them</p>
+              <p style={{ fontWeight: 800, fontSize: 18, color: "#0f172a", lineHeight: 1.2 }}>
+                Add New Member
+              </p>
+              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>
+                Creates an account and optionally enrolls them
+              </p>
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition text-lg"
+              style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "#f1f5f9", border: "none", cursor: "pointer",
+                fontSize: 18, color: "#64748b",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, marginTop: 2,
+              }}
             >
               ×
             </button>
           </div>
 
+          {/* Error */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <p className="text-sm text-red-600 font-semibold">{error}</p>
+            <div style={{
+              background: "#fef2f2", border: "1px solid #fecaca",
+              borderRadius: 12, padding: "10px 16px", marginBottom: 16,
+            }}>
+              <p style={{ fontSize: 13, color: "#dc2626", fontWeight: 600 }}>{error}</p>
             </div>
           )}
 
-          {/* Account fields */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Account</p>
-            <input
-              type="text"
-              placeholder="Display name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-            />
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-            />
-            <div>
+          {/* ── Account section ── */}
+          <div style={{
+            background: "#f8fafc", borderRadius: 16,
+            padding: "16px", marginBottom: 16,
+          }}>
+            <p style={sectionLabelStyle}>Account</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <input
-                type="password"
-                placeholder="Temporary password (8+ characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                type="text"
+                placeholder="Display name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={inputStyle}
               />
-              <p className="text-xs text-slate-400 mt-1.5">
-                They can reset this after logging in.
-              </p>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={inputStyle}
+              />
+              <div>
+                <input
+                  type="password"
+                  placeholder="Temporary password (8+ characters)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={inputStyle}
+                />
+                <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                  They can reset this after logging in.
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Challenge assignment */}
-          <div className="space-y-3 pt-1 border-t border-slate-100">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Enroll in Challenge <span className="normal-case font-normal text-slate-400">(optional)</span>
+          {/* ── Enroll section ── */}
+          <div style={{
+            background: "#f8fafc", borderRadius: 16,
+            padding: "16px", marginBottom: 20,
+          }}>
+            <p style={sectionLabelStyle}>
+              Enroll in Challenge{" "}
+              <span style={{ textTransform: "none", fontWeight: 400, color: "#94a3b8" }}>
+                (optional)
+              </span>
             </p>
-            <select
-              value={challengeId}
-              onChange={(e) => { setChallengeId(e.target.value); setTeamId(""); }}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-            >
-              <option value="">No challenge</option>
-              {challenges.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-
-            {challengeId && selectedChallenge?.has_teams && availableTeams.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <select
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                value={challengeId}
+                onChange={(e) => { setChallengeId(e.target.value); setTeamId(""); }}
+                style={inputStyle}
               >
-                <option value="">No team assignment</option>
-                {availableTeams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                <option value="">No challenge</option>
+                {challenges.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-            )}
+
+              {/* Team selector — only when challenge has teams */}
+              {challengeId && selectedChallenge?.has_teams && availableTeams.length > 0 && (
+                <select
+                  value={teamId}
+                  onChange={(e) => setTeamId(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">No team assignment</option>
+                  {availableTeams.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="w-full py-4 rounded-xl font-extrabold text-sm text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }}
+            style={{
+              width: "100%", padding: "14px 0",
+              borderRadius: 12, border: "none",
+              background: submitting
+                ? "#cbd5e1"
+                : "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)",
+              fontWeight: 800, fontSize: 14,
+              cursor: submitting ? "default" : "pointer",
+              fontFamily: "inherit",
+              color: "#1a1a1a",
+            }}
           >
             {submitting ? "Creating…" : "Create Member"}
           </button>
