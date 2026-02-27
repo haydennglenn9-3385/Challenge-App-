@@ -14,6 +14,7 @@ const AVATAR_GRADIENTS = [
 function ProfileContent() {
   const router = useRouter();
   const [profile, setProfile]                     = useState<any>(null);
+  const [authUser, setAuthUser]                   = useState<any>(null);
   const [joinedChallenges, setJoinedChallenges]   = useState<any[]>([]);
   const [createdChallenges, setCreatedChallenges] = useState<any[]>([]);
   const [teamMembers, setTeamMembers]             = useState<any[]>([]);
@@ -33,7 +34,7 @@ function ProfileContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setAuthed(false); setLoading(false); return; }
       setAuthed(true);
-
+      setAuthUser(user);
       const { data: userData } = await supabase
         .from("users").select("*").eq("id", user.id).single();
 
@@ -202,7 +203,7 @@ function ProfileContent() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xl font-extrabold text-slate-900">{profile?.name || "Member"}</p>
-                <p className="text-xs text-slate-500 mt-0.5 truncate">{profile?.email}</p>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">{authUser?.email}</p>
               </div>
             </div>
             <button
