@@ -208,18 +208,18 @@ export default function ChallengesPage() {
                   <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                     {created ? (
                       <>
-                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                           Open
                         </button>
-                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}/manage`)}
+                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-4 py-1.5 rounded-full text-white"
                           style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}>
                           Manage
                         </button>
                       </>
                     ) : joined ? (
-                      <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                      <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                         className="text-xs font-bold px-4 py-1.5 rounded-full text-white"
                         style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}>
                         Open
@@ -227,7 +227,7 @@ export default function ChallengesPage() {
                     ) : challenge.is_public ? (
                       <>
                         {/* Preview button for non-members */}
-                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                           Preview
                         </button>
@@ -240,7 +240,7 @@ export default function ChallengesPage() {
                     ) : (
                       <>
                         {/* Preview + Enter Code for private non-members */}
-                        <button onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                           Preview
                         </button>
