@@ -217,6 +217,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       description?: string;
       creatorId: string;
       isPublic?: boolean;
+      hasTeams?: boolean;
       scoringType?: string;
       localPointsPerCheckin?: number;
       dailyTarget?: number | null;
@@ -252,6 +253,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       team_id: team.id,
       start_date: startDate,
       end_date: endDate,
+      has_teams: challengeData.hasTeams ?? false,
       is_public: challengeData.isPublic ?? true,
       scoring_type: challengeData.scoringType ?? "average_points",
       local_points_per_checkin: challengeData.localPointsPerCheckin ?? 5,

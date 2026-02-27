@@ -42,7 +42,7 @@ interface EditableMember {
   team_name?: string;
 }
 
-type AdminTab = "challenges" | "members";
+type AdminTab = "challenges" | "members" | "teams";
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -164,6 +164,10 @@ export default function AdminPage() {
     totalMembers: 0,
   });
 
+  // Teams
+  const [teams, setTeams] = useState<TeamRow[]>([]);
+  const [teamSearch, setTeamSearch] = useState("");  
+
   // ── Load ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -224,7 +228,16 @@ export default function AdminPage() {
         setMembers(usersRaw);
         setStats((p) => ({ ...p, totalUsers: userCount ?? usersRaw.length }));
       }
+      const { data: teamsRaw } = await supabase
+        .from("teams")
+        .select(`
+          id, name, color, challenge_id,
+          challenges ( id, name ),
+          team_members ( user_id )
+        `)
+        .order("name");
 
+      if (teamsRaw) setTeams(teamsRaw);
       setLoading(false);
     }
     load();
@@ -377,19 +390,19 @@ export default function AdminPage() {
 
       {/* Tab toggle */}
       <div className="flex p-1 rounded-2xl bg-slate-100">
-        {(["challenges", "members"] as AdminTab[]).map((t) => (
+        {(["challenges", "members", "teams"] as AdminTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all capitalize ${
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all capitalize ${
               tab === t
                 ? "bg-white shadow text-slate-900"
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            {t === "challenges"
-              ? `⚡ Challenges (${challenges.length})`
-              : `👥 Members (${members.length})`}
+            {t === "challenges" && `⚡ ${challenges.length}`}
+            {t === "members"    && `👥 ${members.length}`}
+            {t === "teams"      && `🏳️‍🌈 Teams`}
           </button>
         ))}
       </div>
@@ -487,7 +500,73 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+  
+      {/* ── Teams Tab ── */}
+      {tab === "teams" && (
+        <div className="neon-card rounded-2xl overflow-hidden">
+          <div className="h-1 w-full rainbow-cta" />
+          <div className="p-5 space-y-3">
+            <input
+              type="text"
+              value={teamSearch}
+              onChange={(e) => setTeamSearch(e.target.value)}
+              placeholder="Search teams…"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+            />
 
+            {teams
+              .filter((t) =>
+                !teamSearch.trim() ||
+                t.name?.toLowerCase().includes(teamSearch.toLowerCase())
+              )
+              .map((team) => {
+                const memberCount = team.team_members?.length ?? 0;
+                const challengeName = team.challenges?.name;
+                const challengeId = team.challenges?.id;
+
+                return (
+                  <div
+                    key={team.id}
+                    className="flex items-center gap-3 py-3 px-4 rounded-xl border border-slate-100 bg-white/60 hover:bg-white transition"
+                  >
+                    {/* Color swatch */}
+                    <div
+                      className="w-9 h-9 rounded-full flex-shrink-0"
+                      style={{
+                        background: team.color ||
+                          "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{team.name}</p>
+                      <p className="text-xs text-slate-400">
+                        {memberCount} member{memberCount !== 1 ? "s" : ""}
+                        {challengeName && (
+                          <span className="ml-1.5">· {challengeName}</span>
+                        )}
+                      </p>
+                    </div>
+                    {challengeId && (
+                      <button
+                        onClick={() =>
+                          router.push(`/embed/challenge/${challengeId}/manage`)
+                        }
+                        className="text-xs font-bold px-3 py-1.5 rounded-full text-white whitespace-nowrap"
+                        style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}
+                      >
+                        Manage
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+            {teams.length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-6">No teams yet.</p>
+            )}
+          </div>
+        </div>
+      )}
       {/* Edit Member Modal */}
       {editingMember && (
         <MemberEditModal
