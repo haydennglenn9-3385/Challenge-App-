@@ -50,25 +50,19 @@ export default function TeamColorSelector({ value, onChange }: Props) {
       <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
         Team Color
       </label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex flex-wrap gap-3">
         {PRIDE_GRADIENTS.map((g) => (
           <button
             key={g.id}
             type="button"
+            title={g.label}
             onClick={() => onChange(g.gradient)}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
-              value === g.gradient
-                ? "border-slate-800 shadow-md"
-                : "border-slate-200 hover:border-slate-300"
-            }`}
+            className="relative w-9 h-9 rounded-full transition-transform hover:scale-110"
+            style={{ background: g.gradient }}
           >
-            <div
-              className="w-6 h-6 rounded-full flex-shrink-0"
-              style={{ background: g.gradient }}
-            />
-            <span className="text-xs font-semibold text-slate-700 leading-tight">
-              {g.label}
-            </span>
+            {value === g.gradient && (
+              <span className="absolute inset-0 rounded-full ring-2 ring-offset-2 ring-slate-800" />
+            )}
           </button>
         ))}
       </div>

@@ -105,7 +105,7 @@ export default function AddMemberModal({ challenges, teams, onClose, onCreated }
         {/* Rainbow strip */}
         <div style={{ height: 4, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)" }} />
 
-        <div className="p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
+        <div className="p-6 pb-10 space-y-4 max-h-[85dvh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>

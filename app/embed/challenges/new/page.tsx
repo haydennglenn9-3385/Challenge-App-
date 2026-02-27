@@ -32,7 +32,9 @@ export default function NewChallengePage() {
 
   const [loadingSession, setLoadingSession] = useState(true);
   const [session, setSession]               = useState<any>(null);
-
+  const [durationMode, setDurationMode] = useState<"days" | "dates">("days");
+  const [startDate,    setStartDate]    = useState("");
+  const [endDate,      setEndDate]      = useState("");
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [durationDays, setDurationDays] = useState(21);
@@ -62,7 +64,11 @@ export default function NewChallengePage() {
 
     setSubmitting(true);
 
-    const days = customDays ? parseInt(customDays, 10) : durationDays;
+    const days = durationMode === "dates" && startDate && endDate
+  ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
+  : customDays
+  ? parseInt(customDays, 10)
+  : durationDays;
 
     const challenge = await createChallenge({
       name:        title.trim(),
@@ -72,6 +78,10 @@ export default function NewChallengePage() {
       isPublic,
       scoringType,
       hasTeams,
+      // Pass dates directly if using date mode
+      ...(durationMode === "dates" && startDate && endDate
+        ? { startDate, endDate }
+        : {}),
     });
 
     if (challenge) {
@@ -158,39 +168,103 @@ export default function NewChallengePage() {
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">
             <p className="font-extrabold text-slate-900">Duration</p>
-            <div className="flex flex-wrap gap-2">
-              {DURATION_PRESETS.map((p) => (
-                <button
-                  key={p.days}
-                  type="button"
-                  onClick={() => { setDurationDays(p.days); setCustomDays(""); }}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition ${
-                    !customDays && durationDays === p.days
-                      ? "border-slate-800 bg-slate-50 text-slate-900"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+
+            {/* Mode toggle */}
+            <div className="flex gap-2 p-1 rounded-2xl bg-slate-100">
+              <button
+                type="button"
+                onClick={() => setDurationMode("days")}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
+                  durationMode === "days"
+                    ? "bg-white shadow text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                By Days
+              </button>
+              <button
+                type="button"
+                onClick={() => setDurationMode("dates")}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
+                  durationMode === "dates"
+                    ? "bg-white shadow text-slate-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                By Dates
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                Custom (days)
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={customDays}
-                onChange={(e) => setCustomDays(e.target.value)}
-                placeholder="e.g. 45"
-                className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-              />
-            </div>
-            {activeDays > 0 && (
-              <p className="text-xs text-slate-400 font-semibold">
-                Challenge runs for <span className="text-slate-700">{activeDays} days</span>
-              </p>
+
+            {durationMode === "days" ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {DURATION_PRESETS.map((p) => (
+                    <button
+                      key={p.days}
+                      type="button"
+                      onClick={() => { setDurationDays(p.days); setCustomDays(""); }}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition ${
+                        !customDays && durationDays === p.days
+                          ? "border-slate-800 bg-slate-50 text-slate-900"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                    Custom (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={customDays}
+                    onChange={(e) => setCustomDays(e.target.value)}
+                    placeholder="e.g. 45"
+                    className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                {activeDays > 0 && (
+                  <p className="text-xs text-slate-400 font-semibold">
+                    Challenge runs for <span className="text-slate-700">{activeDays} days</span>
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                {startDate && endDate && new Date(endDate) > new Date(startDate) && (
+                  <p className="text-xs text-slate-400 font-semibold col-span-2">
+                    {Math.round(
+                      (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000
+                    )}{" "}
+                    days
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
