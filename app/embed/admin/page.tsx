@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import LoadingScreen from "@/components/LoadingScreen";
 import MemberEditModal from "@/components/manage/MemberEditModal";
+import AddMemberModal from "@/components/admin/AddMemberModal";
+import AddTeamModal from "@/components/admin/AddTeamModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,6 +160,8 @@ export default function AdminPage() {
   const [loading, setLoading]     = useState(true);
   const [isAdmin, setIsAdmin]     = useState(false);
   const [tab, setTab]             = useState<AdminTab>("challenges");
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [showAddTeam,   setShowAddTeam]   = useState(false);
 
   // Challenges
   const [challenges, setChallenges] = useState<ChallengeRow[]>([]);
@@ -393,10 +397,16 @@ export default function AdminPage() {
           + New Challenge
         </button>
         <button
-          onClick={() => router.push("/embed/challenges")}
+          onClick={() => setShowAddMember(true)}
           className="flex-1 py-3 rounded-xl font-bold text-sm border border-slate-200 text-slate-700 hover:bg-white transition"
         >
-          Browse All
+          + Add Member
+        </button>
+        <button
+          onClick={() => setShowAddTeam(true)}
+          className="flex-1 py-3 rounded-xl font-bold text-sm border border-slate-200 text-slate-700 hover:bg-white transition"
+        >
+          + Add Team
         </button>
       </div>
 
@@ -579,6 +589,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      
       {/* Edit Member Modal */}
       {editingMember && (
         <MemberEditModal
@@ -587,6 +598,33 @@ export default function AdminPage() {
           onClose={() => setEditingMember(null)}
           onSave={handleSaveMember}
           onRemove={handleRemoveMember}
+        />
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMember && (
+        <AddMemberModal
+          challenges={challenges}
+          teams={teams}
+          onClose={() => setShowAddMember(false)}
+          onCreated={(newMember) => {
+            setMembers((p) => [
+              { ...newMember, role: "member", created_at: new Date().toISOString() },
+              ...p,
+            ]);
+            setStats((p) => ({ ...p, totalUsers: p.totalUsers + 1 }));
+          }}
+        />
+      )}
+
+      {/* Add Team Modal */}
+      {showAddTeam && (
+        <AddTeamModal
+          challenges={challenges}
+          onClose={() => setShowAddTeam(false)}
+          onCreated={(newTeam) => {
+            setTeams((p) => [...p, newTeam]);
+          }}
         />
       )}
     </div>
