@@ -1,4 +1,3 @@
-// components/manage/TeamColorSelector.tsx
 "use client";
 
 export const PRIDE_GRADIENTS = [
@@ -6,6 +5,11 @@ export const PRIDE_GRADIENTS = [
     id: "rainbow",
     label: "Rainbow Pride",
     gradient: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
+  },
+  {
+    id: "gay-men",
+    label: "Gay Men's Pride",
+    gradient: "linear-gradient(90deg,#078D70,#26CEA8,#98E8C1,#ffffff,#7BADE2,#5049CC,#3D1A8E)",
   },
   {
     id: "trans",
@@ -47,21 +51,21 @@ interface Props {
 export default function TeamColorSelector({ value, onChange }: Props) {
   return (
     <div>
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-3">
         Team Color
       </label>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4 px-1">
         {PRIDE_GRADIENTS.map((g) => (
           <button
             key={g.id}
             type="button"
             title={g.label}
             onClick={() => onChange(g.gradient)}
-            className="relative w-9 h-9 rounded-full transition-transform hover:scale-110"
+            className="relative w-10 h-10 rounded-full transition-transform hover:scale-110 active:scale-95 flex-shrink-0"
             style={{ background: g.gradient }}
           >
             {value === g.gradient && (
-              <span className="absolute inset-0 rounded-full ring-2 ring-offset-2 ring-slate-800" />
+              <span className="absolute inset-0 rounded-full ring-[3px] ring-offset-2 ring-slate-800" />
             )}
           </button>
         ))}

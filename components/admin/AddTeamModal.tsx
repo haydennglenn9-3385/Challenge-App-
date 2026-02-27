@@ -1,4 +1,3 @@
-// components/admin/AddTeamModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -65,11 +64,11 @@ export default function AddTeamModal({ challenges, onClose, onCreated }: Props) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
       style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl">
+      <div className="w-full sm:w-[460px] sm:max-w-[460px] bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl">
 
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-0">
@@ -136,7 +135,7 @@ export default function AddTeamModal({ challenges, onClose, onCreated }: Props) 
             </select>
           </div>
 
-          {/* Color — using the component directly */}
+          {/* Color */}
           <TeamColorSelector value={color} onChange={setColor} />
 
           {/* Live preview */}
@@ -160,9 +159,7 @@ export default function AddTeamModal({ challenges, onClose, onCreated }: Props) 
             onClick={handleSubmit}
             disabled={submitting || !name.trim() || !challengeId}
             className="w-full py-4 rounded-xl font-extrabold text-sm text-white disabled:opacity-40"
-            style={{
-              background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)",
-            }}
+            style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }}
           >
             {submitting ? "Creating…" : "Create Team"}
           </button>
