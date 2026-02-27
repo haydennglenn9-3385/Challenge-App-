@@ -32,6 +32,18 @@ interface MemberRow {
   created_at: string;
 }
 
+interface TeamRow {
+  id: string;
+  name: string;
+  color?: string;
+  challenge_id?: string;
+  challenges?: {
+    id: string;
+    name: string;
+  }[] | null;
+  team_members?: { user_id: string }[];
+}
+
 interface EditableMember {
   id: string;
   name: string;
@@ -521,9 +533,9 @@ export default function AdminPage() {
               )
               .map((team) => {
                 const memberCount = team.team_members?.length ?? 0;
-                const challengeName = team.challenges?.name;
-                const challengeId = team.challenges?.id;
-
+                const challengeName = team.challenges?.[0]?.name;
+                const challengeId   = team.challenges?.[0]?.id;
+                
                 return (
                   <div
                     key={team.id}
