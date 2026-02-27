@@ -97,7 +97,7 @@ export default function AddTeamModal({ challenges, onClose, onCreated }: Props) 
           }} />
 
           {/* Content */}
-          <div style={{ padding: "20px 24px 40px", overflowY: "auto", maxHeight: "80dvh" }}>
+          <div style={{ padding: "20px 24px 120px", overflowY: "auto", maxHeight: "80dvh" }}>
 
             {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
