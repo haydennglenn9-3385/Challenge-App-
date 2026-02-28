@@ -123,6 +123,7 @@ export default function ChallengeDetailPage() {
   const [userTotalPoints, setUserTotalPoints] = useState(0);
   const [challengeLogs,   setChallengeLogs]   = useState<any[]>([]);
   const [challengeStreak, setChallengeStreak] = useState(0);
+  const [challengePoints, setChallengePoints] = useState(0);
 
   // ── Check-in state ───────────────────────────────────────────────────────────
   const [checkedInToday, setCheckedInToday] = useState(false);
@@ -191,6 +192,9 @@ export default function ChallengeDetailPage() {
     setCheckedInToday(rows.some(l => l.date === todayStr));
     setChallengeStreak(computeStreak(rows));
     return rows;
+
+    const localSum = rows.reduce((s, l) => s + (l.points_earned ?? 0), 0);
+      setChallengePoints(localSum);
   }
 
   // ─── Initial load ────────────────────────────────────────────────────────────
@@ -327,21 +331,28 @@ export default function ChallengeDetailPage() {
       reps_completed:       completed,
       reps_target:          target,
       points_earned:        points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN, // ✅ always written
+      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
     });
 
     if (!error) {
-      // Streak: check if yesterday had a log
+      // Streak
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split("T")[0];
       const hadYesterday = challengeLogs.some(l => l.date === yesterdayStr);
       const newStreak    = hadYesterday ? challengeStreak + 1 : 1;
 
-      // Points: add flat global award to current displayed total
-      const newGlobal = userTotalPoints + GLOBAL_POINTS_PER_CHECKIN;
+      // Streak milestone bonuses
+      const STREAK_MILESTONES: Record<number, number> = {
+        7:   25,
+        30:  100,
+        100: 500,
+      };
+      const streakBonus   = STREAK_MILESTONES[newStreak] ?? 0;
+      const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
+      const newGlobal      = userTotalPoints + totalNewPoints;
 
-      // Persist both to DB
+      // Persist to DB
       await supabase.from("users")
         .update({ total_points: newGlobal, streak: newStreak })
         .eq("id", userId);
@@ -349,11 +360,19 @@ export default function ChallengeDetailPage() {
       // Activity feed
       const { data: uProfile } = await supabase
         .from("users").select("name").eq("id", userId).maybeSingle();
+
       await supabase.from("activity_feed").insert({
         user_name: uProfile?.name ?? "Member",
-        type:      "streak",
-        text:      "checked in!",
-        meta:      { challenge_id: challengeId, days: newStreak, points: GLOBAL_POINTS_PER_CHECKIN },
+        type:      streakBonus > 0 ? "streak_milestone" : "streak",
+        text:      streakBonus > 0
+          ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts`
+          : "checked in!",
+        meta: {
+          challenge_id: challengeId,
+          days:         newStreak,
+          points:       totalNewPoints,
+          bonus:        streakBonus,
+        },
       });
 
       // Update local state
@@ -361,10 +380,11 @@ export default function ChallengeDetailPage() {
       setTodayPoints(points);
       setUserTotalPoints(newGlobal);
       setChallengeStreak(newStreak);
+      setChallengePoints(prev => prev + points);
       setChallengeLogs(prev => [
         ...prev,
         {
-          date: todayStr,
+          date:                 todayStr,
           reps_completed:       completed,
           reps_target:          target,
           points_earned:        points,
@@ -562,7 +582,7 @@ export default function ChallengeDetailPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                 {[
                   { value: `🔥 ${challengeStreak}`, label: "Day Streak" },
-                  { value: `⭐ ${userTotalPoints}`, label: "Total Points" },
+                  { value: `⭐ ${challengePoints}`, label: "Challenge Pts" },
                   { value: `${challengeLogs.length}`, label: "Check-ins" },
                 ].map(stat => (
                   <div key={stat.label} style={{ textAlign: "center", padding: "12px 8px", background: "rgba(0,0,0,0.03)", borderRadius: 14 }}>
