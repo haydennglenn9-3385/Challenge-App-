@@ -217,11 +217,28 @@ export default function ChallengeDetailPage() {
       setChallenge(ch);
 
       // Members
-      const { data: mems } = await supabase
-        .from("challenge_members")
-        .select("user_id, users(id, name, total_points, streak)")
-        .eq("challenge_id", challengeId);
-      setMembers((mems || []).map((m: any) => m.users).filter(Boolean));
+     // ─── Members (FIXED JOIN FOR LEADERBOARD) ────────────────────────────────
+    const { data: mems, error: memErr } = await supabase
+      .from("challenge_members")
+      .select(`
+        user_id,
+        users!challenge_members_user_id_fkey (
+          id,
+          name,
+          total_points,
+          streak
+        )
+      `)
+      .eq("challenge_id", challengeId);
+
+    if (memErr) console.error("Member load error:", memErr);
+
+    setMembers(
+      (mems || [])
+        .map((m: any) => m.users)
+        .filter(Boolean)
+    );
+
 
       // Messages
       const { data: msgs } = await supabase
@@ -465,17 +482,24 @@ export default function ChallengeDetailPage() {
       }
     }
 
-    // Recalc total global points across all challenges
+    // ─── Recalculate total global points (canonical) ─────────────────────────
     const { data: allLogs } = await supabase
       .from("daily_logs")
       .select("global_points_earned")
       .eq("user_id", userId);
+
     const totalGlobal = (allLogs || []).reduce(
-      (s: number, l: any) => s + (l.global_points_earned ?? 0), 
+      (sum: number, log: any) => sum + (log.global_points_earned ?? 0),
       0
     );
-    await supabase.from("users").update({ total_points: totalGlobal }).eq("id", userId);
+
+    await supabase
+      .from("users")
+      .update({ total_points: totalGlobal })
+      .eq("id", userId);
+
     setUserTotalPoints(totalGlobal);
+
 
     // Reload + repair streak
     const freshLogs = await loadLogs(userId);
