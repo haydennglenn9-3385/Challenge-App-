@@ -216,29 +216,27 @@ export default function ChallengeDetailPage() {
       }
       setChallenge(ch);
 
-      // Members
-     // ─── Members (FIXED JOIN FOR LEADERBOARD) ────────────────────────────────
-    const { data: mems, error: memErr } = await supabase
-      .from("challenge_members")
-      .select(`
-        user_id,
-        users!challenge_members_user_id_fkey (
-          id,
-          name,
-          total_points,
-          streak
-        )
-      `)
-      .eq("challenge_id", challengeId);
+      // ─── Members (FIXED JOIN FOR LEADERBOARD) ────────────────────────────────
+      const { data: mems, error: memErr } = await supabase
+        .from("challenge_members")
+        .select(`
+          user_id,
+          users!challenge_members_user_id_fkey (
+            id,
+            name,
+            total_points,
+            streak
+          )
+        `)
+        .eq("challenge_id", challengeId);
 
-    if (memErr) console.error("Member load error:", memErr);
+      if (memErr) console.error("Member load error:", memErr);
 
-    setMembers(
-      (mems || [])
-        .map((m: any) => m.users)
-        .filter(Boolean)
-    );
-
+      setMembers(
+        (mems || [])
+          .map((m: any) => m.users)
+          .filter(Boolean)
+      );
 
       // Messages
       const { data: msgs } = await supabase
