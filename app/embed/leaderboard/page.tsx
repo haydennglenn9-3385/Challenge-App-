@@ -256,69 +256,66 @@ useEffect(() => {
 
     setLoadingStandings(challenge.id);
 
-    if (challenge.mode === "teams") {
-      const { data: teams } = await supabase
-        .from("teams")
-        .select(`
-          id, name,
-          team_members(
-            user_id,
-            users(total_points)
-          )
-        `)
-        .eq("challenge_id", challenge.id);
+    // ✅ Always sum points_earned from daily_logs for this challenge (local pts)
+    const { data: logs } = await supabase
+      .from("daily_logs")
+      .select("user_id, points_earned")
+      .eq("challenge_id", challenge.id);
 
-      // fallback: get teams via challenge_members
+    const pointsMap: Record<string, number> = {};
+    for (const log of logs ?? []) {
+      pointsMap[log.user_id] = (pointsMap[log.user_id] ?? 0) + (log.points_earned ?? 0);
+    }
+
+    if (challenge.mode === "teams") {
       const { data: members } = await supabase
         .from("challenge_members")
         .select(`
           user_id, team_id,
-          users(total_points),
           teams(id, name)
         `)
         .eq("challenge_id", challenge.id);
 
       if (members) {
-        // Group by team
-        const teamMap: Record<string, { id: string; name: string; points: number[]; count: number }> = {};
+        const teamMap: Record<string, { id: string; name: string; pts: number[] }> = {};
         members.forEach((m: any) => {
           if (!m.team_id) return;
           if (!teamMap[m.team_id]) {
-            teamMap[m.team_id] = { id: m.team_id, name: m.teams?.name || "Team", points: [], count: 0 };
+            teamMap[m.team_id] = { id: m.team_id, name: m.teams?.name || "Team", pts: [] };
           }
-          teamMap[m.team_id].points.push(m.users?.total_points || 0);
-          teamMap[m.team_id].count++;
+          // Use local challenge points, not global
+          teamMap[m.team_id].pts.push(pointsMap[m.user_id] ?? 0);
         });
 
         const standings: TeamStanding[] = Object.values(teamMap)
           .map((t) => ({
-            id: t.id, name: t.name,
-            total_points: t.points.reduce((s, p) => s + p, 0),
-            avg_points: t.count > 0 ? Math.round(t.points.reduce((s, p) => s + p, 0) / t.count) : 0,
-            member_count: t.count,
+            id:           t.id,
+            name:         t.name,
+            total_points: t.pts.reduce((s, p) => s + p, 0),
+            avg_points:   t.pts.length > 0 ? Math.ceil(t.pts.reduce((s, p) => s + p, 0) / t.pts.length) : 0,
+            member_count: t.pts.length,
           }))
           .sort((a, b) => b.avg_points - a.avg_points);
 
         setChallengeStandings((prev) => ({ ...prev, [challenge.id]: standings }));
       }
     } else {
-      // Individual standings
       const { data: members } = await supabase
         .from("challenge_members")
         .select(`
           user_id,
-          users(id, name, avatar_emoji, total_points, streak)
+          users!challenge_members_user_id_fkey(id, name, avatar_emoji, streak)
         `)
         .eq("challenge_id", challenge.id);
 
       if (members) {
         const standings: ChallengeStanding[] = members
           .map((m: any) => ({
-            user_id:     m.user_id,
-            name:        m.users?.name || "Member",
+            user_id:      m.user_id,
+            name:         m.users?.name        || "Member",
             avatar_emoji: m.users?.avatar_emoji || "😊",
-            points:      m.users?.total_points || 0,
-            streak:      m.users?.streak || 0,
+            points:       pointsMap[m.user_id]  ?? 0, // ✅ local challenge pts
+            streak:       m.users?.streak       ?? 0,
           }))
           .sort((a, b) => b.points - a.points);
 
