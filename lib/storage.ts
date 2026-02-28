@@ -397,30 +397,49 @@ export async function leaveChallenge(
   }
 }
 
-// ======================
+// // ======================
 // DAILY LOGS & CHECK-INS
 // ======================
 
+// Streak milestone bonuses (global points)
+const STREAK_BONUSES: { days: number; points: number }[] = [
+  { days: 7,   points: 25  },
+  { days: 30,  points: 100 },
+  { days: 100, points: 500 },
+];
+
+/**
+ * Returns the bonus points for hitting a streak milestone, or 0 if none.
+ */
+function getStreakBonus(streak: number): number {
+  return STREAK_BONUSES.find((b) => b.days === streak)?.points ?? 0;
+}
+
 /**
  * Records a check-in with correct streak logic and dual points:
- * - Local points: set per challenge (challenge.local_points_per_checkin)
- * - Global points: fixed GLOBAL_POINTS_PER_CHECKIN constant
+ * - Local points:  set per challenge (challenge.local_points_per_checkin)
+ * - Global points: fixed GLOBAL_POINTS_PER_CHECKIN + any streak milestone bonus
  *
  * Streak rules:
  * - First check-in ever → streak = 1
  * - Last check-in was yesterday → streak + 1
  * - Last check-in was today → no change (already checked in)
  * - Last check-in was 2+ days ago → reset to 1
+ *
+ * Streak milestone bonuses (global points only):
+ * - 7-day streak  → +25 pts
+ * - 30-day streak → +100 pts
+ * - 100-day streak → +500 pts
  */
 export async function recordCheckIn(
   userId: string,
   challengeId: string,
   repsCompleted: number = 1,
   repsTarget: number = 1
-): Promise<{ success: boolean; alreadyCheckedIn?: boolean }> {
+): Promise<{ success: boolean; alreadyCheckedIn?: boolean; streakBonus?: number }> {
   const today = new Date().toISOString().split("T")[0];
 
-  // Check for duplicate check-in today
+  // ── Duplicate guard ──────────────────────────────────────────────────────────
   const { data: existing } = await supabase
     .from("daily_logs")
     .select("id")
@@ -433,7 +452,7 @@ export async function recordCheckIn(
     return { success: false, alreadyCheckedIn: true };
   }
 
-  // Fetch challenge to get local points value
+  // ── Challenge config ─────────────────────────────────────────────────────────
   const { data: challenge } = await supabase
     .from("challenges")
     .select("local_points_per_checkin, scoring_type")
@@ -441,21 +460,18 @@ export async function recordCheckIn(
     .single();
 
   const localPointsPerCheckin = challenge?.local_points_per_checkin ?? 5;
+  const completionRatio       = repsTarget > 0 ? repsCompleted / repsTarget : 1;
+  const localPointsEarned     = Math.round(completionRatio * localPointsPerCheckin);
+  const globalPointsEarned    = Math.round(completionRatio * GLOBAL_POINTS_PER_CHECKIN);
 
-  const completionRatio = repsTarget > 0 ? repsCompleted / repsTarget : 1;
-  const localPointsEarned = Math.round(completionRatio * localPointsPerCheckin);
-  const globalPointsEarned = Math.round(
-    completionRatio * GLOBAL_POINTS_PER_CHECKIN
-  );
-
-  // Write the log
+  // ── Write the log ────────────────────────────────────────────────────────────
   const { error: logError } = await supabase.from("daily_logs").insert({
-    user_id: userId,
-    challenge_id: challengeId,
-    date: today,
-    reps_completed: repsCompleted,
-    reps_target: repsTarget,
-    points_earned: localPointsEarned,
+    user_id:              userId,
+    challenge_id:         challengeId,
+    date:                 today,
+    reps_completed:       repsCompleted,
+    reps_target:          repsTarget,
+    points_earned:        localPointsEarned,
     global_points_earned: globalPointsEarned,
   });
 
@@ -464,7 +480,14 @@ export async function recordCheckIn(
     return { success: false };
   }
 
-  // Calculate new streak
+  // ── Current user state ───────────────────────────────────────────────────────
+  const { data: currentUser } = await supabase
+    .from("users")
+    .select("streak, total_points, global_points, name")
+    .eq("id", userId)
+    .single();
+
+  // ── Streak calculation ───────────────────────────────────────────────────────
   const { data: recentLogs } = await supabase
     .from("daily_logs")
     .select("date")
@@ -472,16 +495,10 @@ export async function recordCheckIn(
     .order("date", { ascending: false })
     .limit(2);
 
-  const { data: currentUser } = await supabase
-    .from("users")
-    .select("streak, total_points")
-    .eq("id", userId)
-    .single();
-
   let newStreak = 1;
 
   if (recentLogs && recentLogs.length > 1 && currentUser) {
-    const lastDate = new Date(recentLogs[1].date); // second most recent (before today)
+    const lastDate  = new Date(recentLogs[1].date);
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
@@ -492,70 +509,57 @@ export async function recordCheckIn(
     newStreak = wasYesterday ? (currentUser.streak || 0) + 1 : 1;
   }
 
-  // Update user: global points + streak
+  // ── Streak milestone bonus ───────────────────────────────────────────────────
+  const streakBonus      = getStreakBonus(newStreak);
+  const totalGlobalDelta = globalPointsEarned + streakBonus;
+
+  const prevTotal  = currentUser?.total_points  || 0;
+  const prevGlobal = currentUser?.global_points || 0;
+
+  // ── Update user: global points (both columns) + streak ──────────────────────
   await supabase
     .from("users")
     .update({
-      total_points: (currentUser?.total_points || 0) + globalPointsEarned,
-      streak: newStreak,
+      total_points:  prevTotal  + totalGlobalDelta,
+      global_points: prevGlobal + totalGlobalDelta, // keeps leaderboard in sync
+      streak:        newStreak,
     })
     .eq("id", userId);
 
-  // Post to activity feed
+  // ── Activity feed ────────────────────────────────────────────────────────────
+  const userName = currentUser?.name || "Member";
+
+  // Standard check-in post
   await supabase.from("activity_feed").insert({
-    user_name:
-      (
-        await supabase
-          .from("users")
-          .select("name")
-          .eq("id", userId)
-          .single()
-      ).data?.name || "Member",
-    type: "streak",
-    text: `checked in!`,
-    meta: { challenge_id: challengeId, days: newStreak, points: globalPointsEarned },
+    user_id:   userId,
+    user_name: userName,
+    type:      "streak",
+    text:      "checked in!",
+    meta: {
+      challenge_id: challengeId,
+      days:         newStreak,
+      points:       globalPointsEarned,
+    },
   });
 
-  return { success: true };
+  // Bonus milestone post — only on streak milestone days
+  if (streakBonus > 0) {
+    await supabase.from("activity_feed").insert({
+      user_id:   userId,
+      user_name: userName,
+      type:      "streak",
+      text:      `hit a ${newStreak}-day streak! 🔥`,
+      meta: {
+        challenge_id:  challengeId,
+        days:          newStreak,
+        bonus_points:  streakBonus,
+        is_milestone:  true,
+      },
+    });
+  }
+
+  return { success: true, streakBonus: streakBonus || undefined };
 }
-
-export async function getUserStreak(
-  userId: string,
-  challengeId: string
-): Promise<number> {
-  const { data, error } = await supabase
-    .from("daily_logs")
-    .select("date")
-    .eq("user_id", userId)
-    .eq("challenge_id", challengeId)
-    .order("date", { ascending: false });
-
-  if (error || !data) return 0;
-
-  return data.length;
-}
-
-/**
- * Get the local (challenge-specific) points for a user within one challenge.
- */
-export async function getChallengePoints(
-  userId: string,
-  challengeId: string
-): Promise<number> {
-  const { data, error } = await supabase
-    .from("daily_logs")
-    .select("points_earned")
-    .eq("user_id", userId)
-    .eq("challenge_id", challengeId);
-
-  if (error || !data) return 0;
-
-  return data.reduce(
-    (sum: number, log: any) => sum + (log.points_earned || 0),
-    0
-  );
-}
-
 // ======================
 // MESSAGES
 // ======================
