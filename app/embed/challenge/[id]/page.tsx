@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GLOBAL_POINTS_PER_CHECKIN = 10;
+const GLOBAL_POINTS_PER_CHECKIN = 5;
 
 const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -325,7 +325,7 @@ export default function ChallengeDetailPage() {
     setMessageText("");
   }
 
-  // ─── Check-in ─────────────────────────────────────────────────────────────
+  /// ─── Check-in ─────────────────────────────────────────────────────────────
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
     setCheckingIn(true);
@@ -334,6 +334,7 @@ export default function ChallengeDetailPage() {
     const target    = hasTarget ? effectiveTarget : 1;
     const points    = calcPoints(completed, target, pointsMax);
 
+    // Write daily log with global points
     const { error } = await supabase.from("daily_logs").insert({
       user_id:              userId,
       challenge_id:         challengeId,
@@ -345,44 +346,64 @@ export default function ChallengeDetailPage() {
     });
 
     if (!error) {
-      // Streak
-      const yesterday    = new Date(today);
+      // Streak calculation
+      const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split("T")[0];
       const hadYesterday = challengeLogs.some(l => l.date === yesterdayStr);
       const newStreak    = hadYesterday ? challengeStreak + 1 : 1;
 
-      // Global points
+      // Global points update
       const { data: profile } = await supabase
-        .from("users").select("total_points").eq("id", userId).maybeSingle();
+        .from("users")
+        .select("total_points")
+        .eq("id", userId)
+        .maybeSingle();
+
       const newGlobal = (profile?.total_points || 0) + GLOBAL_POINTS_PER_CHECKIN;
 
-      await supabase.from("users")
+      await supabase
+        .from("users")
         .update({ total_points: newGlobal, streak: newStreak })
         .eq("id", userId);
 
       // Activity feed
       const { data: uProfile } = await supabase
-        .from("users").select("name").eq("id", userId).maybeSingle();
+        .from("users")
+        .select("name")
+        .eq("id", userId)
+        .maybeSingle();
+
       await supabase.from("activity_feed").insert({
         user_name: uProfile?.name || "Member",
         type:      "streak",
         text:      "checked in! 🔥",
-        meta:      { challenge_id: challengeId, days: newStreak, points: GLOBAL_POINTS_PER_CHECKIN },
+        meta:      {
+          challenge_id: challengeId,
+          days: newStreak,
+          points: GLOBAL_POINTS_PER_CHECKIN,
+        },
       });
 
+      // Local state updates
       setCheckedInToday(true);
       setTodayPoints(points);
       setUserTotalPoints(newGlobal);
       setChallengeStreak(newStreak);
       setChallengeLogs(prev => [
         ...prev,
-        { date: todayStr, reps_completed: completed, reps_target: target, points_earned: points },
+        {
+          date: todayStr,
+          reps_completed: completed,
+          reps_target: target,
+          points_earned: points,
+        },
       ]);
     }
 
     setCheckingIn(false);
   }
+
 
   // ─── Calendar helpers ─────────────────────────────────────────────────────
   function buildCalendarDays(): (number | null)[] {
