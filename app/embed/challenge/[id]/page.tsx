@@ -450,7 +450,8 @@ export default function ChallengeDetailPage() {
       .select("global_points_earned")
       .eq("user_id", userId);
     const totalGlobal = (allLogs || []).reduce(
-      (s: number, l: any) => s + (l.global_points_earned || 0), 0
+      (s: number, l: any) => s + (l.global_points_earned ?? 0), 
+      0
     );
     await supabase.from("users").update({ total_points: totalGlobal }).eq("id", userId);
     setUserTotalPoints(totalGlobal);
