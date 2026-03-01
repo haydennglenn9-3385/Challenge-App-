@@ -153,7 +153,7 @@ export default function EditProfilePage() {
             >
               ← Back
             </button>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
               Edit Profile
             </div>
           </div>

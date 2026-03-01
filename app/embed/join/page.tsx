@@ -112,7 +112,7 @@ export default function JoinWithCodePage() {
           {/* Icon + heading */}
           <div style={{ textAlign: "center", marginBottom: 28, animation: "fadeUp 0.4s ease both" }}>
             <div style={{ fontSize: 48, marginBottom: 10 }}>🔑</div>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 28, letterSpacing: 1, color: "#0e0e0e" }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 28, letterSpacing: 1, color: "#0e0e0e" }}>
               Join with Code
             </div>
             <p style={{ fontSize: 13, color: "#777", marginTop: 6 }}>

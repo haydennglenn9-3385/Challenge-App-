@@ -42,7 +42,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
     <div key="welcome" style={{ textAlign: "center", padding: "8px 0" }}>
       <div style={{ fontSize: 64, marginBottom: 16 }}>🏳️‍🌈</div>
       <h2 style={{
-        fontFamily: "'Bebas Neue', cursive",
+        fontFamily: "'DM Sans', sans-serif" ,
         fontSize: 36,
         color: "#1a1a1a",
         lineHeight: 1.1,
@@ -76,7 +76,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
           Step 1 of 2
         </p>
         <h2 style={{
-          fontFamily: "'Bebas Neue', cursive",
+          fontFamily: "'DM Sans', sans-serif" ,
           fontSize: 28,
           color: "#1a1a1a",
           margin: 0,
@@ -113,7 +113,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
         Step 2 of 2
       </p>
       <h2 style={{
-        fontFamily: "'Bebas Neue', cursive",
+        fontFamily: "'DM Sans', sans-serif" ,
         fontSize: 28,
         color: "#1a1a1a",
         margin: "0 0 10px",

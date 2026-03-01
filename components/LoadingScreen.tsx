@@ -25,7 +25,7 @@ export default function LoadingScreen() {
         }}>
           <div style={{ fontSize: 52, animation: "pulse 1.5s ease-in-out infinite" }}>🏳️‍🌈</div>
           <div style={{
-            fontFamily: "'Bebas Neue', cursive", fontSize: 18,
+            fontFamily: "'DM Sans', sans-serif" , fontSize: 18,
             color: "#7b2d8b", letterSpacing: 2,
           }}>
             LOADING...

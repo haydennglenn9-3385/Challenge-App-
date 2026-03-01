@@ -162,7 +162,7 @@ export default function PRPage() {
   if (loading) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg,#d4f5e2 0%,#fde0ef 30%,#fdf6d3 60%,#d4eaf7 100%)" }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+      <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
     </div>
   );
 
@@ -294,7 +294,7 @@ export default function PRPage() {
                       <span style={{ fontSize: 22 }}>{getEmoji(pr.type)}</span>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#64748b", lineHeight: 1.2 }}>{pr.label}</p>
                     </div>
-                    <p style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 36, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 36, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
                       {formatValue(pr.value, pr.unit)}
                     </p>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>{pr.unit}</p>
@@ -333,7 +333,7 @@ export default function PRPage() {
         <div className="pr-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}>
           <div className="pr-sheet">
             <div className="pr-handle" />
-            <p style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, color: "#0e0e0e", letterSpacing: 1, marginBottom: 20 }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1, marginBottom: 20 }}>
               Log a Personal Record
             </p>
 
@@ -439,7 +439,7 @@ export default function PRPage() {
                 onClick={() => setShowHistory(null)}
                 style={{ background: "#f1f5f9", border: "none", borderRadius: 10, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#555" }}
               >← Back</button>
-              <p style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+              <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
                 {getEmoji(showHistory)} {historyForType[0]?.label || showHistory}
               </p>
             </div>
@@ -454,7 +454,7 @@ export default function PRPage() {
               }}>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8 }}>Current Best</p>
-                  <p style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
                     {formatValue(bestByType[showHistory].value, bestByType[showHistory].unit)}
                     <span style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", marginLeft: 6, fontFamily: "'DM Sans', sans-serif" }}>
                       {bestByType[showHistory].unit}

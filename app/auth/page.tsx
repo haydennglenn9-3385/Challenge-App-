@@ -252,7 +252,7 @@ export default function AuthPage() {
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
             <div
               style={{
-                fontFamily: "'Bebas Neue', cursive",
+                fontFamily: "'DM Sans', sans-serif" ,
                 fontSize: 15,
                 letterSpacing: 3,
                 color: "#7b2d8b",
@@ -293,7 +293,7 @@ export default function AuthPage() {
             <div style={{ marginBottom: 20 }}>
               <h1
                 style={{
-                  fontFamily: "'Bebas Neue', cursive",
+                  fontFamily: "'DM Sans', sans-serif" ,
                   fontSize: 26,
                   letterSpacing: 1,
                   color: "#0e0e0e",

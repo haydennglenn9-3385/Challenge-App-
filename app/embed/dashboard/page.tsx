@@ -86,7 +86,7 @@ function FeedCard({ item, index }: { item: FeedItem; index: number }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
         <Chip type={item.type} />
-        {subValue && <span style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 14, color: "#7b2d8b" }}>{subValue}</span>}
+        {subValue && <span style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 14, color: "#7b2d8b" }}>{subValue}</span>}
       </div>
     </div>
   );
@@ -115,7 +115,7 @@ function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challeng
       </div>
       <div>
         <div style={{ background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "8px 10px", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 15, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 15, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>Members{days !== null ? ` · ${days}d left` : ""}</div>
         </div>
         <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, overflow: "hidden" }}>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
     <div style={{ ...pageStyle, justifyContent: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
         <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-        <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
+        <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
           LOADING...
         </div>
       </div>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
 
           {/* Wordmark */}
           <div style={{ padding: "16px 0 8px" }}>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
               QUEERS & ALLIES FITNESS
             </div>
           </div>
@@ -313,7 +313,7 @@ export default function DashboardPage() {
               rel="noopener noreferrer"
               style={{ textDecoration: "none" }}
             >
-              <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 40, lineHeight: 1.0, color: "#fff" }}>
                 Building<br />
                 <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   Community
@@ -349,7 +349,7 @@ export default function DashboardPage() {
 
           {/* Featured Challenges */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 12px" }}>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }} onClick={() => router.push("/embed/challenges")}>
               See all →
             </div>
@@ -370,7 +370,7 @@ export default function DashboardPage() {
 
           {/* Activity Feed */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0" }}>
-            <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
           </div>
 
           {/* Post input — only shown when logged in */}
@@ -410,7 +410,7 @@ export default function DashboardPage() {
               <div className="feed-blur-overlay">
                 <div className="feed-auth-card">
                   <div style={{ fontSize: 36, marginBottom: 8 }}>🏳️‍🌈</div>
-                  <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
                     Join the Community
                   </div>
                   <div style={{ fontSize: 13, color: "#777", marginTop: 6, lineHeight: 1.5 }}>

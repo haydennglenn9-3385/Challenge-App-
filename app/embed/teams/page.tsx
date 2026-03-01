@@ -135,7 +135,7 @@ export default function TeamsPage() {
       background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
     }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
+      <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
         LOADING...
       </div>
     </div>
