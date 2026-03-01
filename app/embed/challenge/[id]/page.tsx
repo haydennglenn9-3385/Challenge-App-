@@ -3,6 +3,12 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import {
+  secondsToDisplay,
+  displayToSeconds,
+  formatTimeInput,
+  timeDelta,
+} from "@/lib/utils/time";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -94,10 +100,16 @@ function frequencyLabel(progressionType: string, everyX?: number | null): string
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EditCard {
-  date:      string;
-  target:    number;
-  completed: number;
-  log_id?:   string;
+  date:             string;
+  target:           number;
+  completed:        number;
+  duration_seconds: number | null;
+  log_id?:          string;
+}
+
+interface DeltaResult {
+  delta:    string;
+  improved: boolean;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -129,7 +141,11 @@ export default function ChallengeDetailPage() {
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [todayPoints,    setTodayPoints]    = useState(0);
   const [checkingIn,     setCheckingIn]     = useState(false);
-  const [inputValue,     setInputValue]     = useState(0);
+  const [inputValue,     setInputValue]     = useState(0);       // reps / distance / weight
+  const [timeInput,      setTimeInput]      = useState("");      // timed challenges
+
+  // Delta shown after submit
+  const [deltaResult, setDeltaResult] = useState<DeltaResult | null>(null);
 
   // ── Edit past days ───────────────────────────────────────────────────────────
   const [showCalendar,  setShowCalendar]  = useState(false);
@@ -147,24 +163,36 @@ export default function ChallengeDetailPage() {
   const today    = new Date();
   const todayStr = today.toISOString().split("T")[0];
 
-  const scoringType    = challenge?.scoring_type              ?? "task_completion";
-  const dailyTarget    = Number(challenge?.daily_target       ?? 0);
-  const targetUnit     = challenge?.target_unit               ?? "reps";
-  const pointsMax      = challenge?.local_points_per_checkin  ?? 2;
-  const progressionType = challenge?.progression_type         ?? "daily";
-  const everyXDays     = challenge?.progression_interval_days ?? null;
-  const hasTarget      = dailyTarget > 0;
+  const scoringType     = challenge?.scoring_type              ?? "task_completion";
+  const isTimed         = scoringType === "timed";
+  const lowerIsBetter   = challenge?.scoring_direction === "asc"; // asc = lower is better (race)
+  const dailyTarget     = Number(challenge?.daily_target       ?? 0);
+  const targetUnit      = challenge?.target_unit               ?? "reps";
+  const pointsMax       = challenge?.local_points_per_checkin  ?? 2;
+  const progressionType = challenge?.progression_type          ?? "daily";
+  const everyXDays      = challenge?.progression_interval_days ?? null;
+  const hasTarget       = dailyTarget > 0 && !isTimed;
 
   const effectiveTarget = challenge
     ? getEffectiveTarget(todayStr, challenge.start_date, dailyTarget, scoringType, progressionType)
     : dailyTarget;
 
-  const startDate = challenge?.start_date ?? todayStr;
-  const endDate   = challenge?.end_date   ?? todayStr;
-  const daysLeft  = Math.max(0, Math.ceil(
+  const startDate  = challenge?.start_date ?? todayStr;
+  const endDate    = challenge?.end_date   ?? todayStr;
+  const daysLeft   = Math.max(0, Math.ceil(
     (new Date(endDate).getTime() - today.getTime()) / 86400000
   ));
   const currentWeek = getWeekNum(todayStr, startDate);
+
+  // Previous best for timed challenges
+  const previousBestSeconds = useMemo(() => {
+    if (!isTimed) return null;
+    const times = challengeLogs
+      .map(l => l.duration_seconds)
+      .filter((v): v is number => typeof v === "number" && v > 0);
+    if (!times.length) return null;
+    return lowerIsBetter ? Math.min(...times) : Math.max(...times);
+  }, [challengeLogs, isTimed, lowerIsBetter]);
 
   const logsByDate = useMemo(() => {
     const map: Record<string, any> = {};
@@ -177,8 +205,11 @@ export default function ChallengeDetailPage() {
     [members]
   );
 
+  // Validate timed input
+  const parsedSeconds = isTimed ? displayToSeconds(timeInput) : null;
+  const timeInputValid = isTimed ? parsedSeconds !== null && parsedSeconds > 0 : true;
+
   // ─── loadLogs ────────────────────────────────────────────────────────────────
-  // Always returns the log rows so callers can derive points from them.
   async function loadLogs(uid: string): Promise<any[]> {
     const { data: logs } = await supabase
       .from("daily_logs")
@@ -191,10 +222,12 @@ export default function ChallengeDetailPage() {
     setChallengeLogs(rows);
     setCheckedInToday(rows.some(l => l.date === todayStr));
     setChallengeStreak(computeStreak(rows));
-    return rows;
 
+    // Fix: was dead code after return — now correctly computed before return
     const localSum = rows.reduce((s, l) => s + (l.points_earned ?? 0), 0);
-      setChallengePoints(localSum);
+    setChallengePoints(localSum);
+
+    return rows;
   }
 
   // ─── Initial load ────────────────────────────────────────────────────────────
@@ -202,20 +235,17 @@ export default function ChallengeDetailPage() {
     if (!challengeId) { setNotFound(true); setLoading(false); return; }
 
     async function load() {
-      // Challenge row
       const { data: ch } = await supabase
         .from("challenges").select("*").eq("id", challengeId).maybeSingle();
       if (!ch) { setNotFound(true); setLoading(false); return; }
       setChallenge(ch);
 
-      // Members (for leaderboard)
       const { data: mems } = await supabase
         .from("challenge_members")
         .select("user_id, users!challenge_members_user_id_fkey(id, name, total_points, streak)")
         .eq("challenge_id", challengeId);
       setMembers((mems ?? []).map((m: any) => m.users).filter(Boolean));
 
-      // Chat messages                          
       const { data: msgs } = await supabase
         .from("messages")
         .select("id, text, created_at, author_id, users(name)")
@@ -225,7 +255,6 @@ export default function ChallengeDetailPage() {
         .limit(50);
       setMessages(msgs ?? []);
 
-      // Auth
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
@@ -239,21 +268,17 @@ export default function ChallengeDetailPage() {
         setIsMember(member);
 
         if (member) {
-          // ✅ Compute global points from log rows — NOT from users.total_points column.
-          // This is the single source of truth and auto-heals stale DB values.
           const logs = await loadLogs(user.id);
           const computed = logs.reduce(
             (sum, log) => sum + (log.global_points_earned ?? 0), 0
           );
           setUserTotalPoints(computed);
 
-          // Repair DB column silently if it's out of sync
           await supabase
             .from("users")
             .update({ total_points: computed })
             .eq("id", user.id);
 
-          // Team
           const { data: teamRow } = await supabase
             .from("team_members").select("team_id, teams(name)")
             .eq("user_id", user.id).maybeSingle();
@@ -266,7 +291,6 @@ export default function ChallengeDetailPage() {
 
     load();
 
-    // Realtime chat                            ← WITH THIS
     const sub = supabase
       .channel(`challenge_chat_${challengeId}`)
       .on("postgres_changes", {
@@ -306,7 +330,7 @@ export default function ChallengeDetailPage() {
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!messageText.trim() || !userId) return;
-    await supabase.from("messages").insert({  
+    await supabase.from("messages").insert({
       team_id:   challenge.team_id,
       author_id: userId,
       text:      messageText.trim(),
@@ -318,23 +342,32 @@ export default function ChallengeDetailPage() {
   // ─── Check-in ────────────────────────────────────────────────────────────────
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
+    if (isTimed && !timeInputValid) return;
     setCheckingIn(true);
 
-    const completed = hasTarget ? inputValue : 1;
-    const target    = hasTarget ? effectiveTarget : 1;
-    const points    = calcPoints(completed, target, pointsMax);
+    const durationSecs = isTimed ? parsedSeconds : null;
+    const completed    = hasTarget ? inputValue : 1;
+    const target       = hasTarget ? effectiveTarget : 1;
+    const points       = isTimed ? pointsMax : calcPoints(completed, target, pointsMax);
 
     const { error } = await supabase.from("daily_logs").insert({
       user_id:              userId,
       challenge_id:         challengeId,
       date:                 todayStr,
-      reps_completed:       completed,
-      reps_target:          target,
+      reps_completed:       isTimed ? 0 : completed,
+      reps_target:          isTimed ? 0 : target,
+      duration_seconds:     durationSecs,
       points_earned:        points,
       global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
     });
 
     if (!error) {
+      // Delta for timed challenges
+      if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
+        setDeltaResult(timeDelta(durationSecs, previousBestSeconds, lowerIsBetter));
+        setTimeout(() => setDeltaResult(null), 4000);
+      }
+
       // Streak
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
@@ -342,22 +375,15 @@ export default function ChallengeDetailPage() {
       const hadYesterday = challengeLogs.some(l => l.date === yesterdayStr);
       const newStreak    = hadYesterday ? challengeStreak + 1 : 1;
 
-      // Streak milestone bonuses
-      const STREAK_MILESTONES: Record<number, number> = {
-        7:   25,
-        30:  100,
-        100: 500,
-      };
-      const streakBonus   = STREAK_MILESTONES[newStreak] ?? 0;
+      const STREAK_MILESTONES: Record<number, number> = { 7: 25, 30: 100, 100: 500 };
+      const streakBonus    = STREAK_MILESTONES[newStreak] ?? 0;
       const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
       const newGlobal      = userTotalPoints + totalNewPoints;
 
-      // Persist to DB
       await supabase.from("users")
         .update({ total_points: newGlobal, streak: newStreak })
         .eq("id", userId);
 
-      // Activity feed
       const { data: uProfile } = await supabase
         .from("users").select("name").eq("id", userId).maybeSingle();
 
@@ -375,7 +401,6 @@ export default function ChallengeDetailPage() {
         },
       });
 
-      // Update local state
       setCheckedInToday(true);
       setTodayPoints(points);
       setUserTotalPoints(newGlobal);
@@ -385,8 +410,9 @@ export default function ChallengeDetailPage() {
         ...prev,
         {
           date:                 todayStr,
-          reps_completed:       completed,
-          reps_target:          target,
+          reps_completed:       isTimed ? 0 : completed,
+          reps_target:          isTimed ? 0 : target,
+          duration_seconds:     durationSecs,
           points_earned:        points,
           global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
         },
@@ -406,8 +432,7 @@ export default function ChallengeDetailPage() {
   }
 
   function toggleDay(dateStr: string) {
-    const cutoff = todayStr;
-    if (dateStr > cutoff) return; // no future dates
+    if (dateStr > todayStr) return;
     setSelectedDays(prev => {
       const next = new Set(prev);
       next.has(dateStr) ? next.delete(dateStr) : next.add(dateStr);
@@ -424,10 +449,11 @@ export default function ChallengeDetailPage() {
         dateStr, challenge.start_date, dailyTarget, scoringType, progressionType
       ) || 1;
       return {
-        date:      dateStr,
+        date:             dateStr,
         target,
-        completed: existing?.reps_completed ?? 0,
-        log_id:    existing?.id,
+        completed:        existing?.reps_completed ?? 0,
+        duration_seconds: existing?.duration_seconds ?? null,
+        log_id:           existing?.id,
       };
     });
     setEditCards(cards);
@@ -440,15 +466,16 @@ export default function ChallengeDetailPage() {
     setSaving(true);
 
     for (const card of editCards) {
-      const points  = calcPoints(card.completed, card.target, pointsMax);
+      const points  = isTimed ? pointsMax : calcPoints(card.completed, card.target, pointsMax);
       const payload = {
         user_id:              userId,
         challenge_id:         challengeId,
         date:                 card.date,
-        reps_completed:       card.completed,
-        reps_target:          card.target,
+        reps_completed:       isTimed ? 0 : card.completed,
+        reps_target:          isTimed ? 0 : card.target,
+        duration_seconds:     isTimed ? card.duration_seconds : null,
         points_earned:        points,
-        global_points_earned: GLOBAL_POINTS_PER_CHECKIN, // ✅ always written on edits too
+        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
         edited_by:            userId,
         edited_at:            new Date().toISOString(),
       };
@@ -459,7 +486,6 @@ export default function ChallengeDetailPage() {
       }
     }
 
-    // ✅ Recompute total_points from global_points_earned across ALL challenges (null-safe)
     const { data: allLogs } = await supabase
       .from("daily_logs").select("global_points_earned").eq("user_id", userId);
     const totalGlobal = (allLogs ?? []).reduce(
@@ -468,7 +494,6 @@ export default function ChallengeDetailPage() {
     await supabase.from("users").update({ total_points: totalGlobal }).eq("id", userId);
     setUserTotalPoints(totalGlobal);
 
-    // Reload logs and recompute streak
     const freshLogs = await loadLogs(userId);
     const newStreak = computeStreak(freshLogs);
     await supabase.from("users").update({ streak: newStreak }).eq("id", userId);
@@ -490,7 +515,7 @@ export default function ChallengeDetailPage() {
     <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🏳️‍🌈</div>
-        <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</p>
+        <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</p>
       </div>
     </div>
   );
@@ -537,7 +562,7 @@ export default function ChallengeDetailPage() {
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>
               {challenge.scoring_type?.replace(/_/g, " ")}
             </p>
-            <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
               {challenge.name}
             </h1>
             {challenge.description && (
@@ -564,6 +589,7 @@ export default function ChallengeDetailPage() {
               ? <p className="whitespace-pre-wrap">{challenge.rules}</p>
               : <>
                   <p>📅 {frequencyLabel(progressionType, everyXDays)}</p>
+                  {isTimed && <p>⏱ Log your time each check-in</p>}
                   {hasTarget && <p>🎯 Target: <strong>{effectiveTarget} {targetUnit}</strong>{scoringType === "progressive" && " (increases each week)"}</p>}
                   <p>⭐ Points per check-in: <strong>{GLOBAL_POINTS_PER_CHECKIN}</strong></p>
                 </>
@@ -583,10 +609,15 @@ export default function ChallengeDetailPage() {
                 {[
                   { value: `🔥 ${challengeStreak}`, label: "Day Streak" },
                   { value: `⭐ ${challengePoints}`, label: "Challenge Pts" },
-                  { value: `${challengeLogs.length}`, label: "Check-ins" },
+                  {
+                    value: isTimed && previousBestSeconds !== null
+                      ? `⏱ ${secondsToDisplay(previousBestSeconds)}`
+                      : `${challengeLogs.length}`,
+                    label: isTimed ? (lowerIsBetter ? "Best Time" : "Longest") : "Check-ins",
+                  },
                 ].map(stat => (
                   <div key={stat.label} style={{ textAlign: "center", padding: "12px 8px", background: "rgba(0,0,0,0.03)", borderRadius: 14 }}>
-                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>
+                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>
                       {stat.value}
                     </p>
                     <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 4 }}>
@@ -612,26 +643,94 @@ export default function ChallengeDetailPage() {
               {checkedInToday ? (
                 <div style={{ textAlign: "center", padding: "8px 0" }}>
                   <p style={{ fontSize: 32, marginBottom: 6 }}>✅</p>
-                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
                     Checked in today!
                   </p>
                   <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
                     +{GLOBAL_POINTS_PER_CHECKIN} global pts · +{todayPoints} local pts
                   </p>
+
+                  {/* Delta result shown after timed submit */}
+                  {deltaResult && (
+                    <div style={{
+                      marginTop: 10,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 14px",
+                      borderRadius: 99,
+                      background: deltaResult.improved ? "rgba(72,207,173,0.12)" : "rgba(239,68,68,0.08)",
+                    }}>
+                      <span style={{ fontSize: 16 }}>{deltaResult.improved ? "▼" : "▲"}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: deltaResult.improved ? "#48cfad" : "#ef4444" }}>
+                        {deltaResult.delta} {deltaResult.improved ? (lowerIsBetter ? "faster" : "longer") : (lowerIsBetter ? "slower" : "shorter")}
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => setShowCalendar(true)}
                     className="rainbow-cta rounded-full px-5 py-2 text-sm font-semibold mt-4"
+                    style={{ display: "block", margin: "16px auto 0" }}
                   >
                     Edit Past Days
                   </button>
                 </div>
               ) : (
                 <div>
-                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1, marginBottom: 12 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#0e0e0e", letterSpacing: 1, marginBottom: 12 }}>
                     Today&apos;s Check-in
                   </p>
 
-                  {hasTarget && (
+                  {/* ── Timed input ── */}
+                  {isTimed && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0:00"
+                          value={timeInput}
+                          onChange={e => setTimeInput(formatTimeInput(e.target.value))}
+                          style={{
+                            width: "100%",
+                            padding: "14px 16px",
+                            fontSize: 28,
+                            fontWeight: 700,
+                            fontFamily: "var(--font-inter), system-ui, sans-serif",
+                            letterSpacing: 2,
+                            textAlign: "center",
+                            borderRadius: 14,
+                            border: timeInput && !timeInputValid
+                              ? "2px solid #ef4444"
+                              : "2px solid #e5e7eb",
+                            background: "#fff",
+                            outline: "none",
+                            color: "#0e0e0e",
+                          }}
+                        />
+                        {timeInput && !timeInputValid && (
+                          <p style={{ fontSize: 11, color: "#ef4444", textAlign: "center", marginTop: 4 }}>
+                            Use MM:SS or HH:MM:SS format
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Previous best */}
+                      {previousBestSeconds !== null ? (
+                        <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", fontWeight: 600 }}>
+                          {lowerIsBetter ? "🏆 Best time" : "🏆 Personal best"}: {secondsToDisplay(previousBestSeconds)}
+                        </p>
+                      ) : (
+                        <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+                          No previous entries — this will be your first!
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Reps / distance / weight input ── */}
+                  {hasTarget && !isTimed && (
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>
@@ -663,7 +762,6 @@ export default function ChallengeDetailPage() {
                           onClick={() => setInputValue(v => v + 1)}
                         >+</button>
                       </div>
-                      {/* Progress bar */}
                       <div style={{ height: 5, borderRadius: 99, background: "#f1f5f9", overflow: "hidden" }}>
                         <div style={{
                           height: "100%", borderRadius: 99, transition: "width 0.2s ease",
@@ -680,11 +778,16 @@ export default function ChallengeDetailPage() {
 
                   <button
                     onClick={handleCheckIn}
-                    disabled={checkingIn || (hasTarget && inputValue === 0)}
+                    disabled={
+                      checkingIn ||
+                      (hasTarget && inputValue === 0) ||
+                      (isTimed && !timeInputValid) ||
+                      (isTimed && !timeInput)
+                    }
                     className="w-full rainbow-cta rounded-2xl py-3 font-semibold text-base disabled:opacity-50"
-                    style={{ marginTop: hasTarget ? 0 : 4 }}
+                    style={{ marginTop: hasTarget || isTimed ? 0 : 4 }}
                   >
-                    {checkingIn ? "Saving…" : "Log Check-in"}
+                    {checkingIn ? "Saving…" : isTimed ? "Log Time" : "Log Check-in"}
                   </button>
 
                   <button
@@ -843,7 +946,6 @@ export default function ChallengeDetailPage() {
           <div className="sheet-panel">
             <div className="sheet-handle" />
 
-            {/* Month nav */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <button
                 className="stepper-btn"
@@ -855,7 +957,7 @@ export default function ChallengeDetailPage() {
                   ? toDateStr(calMonth.y, calMonth.m, 1) <= challenge.start_date.slice(0, 7) + "-01"
                   : false}
               >‹</button>
-              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
+              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
                 {MONTH_NAMES[calMonth.m]} {calMonth.y}
               </p>
               <button
@@ -868,14 +970,12 @@ export default function ChallengeDetailPage() {
               >›</button>
             </div>
 
-            {/* Weekday labels */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 8 }}>
               {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
                 <p key={d} style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textAlign: "center" }}>{d}</p>
               ))}
             </div>
 
-            {/* Calendar grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 20 }}>
               {buildCalendarDays().map((day, i) => {
                 if (!day) return <div key={`empty-${i}`} />;
@@ -909,7 +1009,6 @@ export default function ChallengeDetailPage() {
               })}
             </div>
 
-            {/* CTA */}
             <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginBottom: 12 }}>
               {selectedDays.size === 0
                 ? "Tap days to select them"
@@ -942,17 +1041,17 @@ export default function ChallengeDetailPage() {
           <div className="sheet-panel">
             <div className="sheet-handle" />
 
-            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>
+            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>
               Edit Check-ins
             </p>
             <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
-              Adjust your completed reps for each selected day.
+              {isTimed ? "Adjust your logged time for each selected day." : "Adjust your completed reps for each selected day."}
             </p>
 
             {saveSuccess ? (
               <div style={{ textAlign: "center", padding: "24px 0" }}>
                 <p style={{ fontSize: 36, marginBottom: 8 }}>✅</p>
-                <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
+                <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
                   Saved! Points updated.
                 </p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
@@ -963,8 +1062,52 @@ export default function ChallengeDetailPage() {
               <>
                 <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20, maxHeight: "50vh", overflowY: "auto" }}>
                   {editCards.map((card, i) => {
-                    const pct    = card.target > 0 ? Math.min(100, Math.round((card.completed / card.target) * 100)) : 100;
-                    const points = calcPoints(card.completed, card.target, pointsMax);
+                    // Timed card
+                    if (isTimed) {
+                      const displayVal = card.duration_seconds !== null
+                        ? secondsToDisplay(card.duration_seconds)
+                        : "";
+                      return (
+                        <div key={card.date} style={{ background: "rgba(0,0,0,0.03)", borderRadius: 16, padding: 16 }}>
+                          <p style={{ fontSize: 13, fontWeight: 900, color: "#0e0e0e", marginBottom: 12 }}>{card.date}</p>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0:00"
+                            value={displayVal}
+                            onChange={e => {
+                              const formatted = formatTimeInput(e.target.value);
+                              const secs = displayToSeconds(formatted);
+                              setEditCards(p => p.map((c, j) =>
+                                j === i ? { ...c, duration_seconds: secs } : c
+                              ));
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "12px 16px",
+                              fontSize: 24,
+                              fontWeight: 700,
+                              letterSpacing: 2,
+                              textAlign: "center",
+                              borderRadius: 12,
+                              border: "2px solid #e5e7eb",
+                              background: "#fff",
+                              outline: "none",
+                              color: "#0e0e0e",
+                            }}
+                          />
+                          {previousBestSeconds !== null && card.duration_seconds !== null && (
+                            <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 6 }}>
+                              Best: {secondsToDisplay(previousBestSeconds)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Reps card
+                    const pct     = card.target > 0 ? Math.min(100, Math.round((card.completed / card.target) * 100)) : 100;
+                    const points  = calcPoints(card.completed, card.target, pointsMax);
                     const pctLabel = pct >= 100 ? "100%" : pct >= 50 ? "50%+" : "<50%";
                     return (
                       <div key={card.date} style={{ background: "rgba(0,0,0,0.03)", borderRadius: 16, padding: 16 }}>
