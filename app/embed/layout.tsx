@@ -12,7 +12,6 @@ function LoadingScreen() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes rainbowShift { 0%{background-position:0%} 100%{background-position:200%} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
       `}</style>
@@ -30,7 +29,7 @@ function LoadingScreen() {
         }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <div style={{ fontSize: 52, animation: "pulse 1.5s ease-in-out infinite" }}>🏳️‍🌈</div>
-          <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
+          <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, fontWeight: 700, color: "#7b2d8b", letterSpacing: 2 }}>
             LOADING...
           </div>
         </div>
@@ -84,7 +83,6 @@ function BottomNav() {
   };
 
   const isActive = (path: string) => pathname.includes(path);
-
   const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
@@ -107,8 +105,7 @@ function BottomNav() {
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
                 style={{
-                  background:
-                    "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
+                  background: "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
                   boxShadow: "0 6px 20px rgba(102,126,234,0.4)",
                 }}
               >
@@ -159,6 +156,8 @@ function Sidebar() {
   const isActive = (path: string) => pathname.includes(path);
   const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
+  const fontStack = "var(--font-inter), system-ui, sans-serif";
+
   return (
     <aside
       style={{
@@ -173,9 +172,14 @@ function Sidebar() {
       <div style={{ paddingLeft: 12, marginBottom: 36 }}>
         <div style={{ fontSize: 28 }}>🏳️‍🌈</div>
         <p style={{
-          fontFamily: "'Bebas Neue', cursive", fontSize: 13, letterSpacing: 2,
+          fontFamily: fontStack,
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: 2,
           background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginTop: 2,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          marginTop: 2,
         }}>
           Queers & Allies Fitness
         </p>
@@ -198,7 +202,7 @@ function Sidebar() {
                   : item.label === "Admin"
                   ? "rgba(123,45,139,0.06)"
                   : "transparent",
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: fontStack,
               }}
             >
               <span style={{
@@ -234,7 +238,7 @@ function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <p style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, textAlign: "center", paddingTop: 16 }}>
+      <p style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, textAlign: "center", paddingTop: 16, fontFamily: fontStack }}>
         © 2026 Q&A Fitness
       </p>
     </aside>
