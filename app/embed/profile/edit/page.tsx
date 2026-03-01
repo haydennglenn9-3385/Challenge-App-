@@ -110,7 +110,7 @@ export default function EditProfilePage() {
           width: 100%; padding: 13px 16px; border-radius: 14px;
           border: 1.5px solid rgba(0,0,0,0.1);
           background: rgba(255,255,255,0.9);
-          font-size: 14px; font-family: 'DM Sans', sans-serif;
+          font-size: 14px; font-family: var(--font-inter), system-ui, sans-serif;
           outline: none; transition: border-color 0.15s; color: #0e0e0e;
         }
         .edit-input:focus { border-color: #7b2d8b; }
@@ -120,7 +120,7 @@ export default function EditProfilePage() {
           width: 100%; padding: 14px; border-radius: 14px; border: none;
           background: linear-gradient(135deg, #7b2d8b, #ff3c5f);
           color: #fff; font-size: 15px; font-weight: 700;
-          font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.15s;
+          font-family: var(--font-inter), system-ui, sans-serif; cursor: pointer; transition: opacity 0.15s;
         }
         .save-btn:disabled { opacity: 0.5; cursor: default; }
         .emoji-option {
@@ -137,7 +137,7 @@ export default function EditProfilePage() {
       <div style={{
         minHeight: "100dvh",
         background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
         paddingBottom: 112,
       }}>
         {/* Rainbow strip */}
@@ -153,7 +153,7 @@ export default function EditProfilePage() {
             >
               ← Back
             </button>
-            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
               Edit Profile
             </div>
           </div>

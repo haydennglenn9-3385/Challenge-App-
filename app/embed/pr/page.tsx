@@ -162,7 +162,7 @@ export default function PRPage() {
   if (loading) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg,#d4f5e2 0%,#fde0ef 30%,#fdf6d3 60%,#d4eaf7 100%)" }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
     </div>
   );
 
@@ -189,7 +189,7 @@ export default function PRPage() {
           width: 100%; padding: 12px 16px; border-radius: 14px;
           border: 1.5px solid #e5e7eb; background: #f8f9fa;
           font-size: 15px; font-weight: 600; outline: none;
-          font-family: 'DM Sans', sans-serif; color: #0e0e0e;
+          font-family: var(--font-inter), system-ui, sans-serif; color: #0e0e0e;
           box-sizing: border-box;
         }
         .pr-input:focus { border-color: #7b2d8b; background: #fff; }
@@ -202,13 +202,13 @@ export default function PRPage() {
           width: 100%; padding: 16px; border-radius: 16px; border: none;
           background: linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b);
           color: #fff; font-size: 15px; font-weight: 800; cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
         }
         .pr-save-btn:disabled { opacity: 0.45; cursor: default; }
         .preset-chip {
           padding: 8px 14px; border-radius: 99px; border: 1.5px solid #e5e7eb;
           background: #fff; font-size: 13px; font-weight: 700;
-          cursor: pointer; white-space: nowrap; font-family: 'DM Sans', sans-serif;
+          cursor: pointer; white-space: nowrap; font-family: var(--font-inter), system-ui, sans-serif;
           color: #374151; transition: all 0.12s; flex-shrink: 0;
         }
         .preset-chip.active {
@@ -235,7 +235,7 @@ export default function PRPage() {
         .eq-chip {
           padding: 6px 12px; border-radius: 99px; border: 1.5px solid #e5e7eb;
           background: #fff; font-size: 12px; font-weight: 700;
-          cursor: pointer; font-family: 'DM Sans', sans-serif; color: #374151;
+          cursor: pointer; font-family: var(--font-inter), system-ui, sans-serif; color: #374151;
           flex-shrink: 0;
         }
         .eq-chip.active { border-color: #7b2d8b; background: #f3e8ff; color: #7b2d8b; }
@@ -294,7 +294,7 @@ export default function PRPage() {
                       <span style={{ fontSize: 22 }}>{getEmoji(pr.type)}</span>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#64748b", lineHeight: 1.2 }}>{pr.label}</p>
                     </div>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 36, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
+                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 36, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
                       {formatValue(pr.value, pr.unit)}
                     </p>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>{pr.unit}</p>
@@ -333,7 +333,7 @@ export default function PRPage() {
         <div className="pr-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}>
           <div className="pr-sheet">
             <div className="pr-handle" />
-            <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1, marginBottom: 20 }}>
+            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1, marginBottom: 20 }}>
               Log a Personal Record
             </p>
 
@@ -439,7 +439,7 @@ export default function PRPage() {
                 onClick={() => setShowHistory(null)}
                 style={{ background: "#f1f5f9", border: "none", borderRadius: 10, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#555" }}
               >← Back</button>
-              <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
                 {getEmoji(showHistory)} {historyForType[0]?.label || showHistory}
               </p>
             </div>
@@ -454,9 +454,9 @@ export default function PRPage() {
               }}>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8 }}>Current Best</p>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
                     {formatValue(bestByType[showHistory].value, bestByType[showHistory].unit)}
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", marginLeft: 6, fontFamily: "'DM Sans', sans-serif" }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", marginLeft: 6, fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
                       {bestByType[showHistory].unit}
                     </span>
                   </p>
@@ -508,7 +508,7 @@ export default function PRPage() {
 
             <button
               onClick={() => { setShowHistory(null); setShowAdd(true); setSelectedPreset(PRESET_TYPES.find(p => p.type === showHistory) || PRESET_TYPES[0]); }}
-              style={{ width: "100%", marginTop: 20, padding: "14px", borderRadius: 14, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", color: "#374151" }}
+              style={{ width: "100%", marginTop: 20, padding: "14px", borderRadius: 14, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-inter), system-ui, sans-serif", color: "#374151" }}
             >
               + Log New {historyForType[0]?.label || "PR"}
             </button>

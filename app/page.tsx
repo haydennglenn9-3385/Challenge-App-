@@ -57,7 +57,7 @@ export default function HomePage() {
         .landing-root {
           min-height: 100vh;
           background: var(--dark);
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
           color: white;
           overflow-x: hidden;
         }
@@ -103,7 +103,7 @@ export default function HomePage() {
           z-index: 10;
         }
         .nav-logo {
-          font-family: 'Bebas Neue', cursive;
+          font-family: var(--font-inter), system-ui, sans-serif;
           font-size: 20px;
           letter-spacing: 2px;
           background: var(--rainbow);
@@ -160,7 +160,7 @@ export default function HomePage() {
         }
 
         .hero-title {
-          font-family: 'Bebas Neue', cursive;
+          font-family: var(--font-inter), system-ui, sans-serif;
           font-size: clamp(52px, 14vw, 76px);
           line-height: 0.95;
           letter-spacing: 1px;
@@ -259,7 +259,7 @@ export default function HomePage() {
         .stat-item:last-child { border-radius: 0 20px 20px 0; }
         .stat-item:not(:first-child) { border-left: none; }
         .stat-value {
-          font-family: 'Bebas Neue', cursive;
+          font-family: var(--font-inter), system-ui, sans-serif;
           font-size: 32px;
           line-height: 1;
           margin-bottom: 4px;

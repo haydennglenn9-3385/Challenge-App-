@@ -490,7 +490,7 @@ export default function ChallengeDetailPage() {
     <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🏳️‍🌈</div>
-        <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</p>
+        <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</p>
       </div>
     </div>
   );
@@ -537,7 +537,7 @@ export default function ChallengeDetailPage() {
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>
               {challenge.scoring_type?.replace(/_/g, " ")}
             </p>
-            <h1 style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
               {challenge.name}
             </h1>
             {challenge.description && (
@@ -586,7 +586,7 @@ export default function ChallengeDetailPage() {
                   { value: `${challengeLogs.length}`, label: "Check-ins" },
                 ].map(stat => (
                   <div key={stat.label} style={{ textAlign: "center", padding: "12px 8px", background: "rgba(0,0,0,0.03)", borderRadius: 14 }}>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>
+                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>
                       {stat.value}
                     </p>
                     <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 4 }}>
@@ -612,7 +612,7 @@ export default function ChallengeDetailPage() {
               {checkedInToday ? (
                 <div style={{ textAlign: "center", padding: "8px 0" }}>
                   <p style={{ fontSize: 32, marginBottom: 6 }}>✅</p>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
                     Checked in today!
                   </p>
                   <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
@@ -627,7 +627,7 @@ export default function ChallengeDetailPage() {
                 </div>
               ) : (
                 <div>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1, marginBottom: 12 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1, marginBottom: 12 }}>
                     Today&apos;s Check-in
                   </p>
 
@@ -855,7 +855,7 @@ export default function ChallengeDetailPage() {
                   ? toDateStr(calMonth.y, calMonth.m, 1) <= challenge.start_date.slice(0, 7) + "-01"
                   : false}
               >‹</button>
-              <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
+              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
                 {MONTH_NAMES[calMonth.m]} {calMonth.y}
               </p>
               <button
@@ -942,7 +942,7 @@ export default function ChallengeDetailPage() {
           <div className="sheet-panel">
             <div className="sheet-handle" />
 
-            <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>
+            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>
               Edit Check-ins
             </p>
             <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
@@ -952,7 +952,7 @@ export default function ChallengeDetailPage() {
             {saveSuccess ? (
               <div style={{ textAlign: "center", padding: "24px 0" }}>
                 <p style={{ fontSize: 36, marginBottom: 8 }}>✅</p>
-                <p style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
+                <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>
                   Saved! Points updated.
                 </p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>

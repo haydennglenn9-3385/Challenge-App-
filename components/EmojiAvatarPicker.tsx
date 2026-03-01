@@ -61,7 +61,7 @@ export default function EmojiAvatarPicker({
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
       {/* Preview */}
       <div style={{
         display: "flex",

@@ -42,7 +42,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
     <div key="welcome" style={{ textAlign: "center", padding: "8px 0" }}>
       <div style={{ fontSize: 64, marginBottom: 16 }}>🏳️‍🌈</div>
       <h2 style={{
-        fontFamily: "'DM Sans', sans-serif" ,
+        fontFamily: "var(--font-inter), system-ui, sans-serif" ,
         fontSize: 36,
         color: "#1a1a1a",
         lineHeight: 1.1,
@@ -76,7 +76,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
           Step 1 of 2
         </p>
         <h2 style={{
-          fontFamily: "'DM Sans', sans-serif" ,
+          fontFamily: "var(--font-inter), system-ui, sans-serif" ,
           fontSize: 28,
           color: "#1a1a1a",
           margin: 0,
@@ -113,7 +113,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
         Step 2 of 2
       </p>
       <h2 style={{
-        fontFamily: "'DM Sans', sans-serif" ,
+        fontFamily: "var(--font-inter), system-ui, sans-serif" ,
         fontSize: 28,
         color: "#1a1a1a",
         margin: "0 0 10px",
@@ -159,7 +159,7 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
           backdrop-filter: blur(6px);
           display: flex; align-items: flex-end; justify-content: center;
           animation: backdropIn 0.25s ease;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
         }
         .onboarding-sheet {
           width: 100%; max-width: 480px;
@@ -219,7 +219,7 @@ const primaryBtnStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 800,
   cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
+  fontFamily: "var(--font-inter), system-ui, sans-serif",
 };
 
 const ghostBtnStyle: React.CSSProperties = {
@@ -233,7 +233,7 @@ const ghostBtnStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 700,
   cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
+  fontFamily: "var(--font-inter), system-ui, sans-serif",
 };
 
 const textBtnStyle: React.CSSProperties = {
@@ -246,5 +246,5 @@ const textBtnStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
+  fontFamily: "var(--font-inter), system-ui, sans-serif",
 };

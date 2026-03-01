@@ -42,7 +42,7 @@ export default function MemberGate({
       <div style={{
         padding: "28px 20px",
         textAlign: "center",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
       }}>
         {/* Blurred preview */}
         <div style={{
@@ -117,7 +117,7 @@ export default function MemberGate({
                 fontSize: 14,
                 fontWeight: 800,
                 cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
               }}
             >
               Log in to Join
@@ -135,7 +135,7 @@ export default function MemberGate({
                 fontSize: 14,
                 fontWeight: 800,
                 cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
               }}
             >
               Join Challenge

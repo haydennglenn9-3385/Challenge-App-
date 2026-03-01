@@ -104,7 +104,7 @@ export default function ResetPasswordPage() {
           min-height: 100dvh;
           background: linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%) !important;
           background-attachment: fixed !important;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
         }
 
         ::-webkit-scrollbar { display: none; }
@@ -180,7 +180,7 @@ export default function ResetPasswordPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px" }}>
           <div style={{ marginBottom: 28, textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 15, letterSpacing: 3, color: "#7b2d8b", opacity: 0.85 }}>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 15, letterSpacing: 3, color: "#7b2d8b", opacity: 0.85 }}>
               QUEERS & ALLIES FITNESS
             </div>
           </div>
@@ -190,7 +190,7 @@ export default function ResetPasswordPage() {
             <div className="reset-card" style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 20 }}>
               <div className="spinner" />
               <div>
-                <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 22 }}>Verifying your link…</div>
+                <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22 }}>Verifying your link…</div>
                 <p style={{ fontSize: 13, color: "#888" }}>Just a moment</p>
               </div>
             </div>
@@ -200,7 +200,7 @@ export default function ResetPasswordPage() {
           {pageState === "invalid" && (
             <div className="reset-card" style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
-              <h1 style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 26 }}>Link Expired</h1>
+              <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 26 }}>Link Expired</h1>
               <p style={{ fontSize: 14, color: "#666", marginBottom: 24 }}>
                 This password reset link has expired or already been used.
               </p>
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
           {/* FORM */}
           {(pageState === "ready" || pageState === "submitting") && (
             <div className="reset-card">
-              <h1 style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 28 }}>Set new password</h1>
+              <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 28 }}>Set new password</h1>
               <p style={{ fontSize: 13, color: "#777", marginBottom: 24 }}>
                 Choose something strong — at least 8 characters.
               </p>
@@ -275,7 +275,7 @@ export default function ResetPasswordPage() {
           {pageState === "success" && (
             <div className="reset-card" style={{ textAlign: "center" }}>
               <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
-              <h1 style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 26 }}>Password updated!</h1>
+              <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 26 }}>Password updated!</h1>
               <p style={{ fontSize: 14, color: "#666", marginBottom: 24 }}>
                 Redirecting in <span style={{ fontWeight: 700, color: "#7b2d8b" }}>{countdown}</span>…
               </p>

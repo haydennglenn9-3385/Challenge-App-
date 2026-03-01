@@ -163,7 +163,7 @@ function ProfileContent() {
         .delete-btn {
           width: 100%; padding: 14px; border-radius: 14px; border: none;
           font-size: 15px; font-weight: 700; cursor: pointer;
-          font-family: 'DM Sans', sans-serif; text-align: left;
+          font-family: var(--font-inter), system-ui, sans-serif; text-align: left;
         }
         .delete-btn:disabled { opacity: 0.5; cursor: default; }
       `}</style>

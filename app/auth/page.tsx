@@ -110,7 +110,7 @@ export default function AuthPage() {
           min-height: 100dvh;
           background: linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%) !important;
           background-attachment: fixed !important;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
         }
 
         ::-webkit-scrollbar { display: none; }
@@ -134,7 +134,7 @@ export default function AuthPage() {
           border: 1.5px solid rgba(0,0,0,0.1);
           background: rgba(255,255,255,0.9);
           font-size: 14px;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
           outline: none;
           transition: border-color 0.15s;
           color: #0e0e0e;
@@ -152,7 +152,7 @@ export default function AuthPage() {
           color: #fff;
           font-size: 15px;
           font-weight: 700;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
           cursor: pointer;
           transition: opacity 0.15s, transform 0.15s;
           letter-spacing: 0.3px;
@@ -168,7 +168,7 @@ export default function AuthPage() {
           background: transparent;
           font-size: 14px;
           font-weight: 700;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-inter), system-ui, sans-serif;
           cursor: pointer;
           border-radius: 12px;
           transition: background 0.15s, color 0.15s;
@@ -252,7 +252,7 @@ export default function AuthPage() {
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
             <div
               style={{
-                fontFamily: "'DM Sans', sans-serif" ,
+                fontFamily: "var(--font-inter), system-ui, sans-serif" ,
                 fontSize: 15,
                 letterSpacing: 3,
                 color: "#7b2d8b",
@@ -293,7 +293,7 @@ export default function AuthPage() {
             <div style={{ marginBottom: 20 }}>
               <h1
                 style={{
-                  fontFamily: "'DM Sans', sans-serif" ,
+                  fontFamily: "var(--font-inter), system-ui, sans-serif" ,
                   fontSize: 26,
                   letterSpacing: 1,
                   color: "#0e0e0e",
@@ -416,7 +416,7 @@ export default function AuthPage() {
                     fontWeight: 600,
                     cursor: "pointer",
                     textAlign: "center",
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "var(--font-inter), system-ui, sans-serif",
                   }}
                 >
                   Forgot password?
@@ -443,7 +443,7 @@ export default function AuthPage() {
                   fontWeight: 700,
                   cursor: "pointer",
                   fontSize: 13,
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "var(--font-inter), system-ui, sans-serif",
                 }}
               >
                 {isSignup ? "Log in" : "Sign up free"}

@@ -96,7 +96,7 @@ export default function JoinWithCodePage() {
         background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
         display: "flex",
         flexDirection: "column",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
       }}>
         {/* Rainbow strip */}
         <div style={{
@@ -112,7 +112,7 @@ export default function JoinWithCodePage() {
           {/* Icon + heading */}
           <div style={{ textAlign: "center", marginBottom: 28, animation: "fadeUp 0.4s ease both" }}>
             <div style={{ fontSize: 48, marginBottom: 10 }}>🔑</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 28, letterSpacing: 1, color: "#0e0e0e" }}>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 28, letterSpacing: 1, color: "#0e0e0e" }}>
               Join with Code
             </div>
             <p style={{ fontSize: 13, color: "#777", marginTop: 6 }}>
@@ -170,7 +170,7 @@ export default function JoinWithCodePage() {
                   fontSize: 20,
                   fontWeight: 700,
                   letterSpacing: 3,
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "var(--font-inter), system-ui, sans-serif",
                   outline: "none",
                   textAlign: "center",
                   textTransform: "uppercase",
@@ -197,7 +197,7 @@ export default function JoinWithCodePage() {
                 color: loading || !code.trim() ? "#999" : "#fff",
                 fontSize: 15,
                 fontWeight: 700,
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
                 cursor: loading || !code.trim() ? "default" : "pointer",
                 transition: "opacity 0.15s, transform 0.15s",
               }}
@@ -216,7 +216,7 @@ export default function JoinWithCodePage() {
           {/* Back link */}
           <button
             onClick={() => router.back()}
-            style={{ marginTop: 20, background: "none", border: "none", color: "#7b2d8b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+            style={{ marginTop: 20, background: "none", border: "none", color: "#7b2d8b", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-inter), system-ui, sans-serif" }}
           >
             ← Back
           </button>

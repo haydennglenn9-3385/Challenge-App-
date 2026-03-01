@@ -29,7 +29,7 @@ function LoadingScreen() {
         }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <div style={{ fontSize: 52, animation: "pulse 1.5s ease-in-out infinite" }}>🏳️‍🌈</div>
-          <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, fontWeight: 700, color: "#7b2d8b", letterSpacing: 2 }}>
+          <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 11, fontWeight: 700, color: "#7b2d8b", letterSpacing: 6 }}>
             LOADING...
           </div>
         </div>

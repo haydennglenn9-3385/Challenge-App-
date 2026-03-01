@@ -95,7 +95,7 @@ export default function JoinCodeDisplay({ code, challengeName }: JoinCodeDisplay
             display: "flex",
             alignItems: "center",
             gap: 5,
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
           {copied ? "✓ Copied!" : "📋 Copy"}
@@ -114,7 +114,7 @@ export default function JoinCodeDisplay({ code, challengeName }: JoinCodeDisplay
             fontWeight: 800,
             cursor: "pointer",
             transition: "all 0.2s",
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
           🔗 Share

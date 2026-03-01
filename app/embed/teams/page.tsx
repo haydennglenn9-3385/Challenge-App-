@@ -135,7 +135,7 @@ export default function TeamsPage() {
       background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)",
     }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
+      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
         LOADING...
       </div>
     </div>
@@ -150,7 +150,7 @@ export default function TeamsPage() {
         .msg-input {
           width: 100%; padding: 13px 16px; border-radius: 14px;
           border: 1.5px solid rgba(0,0,0,0.1); background: #f8f9fa;
-          font-size: 14px; outline: none; font-family: 'DM Sans', sans-serif;
+          font-size: 14px; outline: none; font-family: var(--font-inter), system-ui, sans-serif;
           resize: none;
         }
         .msg-input:focus { border-color: #7b2d8b; }
@@ -158,7 +158,7 @@ export default function TeamsPage() {
           width: 100%; padding: 14px; border-radius: 14px; border: none;
           background: linear-gradient(135deg, #7b2d8b, #ff3c5f);
           color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-          font-family: 'DM Sans', sans-serif; margin-top: 10px;
+          font-family: var(--font-inter), system-ui, sans-serif; margin-top: 10px;
         }
         .send-btn:disabled { opacity: 0.5; cursor: default; }
       `}</style>

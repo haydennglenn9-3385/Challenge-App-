@@ -142,7 +142,7 @@ export default function MessagesPage() {
           {loading ? (
             <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
               <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
             </div>
           ) : feed.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -178,7 +178,7 @@ export default function MessagesPage() {
           {loading ? (
             <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
               <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
             </div>
           ) : challenges.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
