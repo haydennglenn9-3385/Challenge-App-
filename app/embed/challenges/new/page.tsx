@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { createChallenge } from "@/lib/storage";
 import LoadingScreen from "@/components/LoadingScreen";
+import { PRIDE_GRADIENTS } from "@/components/manage/TeamColorSelector";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
 const SCORING_SYSTEMS = [
   { value: "simple",               label: "Simple Check-in",   description: "Members check in when they complete the task" },
   { value: "average_points",       label: "Average Points",    description: "Team score = average of member points (fair for different team sizes)" },
@@ -28,7 +30,6 @@ const DURATION_PRESETS = [
   { label: "90 days", days: 90 },
 ];
 
-// ─── Unit options per metric scoring type ─────────────────────────────────────
 const UNIT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   time: [
     { value: "sec", label: "Seconds" },
@@ -51,10 +52,8 @@ const UNIT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 };
 
-// Scoring types that require a unit selection
 const METRIC_SCORING_TYPES = new Set(["time", "distance", "weight", "reps"]);
 
-// Default unit per scoring type
 const DEFAULT_UNIT: Record<string, string> = {
   time:     "min",
   distance: "km",
@@ -62,27 +61,44 @@ const DEFAULT_UNIT: Record<string, string> = {
   reps:     "reps",
 };
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface TeamDraft {
+  id:    string;
+  name:  string;
+  color: string;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function NewChallengePage() {
   const router = useRouter();
 
+  // ── Session ───────────────────────────────────────────────────────────────
   const [loadingSession, setLoadingSession] = useState(true);
   const [session,        setSession]        = useState<any>(null);
-  const [durationMode,   setDurationMode]   = useState<"days" | "dates">("days");
-  const [startDate,      setStartDate]      = useState("");
-  const [endDate,        setEndDate]        = useState("");
-  const [title,          setTitle]          = useState("");
-  const [description,    setDescription]    = useState("");
-  const [durationDays,   setDurationDays]   = useState(21);
-  const [customDays,     setCustomDays]     = useState("");
-  const [isPublic,       setIsPublic]       = useState(true);
-  const [hasTeams,       setHasTeams]       = useState(false);
-  const [scoringType,    setScoringType]    = useState("simple");
-  const [targetUnit,     setTargetUnit]     = useState<string>("");
-  const [submitting,     setSubmitting]     = useState(false);
-  const [error,          setError]          = useState("");
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Core fields ───────────────────────────────────────────────────────────
+  const [durationMode, setDurationMode] = useState<"days" | "dates">("days");
+  const [startDate,    setStartDate]    = useState("");
+  const [endDate,      setEndDate]      = useState("");
+  const [title,        setTitle]        = useState("");
+  const [description,  setDescription]  = useState("");
+  const [durationDays, setDurationDays] = useState(21);
+  const [customDays,   setCustomDays]   = useState("");
+  const [isPublic,     setIsPublic]     = useState(true);
+  const [hasTeams,     setHasTeams]     = useState(false);
+  const [scoringType,  setScoringType]  = useState("simple");
+  const [targetUnit,   setTargetUnit]   = useState<string>("");
+  const [submitting,   setSubmitting]   = useState(false);
+  const [error,        setError]        = useState("");
+
+  // ── Team setup ────────────────────────────────────────────────────────────
+  const [teamDrafts,   setTeamDrafts]   = useState<TeamDraft[]>([]);
+  const [maxTeamSize,  setMaxTeamSize]  = useState("");
+  const [autoAssign,   setAutoAssign]   = useState(false);
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.push("/auth");
@@ -91,7 +107,7 @@ export default function NewChallengePage() {
     });
   }, [router]);
 
-  // ── Reset unit when scoring type changes ───────────────────────────────────
+  // ── Reset unit when scoring type changes ──────────────────────────────────
   useEffect(() => {
     if (METRIC_SCORING_TYPES.has(scoringType)) {
       setTargetUnit(DEFAULT_UNIT[scoringType] ?? "");
@@ -102,7 +118,37 @@ export default function NewChallengePage() {
 
   if (loadingSession) return <LoadingScreen />;
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Team draft helpers ────────────────────────────────────────────────────
+
+  function addTeamDraft() {
+    const idx = teamDrafts.length % PRIDE_GRADIENTS.length;
+    setTeamDrafts(p => [
+      ...p,
+      { id: crypto.randomUUID(), name: "", color: PRIDE_GRADIENTS[idx].gradient },
+    ]);
+  }
+
+  function removeTeamDraft(id: string) {
+    setTeamDrafts(p => p.filter(t => t.id !== id));
+  }
+
+  function cycleTeamColor(id: string) {
+    setTeamDrafts(p =>
+      p.map(t => {
+        if (t.id !== id) return t;
+        const curr = PRIDE_GRADIENTS.findIndex(g => g.gradient === t.color);
+        const next = (curr + 1) % PRIDE_GRADIENTS.length;
+        return { ...t, color: PRIDE_GRADIENTS[next].gradient };
+      })
+    );
+  }
+
+  function updateTeamName(id: string, name: string) {
+    setTeamDrafts(p => p.map(t => (t.id === id ? { ...t, name } : t)));
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -110,7 +156,6 @@ export default function NewChallengePage() {
     if (!title.trim()) { setError("Please enter a challenge name."); return; }
     if (!session)       { setError("You must be logged in.");         return; }
 
-    // Require a unit if the scoring type needs one
     if (METRIC_SCORING_TYPES.has(scoringType) && !targetUnit) {
       setError("Please select a unit for your scoring type.");
       return;
@@ -141,23 +186,50 @@ export default function NewChallengePage() {
         : {}),
     });
 
-    if (challenge) {
-      router.push(`/embed/challenge/${challenge.id}/manage`);
-    } else {
+    if (!challenge) {
       setError("Failed to create challenge. Please try again.");
       setSubmitting(false);
+      return;
     }
+
+    // ── Post-creation: teams ───────────────────────────────────────────────
+    if (hasTeams) {
+      // Create any pre-defined teams
+      const validDrafts = teamDrafts.filter(t => t.name.trim());
+      if (validDrafts.length > 0) {
+        const maxSize = maxTeamSize ? parseInt(maxTeamSize, 10) : null;
+        await supabase.from("teams").insert(
+          validDrafts.map(t => ({
+            name:         t.name.trim(),
+            color:        t.color,
+            challenge_id: challenge.id,
+            ...(maxSize ? { max_members: maxSize } : {}),
+          }))
+        );
+      }
+
+      // Save auto-assign preference
+      if (autoAssign) {
+        await supabase
+          .from("challenges")
+          .update({ auto_assign_teams: true })
+          .eq("id", challenge.id);
+      }
+    }
+
+    router.push(`/embed/challenge/${challenge.id}/manage`);
   };
 
-  const activeDays = customDays ? parseInt(customDays, 10) || 0 : durationDays;
-  const unitOptions = UNIT_OPTIONS[scoringType] ?? [];
-  const needsUnit   = METRIC_SCORING_TYPES.has(scoringType);
+  const activeDays   = customDays ? parseInt(customDays, 10) || 0 : durationDays;
+  const unitOptions  = UNIT_OPTIONS[scoringType] ?? [];
+  const needsUnit    = METRIC_SCORING_TYPES.has(scoringType);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen px-5 pt-6 pb-28 space-y-5 max-w-lg mx-auto">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.back()}
@@ -190,7 +262,7 @@ export default function NewChallengePage() {
           </div>
         )}
 
-        {/* ── Challenge Details ──────────────────────────────────────────────── */}
+        {/* ── Challenge Details ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
@@ -224,7 +296,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        {/* ── Duration ──────────────────────────────────────────────────────── */}
+        {/* ── Duration ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">
@@ -322,7 +394,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        {/* ── Visibility ────────────────────────────────────────────────────── */}
+        {/* ── Visibility ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">
@@ -356,7 +428,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        {/* ── Mode ──────────────────────────────────────────────────────────── */}
+        {/* ── Mode ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">
@@ -387,19 +459,126 @@ export default function NewChallengePage() {
             </div>
             <p className="text-xs text-slate-400">
               {hasTeams
-                ? "Members will be assigned to teams. You can create teams after."
+                ? "Members will be assigned to teams. Define them below or add after creation."
                 : "Members compete individually on the leaderboard."}
             </p>
           </div>
         </div>
 
-        {/* ── Scoring ───────────────────────────────────────────────────────── */}
+        {/* ── Team Setup (conditional) ── */}
+        {hasTeams && (
+          <div className="neon-card rounded-2xl overflow-hidden">
+            <div className="h-1 w-full rainbow-cta" />
+            <div className="p-5 space-y-5">
+              <p className="font-extrabold text-slate-900">Team Setup</p>
+
+              {/* Auto-assign toggle */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50">
+                <div className="pr-4">
+                  <p className="text-sm font-bold text-slate-800">Auto-assign members</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    New members are placed into the smallest team automatically
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutoAssign(p => !p)}
+                  className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${
+                    autoAssign ? "bg-violet-500" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                      autoAssign ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Max team size */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                  Max members per team{" "}
+                  <span className="normal-case font-normal text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxTeamSize}
+                  onChange={(e) => setMaxTeamSize(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                />
+              </div>
+
+              {/* Pre-define teams */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
+                  Define Teams{" "}
+                  <span className="normal-case font-normal text-slate-400">
+                    (optional — you can add after creation)
+                  </span>
+                </label>
+
+                {teamDrafts.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-3">
+                    No teams defined yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2 mb-3">
+                    {teamDrafts.map((team, i) => (
+                      <div key={team.id} className="flex items-center gap-2">
+                        {/* Color dot — click to cycle */}
+                        <button
+                          type="button"
+                          onClick={() => cycleTeamColor(team.id)}
+                          title="Click to cycle color"
+                          className="w-8 h-8 rounded-full flex-shrink-0 border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                          style={{ background: team.color }}
+                        />
+                        <input
+                          type="text"
+                          value={team.name}
+                          onChange={(e) => updateTeamName(team.id, e.target.value)}
+                          placeholder={`Team ${i + 1} name`}
+                          className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTeamDraft(team.id)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-50 transition flex-shrink-0 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={addTeamDraft}
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-xs font-bold text-slate-500 hover:border-slate-400 hover:bg-slate-50 transition"
+                >
+                  + Add Team
+                </button>
+
+                {teamDrafts.length > 0 && (
+                  <p className="text-[11px] text-slate-400 text-center mt-2">
+                    Tap a color dot to cycle through pride palette colors
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Scoring ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
             <p className="font-extrabold text-slate-900">Scoring</p>
 
-            {/* Scoring type dropdown */}
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                 Scoring Type
@@ -420,7 +599,6 @@ export default function NewChallengePage() {
               </p>
             </div>
 
-            {/* Unit picker — only shown for metric scoring types */}
             {needsUnit && unitOptions.length > 0 && (
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
@@ -446,7 +624,6 @@ export default function NewChallengePage() {
                   ))}
                 </div>
 
-                {/* Preview of how logs will appear */}
                 {targetUnit && (
                   <div
                     className="mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2"
@@ -470,7 +647,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ── Submit ── */}
         <button
           type="submit"
           disabled={submitting || !title.trim()}
