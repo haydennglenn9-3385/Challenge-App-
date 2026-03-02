@@ -3,24 +3,31 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
+import ChatPanel from "@/components/chat/ChatPanel";
 
 type MsgTab = "community" | "groups" | "dms";
+
+type Challenge = {
+  id: string;
+  name: string;
+  member_count: number | null;
+};
 
 export default function MessagesPage() {
   const router = useRouter();
   const { user, getUserParams } = useUser();
-  const [challenges, setChallenges]   = useState<any[]>([]);
-  const [postText, setPostText]       = useState("");
-  const [posting, setPosting]         = useState(false);
-  const [loading, setLoading]         = useState(true);
-  const [tab, setTab]                 = useState<MsgTab>("community");
-  const [feed, setFeed]               = useState<any[]>([]);
+  const [challenges, setChallenges]         = useState<Challenge[]>([]);
+  const [postText, setPostText]             = useState("");
+  const [posting, setPosting]               = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [tab, setTab]                       = useState<MsgTab>("community");
+  const [feed, setFeed]                     = useState<any[]>([]);
+  const [openChallenge, setOpenChallenge]   = useState<Challenge | null>(null);
 
   const navigate = (path: string) => router.push(path + getUserParams());
 
   useEffect(() => {
     async function load() {
-      // Activity feed
       const { data: fData } = await supabase
         .from("activity_feed")
         .select("*")
@@ -29,7 +36,6 @@ export default function MessagesPage() {
         .limit(20);
       setFeed(fData || []);
 
-      // User's joined challenges (replaces broken getChallenges from Wix)
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         const { data: joined } = await supabase
@@ -40,12 +46,10 @@ export default function MessagesPage() {
           setChallenges(joined.map((j: any) => j.challenges).filter(Boolean));
         }
       }
-
       setLoading(false);
     }
     load();
 
-    // Real-time community posts
     const sub = supabase
       .channel("messages_feed")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_feed" },
@@ -81,38 +85,40 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen pt-6 pb-28 flex flex-col">
 
-      {/* Header */}
-      <div className="px-5 mb-4">
-        <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
-          style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          Queers & Allies Fitness
-        </p>
-        <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">Messages</h1>
-      </div>
-
-      {/* Tabs */}
-      <div className="px-5 mb-4">
-        <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-                tab === t.id ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
-              }`}
-            >
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+      {/* Header — hide when a chat is open */}
+      {!openChallenge && (
+        <div className="px-5 mb-4">
+          <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
+            style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            Queers & Allies Fitness
+          </p>
+          <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">Messages</h1>
         </div>
-      </div>
+      )}
+
+      {/* Tabs — hide when a chat is open */}
+      {!openChallenge && (
+        <div className="px-5 mb-4">
+          <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                  tab === t.id ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
+                }`}
+              >
+                <span>{t.icon}</span>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── COMMUNITY TAB ── */}
-      {tab === "community" && (
+      {!openChallenge && tab === "community" && (
         <div className="px-5 flex flex-col gap-4 flex-1">
-
-          {/* Post input */}
           <div className="neon-card rounded-2xl p-4 flex gap-3 items-center">
             <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
               style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}>
@@ -130,19 +136,17 @@ export default function MessagesPage() {
               disabled={posting || !postText.trim()}
               className="text-xs font-bold px-4 py-2 rounded-full transition-all flex-shrink-0"
               style={postText.trim() && !posting ? {
-                background: "linear-gradient(90deg,#ff6b9d,#667eea)",
-                color: "white",
+                background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white",
               } : { background: "#f1f1f1", color: "#aaa" }}
             >
               {posting ? "…" : "Post"}
             </button>
           </div>
 
-          {/* Feed */}
           {loading ? (
             <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
               <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+              <div style={{ fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
             </div>
           ) : feed.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -172,13 +176,13 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── GROUPS TAB ── */}
-      {tab === "groups" && (
+      {/* ── GROUPS TAB — list ── */}
+      {!openChallenge && tab === "groups" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
             <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
               <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+              <div style={{ fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
             </div>
           ) : challenges.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -194,7 +198,7 @@ export default function MessagesPage() {
             challenges.map((challenge) => (
               <button
                 key={challenge.id}
-                onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                onClick={() => setOpenChallenge(challenge)}
                 className="w-full neon-card rounded-2xl overflow-hidden text-left hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="h-1 w-full rainbow-cta" />
@@ -206,7 +210,7 @@ export default function MessagesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-slate-900">{challenge.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                      {challenge.member_count || 0} members · Tap to open chat
+                      {challenge.member_count || 0} members
                     </p>
                   </div>
                   <span className="text-slate-400 text-sm">→</span>
@@ -217,8 +221,21 @@ export default function MessagesPage() {
         </div>
       )}
 
+      {/* ── GROUPS TAB — open chat ── */}
+      {openChallenge && user && (
+        <div className="flex-1 flex flex-col" style={{ minHeight: "calc(100vh - 120px)" }}>
+          <ChatPanel
+            context={{ type: "challenge", id: openChallenge.id }}
+            currentUserId={user.id}
+            currentUserName={user.name || "Member"}
+            title={openChallenge.name}
+            onBack={() => setOpenChallenge(null)}
+          />
+        </div>
+      )}
+
       {/* ── DMs TAB ── */}
-      {tab === "dms" && (
+      {!openChallenge && tab === "dms" && (
         <div className="px-5">
           <div className="neon-card rounded-2xl p-10 text-center">
             <p className="text-2xl mb-2">💬</p>
