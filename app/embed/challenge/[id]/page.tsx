@@ -984,7 +984,7 @@ export default function ChallengeDetailPage() {
                                 cursor: "pointer",
                               }}
                             >
-                              {lvl === "100%" ? `✓ ${weeklyRepTarget} reps` : `≥ ${Math.ceil(weeklyRepTarget * 0.5)} reps`}
+                             {lvl === "100%" ? `✓ ${weeklyRepTarget} reps` : `${Math.ceil(weeklyRepTarget * 0.5)}+ reps`}
                             </button>
                           ))}
                         </div>
@@ -1034,7 +1034,7 @@ export default function ChallengeDetailPage() {
                                 cursor: "pointer",
                               }}
                             >
-                              {lvl === "100%" ? `✓ ${weeklyCardioTarget} min` : `≥ ${Math.ceil(weeklyCardioTarget * 0.5)} min`}
+                              {lvl === "100%" ? `✓ ${weeklyCardioTarget} min` : `${Math.ceil(weeklyCardioTarget * 0.5)}+ min`}
                             </button>
                           ))}
                         </div>
