@@ -50,7 +50,28 @@ export default function DirectAddMember({
   const [selectedTeams, setSelectedTeams] = useState<Record<string, string>>({});
   const [adding, setAdding]             = useState<string | null>(null);
   const [addedIds, setAddedIds]         = useState<Set<string>>(new Set());
+  
+  async function handleSearch() {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setSearched(false);
+    setResults([]);
+    setAddedIds(new Set());
 
+    const { data } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(8);
+
+    const filtered = (data || []).filter(
+      (u: SearchResult) => !existingMemberIds.has(u.id)
+    );
+    setResults(filtered);
+    setSearched(true);
+    setSearching(false);
+  }
     async function handleAdd(user: SearchResult) {
       setAdding(user.id);
 
