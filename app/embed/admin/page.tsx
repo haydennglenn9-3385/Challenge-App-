@@ -309,7 +309,18 @@ export default function AdminPage() {
         setIsAdmin(false); setLoading(false); return;
       }
       setIsAdmin(true);
-
+      // ── Standalone team loader (call on demand) ────────────────────────────────
+      async function loadTeams() {
+        const { data } = await supabase
+          .from("teams")
+          .select(`
+            id, name, color, challenge_id,
+            challenges ( id, name ),
+            team_members ( user_id )
+          `)
+          .order("name");
+        if (data) setTeams(data);
+      }
       // Challenges
       const { data: challengesRaw } = await supabase
         .from("challenges")
@@ -525,7 +536,10 @@ export default function AdminPage() {
         {(["challenges", "members", "teams"] as AdminTab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              if (t === "teams") loadTeams();
+            }}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all capitalize ${
               tab === t ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"
             }`}

@@ -294,33 +294,44 @@ export default function ManageChallengePage() {
       setAutoAssign(ch.auto_assign_teams ?? false);
 
       if (access) {
-        const { data: membersData } = await supabase
-          .from("challenge_members")
-          .select(`
-            user_id,
-            users ( id, name, email, streak, total_points ),
-            team_members ( team_id, teams ( id, name ) )
-          `)
-          .eq("challenge_id", challengeId);
+      // ── Load teams FIRST so we can scope team assignments below ──
+      const { data: teamsData } = await supabase
+        .from("teams")
+        .select("id, name, color, challenge_id")
+        .eq("challenge_id", challengeId)
+        .order("name");
 
-        if (membersData) {
-          setMembers(
-            membersData.map((m: any) => ({
+      if (teamsData) setTeams(teamsData);
+
+      // Build a set of team IDs that actually belong to THIS challenge
+      const challengeTeamIds = new Set((teamsData ?? []).map((t) => t.id));
+
+      // ── Load members ──
+      const { data: membersData } = await supabase
+        .from("challenge_members")
+        .select(`
+          user_id,
+          users ( id, name, email, streak, total_points ),
+          team_members ( team_id, teams ( id, name ) )
+        `)
+        .eq("challenge_id", challengeId);
+
+      if (membersData) {
+        setMembers(
+          membersData.map((m: any) => {
+            // ONLY count a team assignment if the team belongs to THIS challenge
+            const relevantTm = (m.team_members ?? []).find(
+              (tm: any) => challengeTeamIds.has(tm.team_id)
+            );
+            return {
               ...m.users,
-              team_id:   m.team_members?.[0]?.team_id,
-              team_name: m.team_members?.[0]?.teams?.name,
-            }))
-          );
-        }
-
-        const { data: teamsData } = await supabase
-          .from("teams")
-          .select("id, name, color, challenge_id")
-          .eq("challenge_id", challengeId)
-          .order("name");
-
-        if (teamsData) setTeams(teamsData);
+              team_id:   relevantTm?.team_id   ?? undefined,
+              team_name: relevantTm?.teams?.name ?? undefined,
+            };
+          })
+        );
       }
+    }
 
       setLoading(false);
     }
