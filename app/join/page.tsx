@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { joinChallenge } from "@/lib/storage";
 import { useUser } from "@/lib/UserContext";
+import { supabase } from "@/lib/supabase/client";
 
 const LGBTQ_FITNESS_FACTS = [
   "🏳️‍🌈 The first gay softball league was founded in 1977 in San Francisco - now there are over 40 leagues across North America!",
@@ -18,19 +18,15 @@ const LGBTQ_FITNESS_FACTS = [
 
 export default function JoinWithCodePage() {
   const router = useRouter();
-  const { user, getUserParams } = useUser();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [joining, setJoining] = useState(false);
+  const { user } = useUser();
+  const [code, setCode]           = useState("");
+  const [error, setError]         = useState("");
+  const [joining, setJoining]     = useState(false);
   const [randomFact, setRandomFact] = useState("");
 
   useEffect(() => {
     setRandomFact(LGBTQ_FITNESS_FACTS[Math.floor(Math.random() * LGBTQ_FITNESS_FACTS.length)]);
   }, []);
-
-  const navigate = (path: string) => {
-    router.push(path + getUserParams());
-  };
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,32 +44,16 @@ export default function JoinWithCodePage() {
     setJoining(true);
     setError("");
 
-    // Get user's Supabase ID
-    const userResponse = await fetch(`/api/user/get?wixId=${user.userId}`);
-    const userData = await userResponse.json();
-
-    if (!userData || !userData.id) {
-      setError("Could not find your account. Please try refreshing.");
-      setJoining(false);
-      return;
-    }
-
-    const success = await joinChallenge(code.trim().toUpperCase(), userData.id);
+    const success = await joinChallenge(code.trim().toUpperCase(), user.id);
 
     if (success) {
-      // Success! Redirect to the challenge
-      // Get the challenge we just joined
-      const { data: challenge } = await (await import('@/lib/supabase')).supabase
-        .from('challenges')
-        .select('id')
-        .eq('join_code', code.trim().toUpperCase())
+      const { data: challenge } = await supabase
+        .from("challenges")
+        .select("id")
+        .eq("join_code", code.trim().toUpperCase())
         .single();
-      
-      if (challenge) {
-        navigate(`/embed/challenge/${challenge.id}`);
-      } else {
-        navigate("/embed/challenges");
-      }
+
+      router.push(challenge ? `/embed/challenge/${challenge.id}` : "/embed/challenges");
     } else {
       setError("Invalid code or you're already in this challenge. Please check and try again.");
       setJoining(false);
@@ -92,13 +72,13 @@ export default function JoinWithCodePage() {
         </button>
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/embed/challenges")}
+            onClick={() => router.push("/embed/challenges")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             All Challenges
           </button>
           <button
-            onClick={() => navigate("/embed/profile")}
+            onClick={() => router.push("/embed/profile")}
             className="px-4 py-2 rounded-full font-semibold border border-slate-300 bg-white/80 hover:bg-white transition text-sm"
           >
             Profile
@@ -119,11 +99,13 @@ export default function JoinWithCodePage() {
             {!user && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                 <p className="text-sm text-amber-700 font-semibold mb-2">You need to be logged in to join</p>
-                <a href="https://www.queersandalliesfitness.com/account/member">
-                  <button type="button" className="rainbow-cta rounded-full px-4 py-2 text-sm font-semibold">
-                    Log in / Sign up
-                  </button>
-                </a>
+                <button
+                  type="button"
+                  onClick={() => router.push("/auth")}
+                  className="rainbow-cta rounded-full px-4 py-2 text-sm font-semibold"
+                >
+                  Log in / Sign up
+                </button>
               </div>
             )}
 
@@ -132,10 +114,7 @@ export default function JoinWithCodePage() {
               <input
                 type="text"
                 value={code}
-                onChange={(e) => {
-                  setCode(e.target.value.toUpperCase());
-                  setError("");
-                }}
+                onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(""); }}
                 placeholder="ABC123"
                 className="w-full rounded-2xl border border-slate-200 bg-white/80 px-6 py-4 text-lg font-semibold text-center tracking-wider focus:outline-none focus:ring-2 focus:ring-slate-300 uppercase"
                 maxLength={10}
@@ -155,7 +134,7 @@ export default function JoinWithCodePage() {
               <p className="text-sm text-slate-600 mb-3">Don't have a code?</p>
               <button
                 type="button"
-                onClick={() => navigate("/embed/challenges")}
+                onClick={() => router.push("/embed/challenges")}
                 className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline"
               >
                 Browse public challenges
