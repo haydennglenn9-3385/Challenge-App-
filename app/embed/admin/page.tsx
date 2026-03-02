@@ -1,7 +1,7 @@
 // app/embed/admin/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -296,6 +296,17 @@ export default function AdminPage() {
   });
 
   // ── Load ───────────────────────────────────────────────────────────────────
+  const loadTeams = useCallback(async () => {
+    const { data } = await supabase
+      .from("teams")
+      .select(`
+        id, name, color, challenge_id,
+        challenges ( id, name ),
+        team_members ( user_id )
+      `)
+      .order("name");
+    if (data) setTeams(data);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -309,18 +320,9 @@ export default function AdminPage() {
         setIsAdmin(false); setLoading(false); return;
       }
       setIsAdmin(true);
+      
       // ── Standalone team loader (call on demand) ────────────────────────────────
-      async function loadTeams() {
-        const { data } = await supabase
-          .from("teams")
-          .select(`
-            id, name, color, challenge_id,
-            challenges ( id, name ),
-            team_members ( user_id )
-          `)
-          .order("name");
-        if (data) setTeams(data);
-      }
+      
       // Challenges
       const { data: challengesRaw } = await supabase
         .from("challenges")
@@ -359,17 +361,12 @@ export default function AdminPage() {
       }
 
       // Teams
-      const { data: teamsRaw } = await supabase
-        .from("teams")
-        .select("id, name, color, challenge_id, challenges ( id, name ), team_members ( user_id )")
-        .order("name");
-
-      if (teamsRaw) setTeams(teamsRaw);
+      await loadTeams();
 
       setLoading(false);
     }
     load();
-  }, []);
+  }, [loadTeams]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
