@@ -483,16 +483,6 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Chat ─────────────────────────────────────────────────────────────────────
-  async function handleLeave() {
-    if (!confirm("Leave this challenge?")) return;
-    await supabase
-      .from("challenge_members")
-      .delete()
-      .eq("challenge_id", challengeId)
-      .eq("user_id", userId);
-    setIsMember(false);
-  }
-
   async function handleEditMessage(msgId: string) {
     if (!editingMsgText.trim()) return;
     setSavingMsg(true);
@@ -519,6 +509,18 @@ export default function ChallengeDetailPage() {
     setMessages(prev => prev.filter(m => m.id !== msgId));
   }
 
+  async function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!messageText.trim() || !userId) return;
+    const text = messageText.trim();
+    setMessageText("");
+    await supabase.from("messages").insert({
+      challenge_id: challengeId,
+      author_id:    userId,
+      text,
+    });
+  }
+  
   // ─── Standard check-in ───────────────────────────────────────────────────────
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
