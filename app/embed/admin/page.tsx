@@ -176,19 +176,25 @@ function TeamEditRow({
     if (!confirm(`Delete "${team.name}"? Members will be unassigned but stay in the challenge.`)) return;
     setDeleting(true);
 
-    // 1. Unassign all members from this team in challenge_members
+    // 1. Null out challenges.team_id if it points to this team
+    await supabase
+      .from("challenges")
+      .update({ team_id: null })
+      .eq("team_id", team.id);
+
+    // 2. Unassign all members from this team in challenge_members
     await supabase
       .from("challenge_members")
       .update({ team_id: null })
       .eq("team_id", team.id);
 
-    // 2. Clean up legacy team_members rows
+    // 3. Clean up legacy team_members rows
     await supabase
       .from("team_members")
       .delete()
       .eq("team_id", team.id);
 
-    // 3. Delete the team itself
+    // 4. Delete the team itself
     await supabase.from("teams").delete().eq("id", team.id);
 
     onDeleted(team.id);
