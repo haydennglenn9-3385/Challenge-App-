@@ -76,16 +76,6 @@ function TeamCard({
   const unassigned  = allMembers.filter(m => !m.team_id || m.team_id !== team.id);
   const stripColor  = team.color || PRIDE_GRADIENTS[0].gradient;
 
-  const isCaptain = challengeMembers.find(m => m.id === currentUserId)?.role === 'captain';
-  const captainTeamId = isCaptain ? members.find(m => m.id === currentUserId)?.team_id : null;
-
-  // Show captains only their team card, not full manage UI
-  const visibleTeams = isAdmin || isCreator 
-    ? teams 
-    : captainTeamId 
-      ? teams.filter(t => t.id === captainTeamId) 
-      : [];
-
   return (
     <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
       <div className="h-1" style={{ background: stripColor }} />
