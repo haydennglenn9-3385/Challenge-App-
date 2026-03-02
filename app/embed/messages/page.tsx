@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
 import ChatPanel from "@/components/chat/ChatPanel";
@@ -13,21 +13,53 @@ type Challenge = {
   member_count: number | null;
 };
 
-export default function MessagesPage() {
-  const router = useRouter();
-  const { user, getUserParams } = useUser();
-  const [challenges, setChallenges]         = useState<Challenge[]>([]);
-  const [postText, setPostText]             = useState("");
-  const [posting, setPosting]               = useState(false);
-  const [loading, setLoading]               = useState(true);
-  const [tab, setTab]                       = useState<MsgTab>("community");
-  const [feed, setFeed]                     = useState<any[]>([]);
-  const [openChallenge, setOpenChallenge]   = useState<Challenge | null>(null);
+type DMConversation = {
+  userId: string;
+  name: string;
+  lastMessage?: string;
+  lastAt?: string;
+};
 
-  const navigate = (path: string) => router.push(path + getUserParams());
+export default function MessagesPage() {
+  const router       = useSearchParams();
+  const nav          = useRouter();
+  const searchParams = useSearchParams();
+  const { user }     = useUser();
+
+  const [tab, setTab]                             = useState<MsgTab>("community");
+  const [feed, setFeed]                           = useState<any[]>([]);
+  const [challenges, setChallenges]               = useState<Challenge[]>([]);
+  const [dmConversations, setDmConversations]     = useState<DMConversation[]>([]);
+  const [openChallenge, setOpenChallenge]         = useState<Challenge | null>(null);
+  const [openDmUser, setOpenDmUser]               = useState<{ id: string; name: string } | null>(null);
+  const [postText, setPostText]                   = useState("");
+  const [posting, setPosting]                     = useState(false);
+  const [loading, setLoading]                     = useState(true);
+
+  // Handle ?dm=userId from profile page
+  useEffect(() => {
+    const dmUserId = searchParams.get("dm");
+    if (!dmUserId || !user) return;
+
+    async function openDmFromParam() {
+      const { data } = await supabase
+        .from("users")
+        .select("id, name")
+        .eq("id", dmUserId)
+        .single();
+
+      if (data) {
+        setTab("dms");
+        setOpenDmUser({ id: data.id, name: data.name });
+      }
+    }
+
+    openDmFromParam();
+  }, [searchParams, user]);
 
   useEffect(() => {
     async function load() {
+      // Community feed
       const { data: fData } = await supabase
         .from("activity_feed")
         .select("*")
@@ -36,18 +68,58 @@ export default function MessagesPage() {
         .limit(20);
       setFeed(fData || []);
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        const { data: joined } = await supabase
-          .from("challenge_members")
-          .select("challenge_id, challenges(id, name, member_count)")
-          .eq("user_id", authUser.id);
-        if (joined) {
-          setChallenges(joined.map((j: any) => j.challenges).filter(Boolean));
-        }
+      if (!user) { setLoading(false); return; }
+
+      // Joined challenges
+      const { data: joined } = await supabase
+        .from("challenge_members")
+        .select("challenge_id, challenges(id, name, member_count)")
+        .eq("user_id", user.id);
+      if (joined) {
+        setChallenges(joined.map((j: any) => j.challenges).filter(Boolean));
       }
+
+      // DM conversations — find all users this person has exchanged messages with
+      const { data: sentMsgs } = await supabase
+        .from("messages")
+        .select("recipient_id, text, created_at, users!messages_recipient_id_fkey(id, name)")
+        .eq("author_id", user.id)
+        .eq("is_dm", true)
+        .order("created_at", { ascending: false });
+
+      const { data: receivedMsgs } = await supabase
+        .from("messages")
+        .select("author_id, text, created_at, users!messages_author_id_fkey(id, name)")
+        .eq("recipient_id", user.id)
+        .eq("is_dm", true)
+        .order("created_at", { ascending: false });
+
+      // Build unique conversation list
+      const convMap: Record<string, DMConversation> = {};
+
+      (sentMsgs || []).forEach((m: any) => {
+        const otherId = m.recipient_id;
+        const otherName = m.users?.name || "Member";
+        if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
+          convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
+        }
+      });
+
+      (receivedMsgs || []).forEach((m: any) => {
+        const otherId = m.author_id;
+        const otherName = m.users?.name || "Member";
+        if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
+          convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
+        }
+      });
+
+      setDmConversations(Object.values(convMap).sort((a, b) =>
+        new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime()
+      ));
+
       setLoading(false);
     }
+
     load();
 
     const sub = supabase
@@ -61,7 +133,7 @@ export default function MessagesPage() {
       ).subscribe();
 
     return () => { supabase.removeChannel(sub); };
-  }, []);
+  }, [user]);
 
   async function handlePost() {
     if (!postText.trim()) return;
@@ -82,11 +154,20 @@ export default function MessagesPage() {
     { id: "dms",       label: "DMs",       icon: "💬" },
   ];
 
+  const isInChat = !!openChallenge || !!openDmUser;
+
+  const AVATAR_GRADIENTS = [
+    "linear-gradient(135deg,#ff6b9d,#ff9f43)",
+    "linear-gradient(135deg,#48cfad,#667eea)",
+    "linear-gradient(135deg,#a855f7,#ff6b9d)",
+    "linear-gradient(135deg,#ff9f43,#ffdd59)",
+  ];
+
   return (
     <div className="min-h-screen pt-6 pb-28 flex flex-col">
 
-      {/* Header — hide when a chat is open */}
-      {!openChallenge && (
+      {/* Header */}
+      {!isInChat && (
         <div className="px-5 mb-4">
           <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
             style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
@@ -96,8 +177,8 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Tabs — hide when a chat is open */}
-      {!openChallenge && (
+      {/* Tabs */}
+      {!isInChat && (
         <div className="px-5 mb-4">
           <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
             {TABS.map((t) => (
@@ -117,7 +198,7 @@ export default function MessagesPage() {
       )}
 
       {/* ── COMMUNITY TAB ── */}
-      {!openChallenge && tab === "community" && (
+      {!isInChat && tab === "community" && (
         <div className="px-5 flex flex-col gap-4 flex-1">
           <div className="neon-card rounded-2xl p-4 flex gap-3 items-center">
             <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
@@ -135,18 +216,18 @@ export default function MessagesPage() {
               onClick={handlePost}
               disabled={posting || !postText.trim()}
               className="text-xs font-bold px-4 py-2 rounded-full transition-all flex-shrink-0"
-              style={postText.trim() && !posting ? {
-                background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white",
-              } : { background: "#f1f1f1", color: "#aaa" }}
+              style={postText.trim() && !posting
+                ? { background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white" }
+                : { background: "#f1f1f1", color: "#aaa" }}
             >
               {posting ? "…" : "Post"}
             </button>
           </div>
 
           {loading ? (
-            <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-              <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="text-5xl">🏳️‍🌈</div>
+              <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
             </div>
           ) : feed.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -159,7 +240,7 @@ export default function MessagesPage() {
               {feed.map((item, i) => (
                 <div key={item.id || i} className="neon-card rounded-2xl px-4 py-4 flex gap-3 items-start">
                   <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white"
-                    style={{ background: ["linear-gradient(135deg,#ff6b9d,#ff9f43)", "linear-gradient(135deg,#48cfad,#667eea)", "linear-gradient(135deg,#a855f7,#ff6b9d)", "linear-gradient(135deg,#ff9f43,#ffdd59)"][i % 4] }}>
+                    style={{ background: AVATAR_GRADIENTS[i % 4] }}>
                     {item.user_name?.[0]?.toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -177,19 +258,19 @@ export default function MessagesPage() {
       )}
 
       {/* ── GROUPS TAB — list ── */}
-      {!openChallenge && tab === "groups" && (
+      {!isInChat && tab === "groups" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
-            <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-              <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-              <div style={{ fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="text-5xl">🏳️‍🌈</div>
+              <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
             </div>
           ) : challenges.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
               <p className="text-2xl mb-2">⚡</p>
               <p className="font-bold text-slate-800">No challenge chats yet</p>
               <p className="text-sm text-slate-500 mt-2 mb-4">Join a challenge to unlock its group chat</p>
-              <button onClick={() => navigate("/embed/challenges")}
+              <button onClick={() => nav.push("/embed/challenges")}
                 className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
                 Browse Challenges
               </button>
@@ -221,39 +302,85 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── GROUPS TAB — open chat ── */}
+      {/* ── DMs TAB — conversation list ── */}
+      {!isInChat && tab === "dms" && (
+        <div className="px-5 flex flex-col gap-3">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="text-5xl">🏳️‍🌈</div>
+              <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
+            </div>
+          ) : dmConversations.length === 0 ? (
+            <div className="neon-card rounded-2xl p-10 text-center">
+              <p className="text-2xl mb-2">💬</p>
+              <p className="font-bold text-slate-800">No messages yet</p>
+              <p className="text-sm text-slate-500 mt-2">
+                Visit someone&apos;s profile and tap <strong>Message</strong> to start a conversation.
+              </p>
+              <button
+                onClick={() => setTab("groups")}
+                className="rainbow-cta rounded-xl px-5 py-3 font-bold text-sm mt-4"
+              >
+                Browse Group Chats
+              </button>
+            </div>
+          ) : (
+            dmConversations.map((conv, i) => (
+              <button
+                key={conv.userId}
+                onClick={() => setOpenDmUser({ id: conv.userId, name: conv.name })}
+                className="w-full neon-card rounded-2xl overflow-hidden text-left hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <div className="px-5 py-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
+                    style={{ background: AVATAR_GRADIENTS[i % 4] }}>
+                    {conv.name[0]?.toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900">{conv.name}</p>
+                    {conv.lastMessage && (
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">{conv.lastMessage}</p>
+                    )}
+                  </div>
+                  {conv.lastAt && (
+                    <p className="text-[10px] text-slate-400 flex-shrink-0">
+                      {new Date(conv.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Challenge chat open ── */}
       {openChallenge && user && (
         <div className="flex-1 flex flex-col" style={{ minHeight: "calc(100vh - 120px)" }}>
           <ChatPanel
             context={{ type: "challenge", id: openChallenge.id }}
             currentUserId={user.id}
-            currentUserName={user.name || "Member"}
+            currentUserName={user.name}
             title={openChallenge.name}
             onBack={() => setOpenChallenge(null)}
           />
         </div>
       )}
 
-      {/* ── DMs TAB ── */}
-      {!openChallenge && tab === "dms" && (
-        <div className="px-5">
-          <div className="neon-card rounded-2xl p-10 text-center">
-            <p className="text-2xl mb-2">💬</p>
-            <p className="font-bold text-slate-800">Direct Messages</p>
-            <p className="text-sm text-slate-500 mt-2">
-              DMs are coming soon — for now, chat in your challenge groups or message teammates from the Teams page!
-            </p>
-            <div className="flex gap-3 justify-center mt-4">
-              <button onClick={() => setTab("groups")}
-                className="rainbow-cta rounded-xl px-5 py-3 font-bold text-sm">
-                Group Chats
-              </button>
-              <button onClick={() => navigate("/embed/teams")}
-                className="rounded-xl px-5 py-3 font-bold text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
-                My Teams
-              </button>
-            </div>
-          </div>
+      {/* ── DM chat open ── */}
+      {openDmUser && user && (
+        <div className="flex-1 flex flex-col" style={{ minHeight: "calc(100vh - 120px)" }}>
+          <ChatPanel
+            context={{ type: "dm", userId: openDmUser.id }}
+            currentUserId={user.id}
+            currentUserName={user.name}
+            title={openDmUser.name}
+            onBack={() => {
+              setOpenDmUser(null);
+              // Clear the ?dm= param without full reload
+              nav.replace("/embed/messages?tab=dms");
+            }}
+          />
         </div>
       )}
 

@@ -358,7 +358,7 @@ export default function PublicProfilePage() {
                   <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
                     Member since {formatDate(profile.created_at)}
                   </p>
-                  {viewerSelf && (
+                 {viewerSelf ? (
                     <button
                       onClick={() => router.push("/embed/profile")}
                       style={{
@@ -369,6 +369,22 @@ export default function PublicProfilePage() {
                       }}
                     >
                       Edit your profile →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/embed/messages?dm=${userId}`)}
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12, fontWeight: 800,
+                        color: "white",
+                        background: "linear-gradient(135deg,#667eea,#a855f7)",
+                        border: "none", cursor: "pointer",
+                        padding: "6px 14px",
+                        borderRadius: 999,
+                        display: "flex", alignItems: "center", gap: 5,
+                      }}
+                    >
+                      💬 Message
                     </button>
                   )}
                 </div>
