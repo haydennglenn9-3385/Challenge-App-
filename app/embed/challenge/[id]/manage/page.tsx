@@ -76,6 +76,16 @@ function TeamCard({
   const unassigned  = allMembers.filter(m => !m.team_id || m.team_id !== team.id);
   const stripColor  = team.color || PRIDE_GRADIENTS[0].gradient;
 
+  const isCaptain = challengeMembers.find(m => m.id === currentUserId)?.role === 'captain';
+  const captainTeamId = isCaptain ? members.find(m => m.id === currentUserId)?.team_id : null;
+
+  // Show captains only their team card, not full manage UI
+  const visibleTeams = isAdmin || isCreator 
+    ? teams 
+    : captainTeamId 
+      ? teams.filter(t => t.id === captainTeamId) 
+      : [];
+
   return (
     <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
       <div className="h-1" style={{ background: stripColor }} />
@@ -283,7 +293,7 @@ export default function ManageChallengePage() {
       const isAdmin   = profile?.role === "admin";
       const access    = isCreator || isAdmin;
 
-      setChallenge(ch);
+      setChallenge(ch)
       setHasAccess(access);
       setDescription(ch.description || "");
       setRules(ch.rules || "");
@@ -294,44 +304,37 @@ export default function ManageChallengePage() {
       setAutoAssign(ch.auto_assign_teams ?? false);
 
       if (access) {
-      // ── Load teams FIRST so we can scope team assignments below ──
-      const { data: teamsData } = await supabase
-        .from("teams")
-        .select("id, name, color, challenge_id")
-        .eq("challenge_id", challengeId)
-        .order("name");
+        
+      // ── Load teams ──────────────────────────────────────────────────────
+        const { data: teamsData } = await supabase
+          .from("teams")
+          .select("id, name, color, challenge_id")
+          .eq("challenge_id", challengeId)
+          .order("name");
 
-      if (teamsData) setTeams(teamsData);
+        if (teamsData) setTeams(teamsData);
 
-      // Build a set of team IDs that actually belong to THIS challenge
-      const challengeTeamIds = new Set((teamsData ?? []).map((t) => t.id));
+        // ── Load members — team_id lives directly on challenge_members ───────
+        const { data: membersData } = await supabase
+          .from("challenge_members")
+          .select(`
+            user_id,
+            team_id,
+            users ( id, name, email, streak, total_points ),
+            teams ( name )
+          `)
+          .eq("challenge_id", challengeId);
 
-      // ── Load members ──
-      const { data: membersData } = await supabase
-        .from("challenge_members")
-        .select(`
-          user_id,
-          users ( id, name, email, streak, total_points ),
-          team_members ( team_id, teams ( id, name ) )
-        `)
-        .eq("challenge_id", challengeId);
-
-      if (membersData) {
-        setMembers(
-          membersData.map((m: any) => {
-            // ONLY count a team assignment if the team belongs to THIS challenge
-            const relevantTm = (m.team_members ?? []).find(
-              (tm: any) => challengeTeamIds.has(tm.team_id)
-            );
-            return {
+        if (membersData) {
+          setMembers(
+            membersData.map((m: any) => ({
               ...m.users,
-              team_id:   relevantTm?.team_id   ?? undefined,
-              team_name: relevantTm?.teams?.name ?? undefined,
-            };
-          })
-        );
+              team_id:   m.team_id    ?? undefined,
+              team_name: m.teams?.name ?? undefined,
+            }))
+          );
+        }
       }
-    }
 
       setLoading(false);
     }
@@ -407,13 +410,19 @@ export default function ManageChallengePage() {
   }
 
   async function handleAddMemberToTeam(teamId: string, userId: string) {
-    await supabase.from("team_members").delete().eq("user_id", userId);
     const { error } = await supabase
-      .from("team_members").insert({ team_id: teamId, user_id: userId });
+      .from("challenge_members")
+      .update({ team_id: teamId })
+      .eq("challenge_id", challengeId)
+      .eq("user_id", userId);
+
     if (!error) {
       const team = teams.find(t => t.id === teamId);
       setMembers(p =>
-        p.map(m => m.id === userId ? { ...m, team_id: teamId, team_name: team?.name } : m)
+        p.map(m => m.id === userId
+          ? { ...m, team_id: teamId, team_name: team?.name }
+          : m
+        )
       );
     }
   }
@@ -429,13 +438,12 @@ export default function ManageChallengePage() {
       .update({ total_points: data.points, streak: data.streak })
       .eq("id", data.memberId);
 
-    await supabase.from("team_members").delete().eq("user_id", data.memberId);
-    if (data.teamId) {
-      await supabase.from("team_members").insert({
-        team_id: data.teamId,
-        user_id: data.memberId,
-      });
-    }
+    // Update team assignment on challenge_members
+    await supabase
+      .from("challenge_members")
+      .update({ team_id: data.teamId ?? null })
+      .eq("challenge_id", challengeId)
+      .eq("user_id", data.memberId);
 
     const team = data.teamId ? teams.find(t => t.id === data.teamId) : null;
     setMembers(p =>
@@ -453,7 +461,7 @@ export default function ManageChallengePage() {
       .delete()
       .eq("challenge_id", challengeId)
       .eq("user_id", memberId);
-    await supabase.from("team_members").delete().eq("user_id", memberId);
+
     setMembers(p => p.filter(m => m.id !== memberId));
   }
 

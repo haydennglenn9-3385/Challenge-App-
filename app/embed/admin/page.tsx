@@ -132,6 +132,7 @@ function ChallengeCard({
   );
 }
 
+
 // ─── Team Edit Row ────────────────────────────────────────────────────────────
 
 function TeamEditRow({
@@ -140,20 +141,21 @@ function TeamEditRow({
   onSaved,
   onDeleted,
 }: {
-  team: TeamRow;
+  team:       TeamRow;
   challenges: ChallengeRow[];
-  onSaved: (updated: TeamRow) => void;
-  onDeleted: (id: string) => void;
+  onSaved:    (updated: TeamRow) => void;
+  onDeleted:  (id: string) => void;
 }) {
-  const [editing,   setEditing]   = useState(false);
-  const [name,      setName]      = useState(team.name);
-  const [color,     setColor]     = useState(team.color ?? "");
-  const [saving,    setSaving]    = useState(false);
-  const [deleting,  setDeleting]  = useState(false);
+  const [editing,  setEditing]  = useState(false);
+  const [name,     setName]     = useState(team.name);
+  const [color,    setColor]    = useState(team.color ?? "");
+  const [saving,   setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const memberCount   = team.team_members?.length ?? 0;
-  const challengeName = team.challenges?.[0]?.name;
-  const challengeId   = team.challenges?.[0]?.id;
+  // Derive from the challenges list passed as a prop — no FK join needed
+  const linkedChallenge = challenges.find((c) => c.id === team.challenge_id);
+  const challengeName   = linkedChallenge?.name;
+  const challengeId     = linkedChallenge?.id;
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -171,16 +173,30 @@ function TeamEditRow({
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete "${team.name}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${team.name}"? Members will be unassigned but stay in the challenge.`)) return;
     setDeleting(true);
+
+    // 1. Unassign all members from this team in challenge_members
+    await supabase
+      .from("challenge_members")
+      .update({ team_id: null })
+      .eq("team_id", team.id);
+
+    // 2. Clean up legacy team_members rows
+    await supabase
+      .from("team_members")
+      .delete()
+      .eq("team_id", team.id);
+
+    // 3. Delete the team itself
     await supabase.from("teams").delete().eq("id", team.id);
+
     onDeleted(team.id);
   }
 
   if (editing) {
     return (
       <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-4 space-y-4">
-        {/* Name */}
         <div>
           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
             Team Name
@@ -194,10 +210,8 @@ function TeamEditRow({
           />
         </div>
 
-        {/* Color */}
         <TeamColorSelector value={color} onChange={setColor} />
 
-        {/* Preview */}
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white border border-slate-100">
           <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
           <p className="text-sm font-bold text-slate-800">{name || "Team name"}</p>
@@ -206,7 +220,6 @@ function TeamEditRow({
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex gap-2">
           <button
             onClick={() => { setEditing(false); setName(team.name); setColor(team.color ?? ""); }}
@@ -224,7 +237,6 @@ function TeamEditRow({
           </button>
         </div>
 
-        {/* Delete */}
         <button
           onClick={handleDelete}
           disabled={deleting}
@@ -245,8 +257,10 @@ function TeamEditRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-slate-900 truncate">{team.name}</p>
         <p className="text-xs text-slate-400">
-          {memberCount} member{memberCount !== 1 ? "s" : ""}
-          {challengeName && <span className="ml-1.5">· {challengeName}</span>}
+          {challengeName
+            ? <span>· {challengeName}</span>
+            : <span className="italic">No challenge linked</span>
+          }
         </p>
       </div>
       <div className="flex gap-1.5 flex-shrink-0">
@@ -292,7 +306,7 @@ export default function AdminPage() {
   const [teamSearch, setTeamSearch] = useState("");
 
   const [stats, setStats] = useState({
-    totalUsers: 0, totalChallenges: 0, activeChallenges: 0, totalMembers: 0,
+    totalUsers: 0, totalChallenges: 0, activeChallenges: 0, totalMembers: 0, totalTeams: 0,
   });
 
   // ── Load ───────────────────────────────────────────────────────────────────
@@ -300,14 +314,13 @@ export default function AdminPage() {
     const { data } = await supabase
       .from("teams")
       .select(`
-        id, name, color, challenge_id,
-        challenges ( id, name ),
-        team_members ( user_id )
+        id, name, color, challenge_id
       `)
       .order("name");
-    if (data) setTeams(data);
+    if (data) setTeams(data as any);
   }, []);
-
+  
+  
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -362,6 +375,10 @@ export default function AdminPage() {
 
       // Teams
       await loadTeams();
+      const { count: teamCount } = await supabase
+        .from("teams")
+        .select("id", { count: "exact", head: true });
+      setStats(p => ({ ...p, totalTeams: teamCount ?? 0 }));
 
       setLoading(false);
     }

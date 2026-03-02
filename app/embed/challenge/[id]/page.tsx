@@ -428,14 +428,47 @@ export default function ChallengeDetailPage() {
   // ─── Join ─────────────────────────────────────────────────────────────────────
   async function handleJoin() {
     if (!userId || !challenge) return;
-    await supabase.from("challenge_members").insert({ challenge_id: challengeId, user_id: userId });
-    if (challenge.team_id) {
-      await supabase.from("team_members").insert({ team_id: challenge.team_id, user_id: userId });
+
+    let assignedTeamId: string | null = null;
+
+    if (challenge.has_teams && challenge.auto_assign_teams) {
+      const { data: teams } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("challenge_id", challenge.id);
+
+      if (teams && teams.length > 0) {
+        const teamCounts = await Promise.all(
+          teams.map(async (team) => {
+            const { count } = await supabase
+              .from("challenge_members")
+              .select("id", { count: "exact", head: true })
+              .eq("challenge_id", challenge.id)
+              .eq("team_id", team.id);
+            return { teamId: team.id, count: count ?? 0 };
+          })
+        );
+        teamCounts.sort((a, b) => a.count - b.count);
+        assignedTeamId = teamCounts[0].teamId;
+      }
     }
+
+    await supabase.from("challenge_members").insert({
+      challenge_id: challenge.id,
+      user_id:      userId,
+      team_id:      assignedTeamId,
+    });
+
     setIsMember(true);
-    const logs = await loadLogs(userId);
+    const logs     = await loadLogs(userId);
     const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
     setUserTotalPoints(computed);
+    
+    if (assignedTeamId) {
+      const { data: teamRow } = await supabase
+        .from("teams").select("name").eq("id", assignedTeamId).single();
+      if (teamRow) setUserTeam(teamRow.name);
+    }
   }
 
   // ─── Leave ────────────────────────────────────────────────────────────────────
@@ -450,16 +483,14 @@ export default function ChallengeDetailPage() {
   }
 
   // ─── Chat ─────────────────────────────────────────────────────────────────────
-  async function handleSendMessage(e: React.FormEvent) {
-    e.preventDefault();
-    if (!messageText.trim() || !userId) return;
-    await supabase.from("messages").insert({
-      team_id:   challenge.team_id,
-      author_id: userId,
-      text:      messageText.trim(),
-      is_dm:     false,
-    });
-    setMessageText("");
+  async function handleLeave() {
+    if (!confirm("Leave this challenge?")) return;
+    await supabase
+      .from("challenge_members")
+      .delete()
+      .eq("challenge_id", challengeId)
+      .eq("user_id", userId);
+    setIsMember(false);
   }
 
   async function handleEditMessage(msgId: string) {

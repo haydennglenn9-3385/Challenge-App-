@@ -51,65 +51,40 @@ export default function DirectAddMember({
   const [adding, setAdding]             = useState<string | null>(null);
   const [addedIds, setAddedIds]         = useState<Set<string>>(new Set());
 
-  async function handleSearch() {
-    const q = query.trim();
-    if (!q) return;
-    setSearching(true);
-    setSearched(false);
-    setResults([]);
-    setAddedIds(new Set());
+    async function handleAdd(user: SearchResult) {
+      setAdding(user.id);
 
-    const { data } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
-      .limit(8);
+      const teamId = selectedTeams[user.id] || null;
 
-    const filtered = (data || []).filter(
-      (u: SearchResult) => !existingMemberIds.has(u.id)
-    );
-    setResults(filtered);
-    setSearched(true);
-    setSearching(false);
-  }
+      const { error } = await supabase
+        .from("challenge_members")
+        .insert({
+          challenge_id: challengeId,
+          user_id:      user.id,
+          team_id:      teamId,
+        });
 
-  async function handleAdd(user: SearchResult) {
-    setAdding(user.id);
+      if (error) {
+        alert("Error adding member: " + error.message);
+        setAdding(null);
+        return;
+      }
 
-    // Add to challenge_members
-    const { error } = await supabase
-      .from("challenge_members")
-      .insert({ challenge_id: challengeId, user_id: user.id });
+      const team = teamId ? teams.find(t => t.id === teamId) : null;
 
-    if (error) {
-      alert("Error adding member: " + error.message);
+      onMemberAdded({
+        id:           user.id,
+        name:         user.name,
+        email:        user.email,
+        total_points: 0,
+        streak:       0,
+        team_id:      teamId || undefined,
+        team_name:    team?.name,
+      });
+
+      setAddedIds(p => new Set([...p, user.id]));
       setAdding(null);
-      return;
     }
-
-    // Assign to team if selected
-    const teamId = selectedTeams[user.id];
-    if (teamId) {
-      await supabase
-        .from("team_members")
-        .insert({ team_id: teamId, user_id: user.id });
-    }
-
-    const team = teamId ? teams.find((t) => t.id === teamId) : null;
-
-    onMemberAdded({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      total_points: 0,
-      streak: 0,
-      team_id: teamId || undefined,
-      team_name: team?.name,
-    });
-
-    setAddedIds((p) => new Set([...p, user.id]));
-    setAdding(null);
-  }
 
   return (
     <div className="space-y-3">

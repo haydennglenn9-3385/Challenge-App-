@@ -274,15 +274,10 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
     return null;
   }
 
-  // Auto-join creator as first member + team member
-  await supabase.from("team_members").insert({
-    team_id: team.id,
-    user_id: challengeData.creatorId,
-  });
-
+  /// Auto-join creator as first member (no team yet — assigned via Manage page)
   await supabase.from("challenge_members").insert({
     challenge_id: data.id,
-    user_id: challengeData.creatorId,
+    user_id:      challengeData.creatorId,
   });
 
   return { ...data, member_count: 1 };
@@ -290,7 +285,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 
 export async function joinChallenge(
   joinCode: string,
-  userId: string
+  userId:   string
 ): Promise<boolean> {
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
@@ -309,28 +304,29 @@ export async function joinChallenge(
     .select("id")
     .eq("challenge_id", challenge.id)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (existing) return false;
 
-  // For the NYF2026 challenge, auto-balance teams
-  let assignedTeamId = challenge.team_id;
+  // ── Auto-balance teams (if challenge has teams + auto_assign enabled) ────
+  let assignedTeamId: string | null = null;
 
-  if (joinCode.toUpperCase() === "NYF2026") {
+  if (challenge.has_teams && challenge.auto_assign_teams) {
     const { data: teams } = await supabase
       .from("teams")
-      .select("id, name")
-      .in("name", ["Team Hayden", "Team Aria", "Team Tiffany"]);
+      .select("id")
+      .eq("challenge_id", challenge.id);
 
-    if (teams && teams.length === 3) {
+    if (teams && teams.length > 0) {
+      // Count current members per team via challenge_members.team_id
       const teamCounts = await Promise.all(
         teams.map(async (team) => {
           const { count } = await supabase
-            .from("team_members")
+            .from("challenge_members")
             .select("id", { count: "exact", head: true })
+            .eq("challenge_id", challenge.id)
             .eq("team_id", team.id);
-
-          return { teamId: team.id, count: count || 0 };
+          return { teamId: team.id, count: count ?? 0 };
         })
       );
 
@@ -339,18 +335,14 @@ export async function joinChallenge(
     }
   }
 
-  const { error: teamError } = await supabase
-    .from("team_members")
-    .insert({ team_id: assignedTeamId, user_id: userId });
-
-  if (teamError) {
-    console.error("Error joining team:", teamError);
-    return false;
-  }
-
+  // ── Single insert — team_id lives on challenge_members ───────────────────
   const { error: memberError } = await supabase
     .from("challenge_members")
-    .insert({ challenge_id: challenge.id, user_id: userId });
+    .insert({
+      challenge_id: challenge.id,
+      user_id:      userId,
+      team_id:      assignedTeamId,
+    });
 
   if (memberError) {
     console.error("Error joining challenge:", memberError);
@@ -362,34 +354,19 @@ export async function joinChallenge(
 
 export async function leaveChallenge(
   challengeId: string,
-  userId: string
+  userId:      string
 ): Promise<boolean> {
   try {
-    const { error: memberError } = await supabase
+    const { error } = await supabase
       .from("challenge_members")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("user_id", userId);
 
-    if (memberError) {
-      console.error("Error leaving challenge:", memberError);
+    if (error) {
+      console.error("Error leaving challenge:", error);
       return false;
     }
-
-    const { data: challenge } = await supabase
-      .from("challenges")
-      .select("team_id")
-      .eq("id", challengeId)
-      .single();
-
-    if (challenge) {
-      await supabase
-        .from("team_members")
-        .delete()
-        .eq("team_id", challenge.team_id)
-        .eq("user_id", userId);
-    }
-
     return true;
   } catch (error) {
     console.error("Error leaving challenge:", error);
