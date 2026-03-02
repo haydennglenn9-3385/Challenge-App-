@@ -190,7 +190,7 @@ export default function ChallengeDetailPage() {
   const todayDow  = today.getDay(); // 0 = Sunday
 
   const scoringType     = challenge?.scoring_type              ?? "task_completion";
-  const isTimed         = scoringType === "timed";
+  const isTimed = scoringType === "time" || scoringType === "timed";
   const isProgressive   = scoringType === "progressive";
   const lowerIsBetter   = challenge?.scoring_direction === "asc";
   const dailyTarget     = Number(challenge?.daily_target       ?? 0);
@@ -735,12 +735,23 @@ export default function ChallengeDetailPage() {
         >
           ← Challenges
         </button>
-        <button
-          onClick={() => router.push("/embed/dashboard")}
-          className="neon-card rounded-full px-4 py-2 text-sm font-semibold text-slate-700 ml-auto"
-        >
-          Dashboard
-        </button>
+
+        <div style={{ display: "flex", gap: 8, marginLeft: "auto", alignItems: "center" }}>
+          {userId && challenge?.creator_id === userId && (
+            <button
+              onClick={() => router.push(`/embed/challenge/${challengeId}/manage`)}
+              className="neon-card rounded-full px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              ⚙️ Manage
+            </button>
+          )}
+          <button
+            onClick={() => router.push("/embed/dashboard")}
+            className="neon-card rounded-full px-4 py-2 text-sm font-semibold text-slate-700"
+          >
+            Dashboard
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: "0 20px", maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
