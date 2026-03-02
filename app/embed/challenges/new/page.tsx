@@ -92,6 +92,7 @@ export default function NewChallengePage() {
   const [targetUnit,   setTargetUnit]   = useState<string>("");
   const [submitting,   setSubmitting]   = useState(false);
   const [error,        setError]        = useState("");
+  const [dailyTarget, setDailyTarget] = useState<string>(""); 
 
   // ── Team setup ────────────────────────────────────────────────────────────
   const [teamDrafts,   setTeamDrafts]   = useState<TeamDraft[]>([]);
@@ -147,78 +148,83 @@ export default function NewChallengePage() {
     setTeamDrafts(p => p.map(t => (t.id === id ? { ...t, name } : t)));
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  /// ── Submit ────────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError("");
 
-    if (!title.trim()) { setError("Please enter a challenge name."); return; }
-    if (!session)       { setError("You must be logged in.");         return; }
+      if (!title.trim()) { setError("Please enter a challenge name."); return; }
+      if (!session)       { setError("You must be logged in.");         return; }
 
-    if (METRIC_SCORING_TYPES.has(scoringType) && !targetUnit) {
-      setError("Please select a unit for your scoring type.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    const days =
-      durationMode === "dates" && startDate && endDate
-        ? Math.round(
-            (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
-          )
-        : customDays
-        ? parseInt(customDays, 10)
-        : durationDays;
-
-    const challenge = await createChallenge({
-      name:        title.trim(),
-      duration:    days,
-      description: description.trim() || undefined,
-      creatorId:   session.user.id,
-      isPublic,
-      scoringType,
-      hasTeams,
-      targetUnit:  targetUnit || undefined,
-      ...(durationMode === "dates" && startDate && endDate
-        ? { startDate, endDate }
-        : {}),
-    });
-
-    if (!challenge) {
-      setError("Failed to create challenge. Please try again.");
-      setSubmitting(false);
-      return;
-    }
-
-    // ── Post-creation: teams ───────────────────────────────────────────────
-    if (hasTeams) {
-      // Create any pre-defined teams
-      const validDrafts = teamDrafts.filter(t => t.name.trim());
-      if (validDrafts.length > 0) {
-        const maxSize = maxTeamSize ? parseInt(maxTeamSize, 10) : null;
-        await supabase.from("teams").insert(
-          validDrafts.map(t => ({
-            name:         t.name.trim(),
-            color:        t.color,
-            challenge_id: challenge.id,
-            ...(maxSize ? { max_members: maxSize } : {}),
-          }))
-        );
+      if (METRIC_SCORING_TYPES.has(scoringType) && !targetUnit) {
+        setError("Please select a unit for your scoring type.");
+        return;
       }
 
-      // Save auto-assign preference
-      if (autoAssign) {
-        await supabase
-          .from("challenges")
-          .update({ auto_assign_teams: true })
-          .eq("id", challenge.id);
+      if (scoringType === "progressive_exercise" && !dailyTarget) {
+        setError("Please enter a starting rep count.");
+        return;
       }
-    }
 
-    router.push(`/embed/challenge/${challenge.id}/manage`);
-  };
+      setSubmitting(true);
+
+      const days =
+        durationMode === "dates" && startDate && endDate
+          ? Math.round(
+              (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
+            )
+          : customDays
+          ? parseInt(customDays, 10)
+          : durationDays;
+
+      const challenge = await createChallenge({
+        name:        title.trim(),
+        duration:    days,
+        description: description.trim() || undefined,
+        creatorId:   session.user.id,
+        isPublic,
+        scoringType: scoringType === "progressive_exercise" ? "progressive" : scoringType,
+        hasTeams,
+        dailyTarget: scoringType === "progressive_exercise" ? parseInt(dailyTarget, 10) : undefined,
+        targetUnit:  targetUnit || undefined,
+        ...(durationMode === "dates" && startDate && endDate
+          ? { startDate, endDate }
+          : {}),
+      });
+
+      if (!challenge) {
+        setError("Failed to create challenge. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      // ── Post-creation: teams ───────────────────────────────────────────────
+      if (hasTeams) {
+        const validDrafts = teamDrafts.filter(t => t.name.trim());
+        if (validDrafts.length > 0) {
+          const maxSize = maxTeamSize ? parseInt(maxTeamSize, 10) : null;
+          await supabase.from("teams").insert(
+            validDrafts.map(t => ({
+              name:         t.name.trim(),
+              color:        t.color,
+              challenge_id: challenge.id,
+              ...(maxSize ? { max_members: maxSize } : {}),
+            }))
+          );
+        }
+
+        if (autoAssign) {
+          await supabase
+            .from("challenges")
+            .update({ auto_assign_teams: true })
+            .eq("id", challenge.id);
+        }
+      }
+
+      router.push(`/embed/challenge/${challenge.id}/manage`);
+    };
+
 
   const activeDays   = customDays ? parseInt(customDays, 10) || 0 : durationDays;
   const unitOptions  = UNIT_OPTIONS[scoringType] ?? [];
@@ -646,6 +652,32 @@ export default function NewChallengePage() {
             )}
           </div>
         </div>
+
+        {/* ── Progressive: Base Reps ── */}
+        {scoringType === "progressive_exercise" && (
+          <div className="neon-card rounded-2xl overflow-hidden">
+            <div className="h-1 w-full rainbow-cta" />
+            <div className="p-5 space-y-3">
+              <p className="font-extrabold text-slate-900">Starting Reps</p>
+              <p className="text-xs text-slate-400">
+                Week 1 daily target. Increases by this amount each week (e.g. 5 → Week 2 = 10 reps/day).
+              </p>
+              <input
+                type="number"
+                min={1}
+                value={dailyTarget}
+                onChange={(e) => setDailyTarget(e.target.value)}
+                placeholder="e.g. 5"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
+              {dailyTarget && (
+                <div className="px-4 py-2.5 rounded-xl text-xs text-slate-500" style={{ background: "rgba(0,0,0,0.04)" }}>
+                  📈 Week 1: <strong>{dailyTarget} reps/day</strong> · Week 2: <strong>{Number(dailyTarget) * 2}</strong> · Week 3: <strong>{Number(dailyTarget) * 3}</strong>…
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Submit ── */}
         <button
