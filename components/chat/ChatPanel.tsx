@@ -292,21 +292,25 @@ export default function ChatPanel({
             return (
               <div
                 key={msg.id}
-                className={`flex gap-3 items-start group ${isOwn ? "flex-row-reverse" : ""}`}
+                className={`flex gap-2 items-end ${isOwn ? "flex-row-reverse" : "flex-row"}`}
               >
-                {/* Avatar */}
-                <div
-                  className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white mt-1"
-                  style={{ background: avatarGradient(msg.author_id) }}
-                >
-                  {name[0]?.toUpperCase()}
-                </div>
+                {/* Avatar — only for others */}
+                {!isOwn && (
+                  <div
+                    className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-[10px] text-white mb-1"
+                    style={{ background: avatarGradient(msg.author_id) }}
+                  >
+                    {name[0]?.toUpperCase()}
+                  </div>
+                )}
 
                 {/* Content */}
-                <div className={`flex flex-col gap-1 max-w-[72%] ${isOwn ? "items-end" : "items-start"}`}>
-                  <p className={`text-xs font-semibold text-slate-500 ${isOwn ? "text-right" : ""}`}>
-                    {name}
-                  </p>
+                <div className={`flex flex-col gap-1 max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}>
+
+                  {/* Name — only for others */}
+                  {!isOwn && (
+                    <p className="text-[11px] font-semibold text-slate-400 px-1">{name}</p>
+                  )}
 
                   {/* Edit input OR bubble */}
                   {isEditing ? (
@@ -321,12 +325,8 @@ export default function ChatPanel({
                         }}
                         className="text-sm px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-purple-400 bg-white min-w-[160px]"
                       />
-                      <button onClick={() => handleEdit(msg.id)} className="text-xs font-bold text-purple-600">
-                        Save
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-400">
-                        Cancel
-                      </button>
+                      <button onClick={() => handleEdit(msg.id)} className="text-xs font-bold text-purple-600">Save</button>
+                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-400">Cancel</button>
                     </div>
                   ) : (
                     <div className="relative">
@@ -334,29 +334,18 @@ export default function ChatPanel({
                       <div
                         className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                           isOwn
-                            ? "text-white"
-                            : "bg-slate-100 text-slate-800"
+                            ? "text-white rounded-br-sm"
+                            : "bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm"
                         }`}
                         style={isOwn ? { background: "linear-gradient(135deg,#667eea,#a855f7)" } : {}}
                       >
                         {msg.text}
                       </div>
 
-                      {/* Emoji trigger */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPickerMsgId(pickerMsgId === msg.id ? null : msg.id);
-                        }}
-                        className="absolute -bottom-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs shadow-sm"
-                      >
-                        😊
-                      </button>
-
                       {/* Emoji picker */}
                       {pickerMsgId === msg.id && (
                         <div
-                          className="absolute z-50 bottom-8 left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-2"
+                          className={`absolute z-50 bottom-10 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 ${isOwn ? "right-0" : "left-0"}`}
                           style={{ width: 220 }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -378,7 +367,7 @@ export default function ChatPanel({
 
                   {/* Reactions */}
                   {Object.keys(grouped).length > 0 && (
-                    <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : ""}`}>
+                    <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : ""}`}>
                       {Object.entries(grouped).map(([emoji, { count, reacted, names }]) => (
                         <button
                           key={emoji}
@@ -397,8 +386,8 @@ export default function ChatPanel({
                     </div>
                   )}
 
-                  {/* Timestamp + edit/delete */}
-                  <div className={`flex items-center gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
+                  {/* Timestamp row — emoji + edit/delete on tap */}
+                  <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : ""}`}>
                     <p className="text-[10px] text-slate-400">
                       {new Date(msg.created_at).toLocaleTimeString(undefined, {
                         hour: "2-digit",
@@ -407,8 +396,14 @@ export default function ChatPanel({
                       })}
                       {msg.edited_at && " · edited"}
                     </p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPickerMsgId(pickerMsgId === msg.id ? null : msg.id); }}
+                      className="text-[11px] opacity-50 hover:opacity-100 transition-opacity"
+                    >
+                      😊
+                    </button>
                     {isOwn && !isEditing && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => { setEditingId(msg.id); setEditText(msg.text); }}
                           className="text-[10px] text-slate-400 hover:text-purple-500 font-medium transition-colors"
