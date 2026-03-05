@@ -391,34 +391,7 @@ export default function ChallengeDetailPage() {
     }
 
     load();
-
-    // Realtime chat
-    const chatSub = supabase
-      .channel(`challenge_chat_${challengeId}`)
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "messages",
-      }, payload => {
-        const newMsg = payload.new as any;
-        setMessages(prev => {
-          if (prev.some(m => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-      })
-      .on("postgres_changes", {
-        event: "UPDATE", schema: "public", table: "messages",
-      }, payload => {
-        setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
-      })
-      .on("postgres_changes", {
-        event: "DELETE", schema: "public", table: "messages",
-      }, payload => {
-        setMessages(prev => prev.filter(m => m.id !== payload.old.id));
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(chatSub); };
   }, [challengeId]);
-
   // ─── Join ─────────────────────────────────────────────────────────────────────
   async function handleJoin() {
     if (!userId || !challenge) return;

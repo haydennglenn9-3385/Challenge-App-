@@ -21,8 +21,8 @@ type Message = {
 
 type ChatContext =
   | { type: "challenge"; id: string }
-  | { type: "team"; id: string }
-  | { type: "dm"; userId: string };
+  | { type: "team";      id: string }
+  | { type: "dm";        userId: string };
 
 interface Props {
   context: ChatContext;
@@ -35,7 +35,7 @@ interface Props {
 const QUICK_EMOJIS = [
   "🔥", "💪", "🌈", "👏", "❤️", "😂", "🎉", "⚡",
   "😍", "🙌", "💯", "😅", "🤣", "😤", "💀", "👎",
-  "🫶", "🤩", "😭", "🫠", "✨", "👀", 
+  "🫶", "🤩", "😭", "🫠", "✨", "👀",
 ];
 
 const AVATAR_GRADIENTS = [
@@ -67,7 +67,7 @@ export default function ChatPanel({
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [editText, setEditText]       = useState("");
   const [loading, setLoading]         = useState(true);
-  const [pickerMsgId, setsgId] = useState<string | null>(null);
+  const [pickerMsgId, setPickerMsgId] = useState<string | null>(null);
   const bottomRef                     = useRef<HTMLDivElement>(null);
 
   function getQueryParam() {
@@ -89,8 +89,8 @@ export default function ChatPanel({
     const res = await fetch(`/api/messages?${getQueryParam()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     if (!res.ok) return;
+
     const data = await res.json();
     if (!Array.isArray(data)) return;
 
@@ -173,9 +173,12 @@ export default function ChatPanel({
 
     const token = await getToken();
     const body: Record<string, any> = { text: trimmed };
-    if (context.type === "challenge")      body.challengeId = context.id;
-    else if (context.type === "team")      body.teamId = context.id;
-    else body.dmUserId = (context as { type: "dm"; userId: string }).userId;
+    if (context.type === "challenge")
+      body.challengeId = context.id;
+    else if (context.type === "team")
+      body.teamId = context.id;
+    else
+      body.dmUserId = (context as { type: "dm"; userId: string }).userId;
 
     await fetch("/api/messages", {
       method: "POST",
@@ -305,6 +308,7 @@ export default function ChatPanel({
                     {name}
                   </p>
 
+                  {/* Edit input OR bubble */}
                   {isEditing ? (
                     <div className="flex gap-2 items-center">
                       <input
@@ -326,58 +330,51 @@ export default function ChatPanel({
                     </div>
                   ) : (
                     <div className="relative">
+                      {/* Bubble */}
                       <div
                         className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                           isOwn
-                            ? "text-white rounded-tr-sm"
-                            : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
+                            ? "text-white"
+                            : "bg-slate-100 text-slate-800"
                         }`}
                         style={isOwn ? { background: "linear-gradient(135deg,#667eea,#a855f7)" } : {}}
                       >
                         {msg.text}
                       </div>
 
-                      {/* Bubble */}
-                      <div className="relative">
+                      {/* Emoji trigger */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPickerMsgId(pickerMsgId === msg.id ? null : msg.id);
+                        }}
+                        className="absolute -bottom-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs shadow-sm"
+                      >
+                        😊
+                      </button>
+
+                      {/* Emoji picker */}
+                      {pickerMsgId === msg.id && (
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                            isOwn
-                              ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white"
-                              : "bg-slate-100 text-slate-800"
-                          }`}
+                          className="absolute z-50 bottom-8 left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-2"
+                          style={{ width: 220 }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {msg.text}
-                        </div>
-
-                        {/* Emoji trigger */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setPickerMsgId(pickerMsgId === msg.id ? null : msg.id); }}
-                          className="absolute -bottom-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs shadow-sm"
-                        >
-                          😊
-                        </button>
-
-                        {/* Emoji picker */}
-                        {pickerMsgId === msg.id && (
-                          <div
-                            className="absolute z-50 bottom-8 left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-2"
-                            style={{ width: 220 }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex flex-wrap gap-1">
-                              {QUICK_EMOJIS.map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => handleReaction(msg.id, emoji)}
-                                  className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
+                          <div className="flex flex-wrap gap-1">
+                            {QUICK_EMOJIS.map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReaction(msg.id, emoji)}
+                                className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Reactions */}
                   {Object.keys(grouped).length > 0 && (
@@ -427,6 +424,7 @@ export default function ChatPanel({
                       </div>
                     )}
                   </div>
+
                 </div>
               </div>
             );
@@ -461,6 +459,7 @@ export default function ChatPanel({
           </button>
         </div>
       </div>
+
     </div>
   );
 }
