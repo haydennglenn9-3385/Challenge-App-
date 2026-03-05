@@ -371,7 +371,7 @@ export default function MessagesPage() {
       {openDmUser && user && (
         <div className="flex-1 flex flex-col" style={{ minHeight: "calc(100vh - 120px)" }}>
           <ChatPanel
-            context={{ type: "dm", userId: openDmUser.id }}
+            context={{ type: "dm", id: openDmUser.id }}
             currentUserId={user.id}
             currentUserName={user.name}
             title={openDmUser.name}
