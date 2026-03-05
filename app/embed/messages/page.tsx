@@ -356,7 +356,7 @@ export default function MessagesPage() {
 
       {/* ── Challenge chat open ── */}
       {openChallenge && user && (
-        <div className="flex-1 flex flex-col" style={{ minHeight: "calc(100vh - 120px)" }}>
+        <div style={{ position: "fixed", inset: "0 0 64px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "challenge", id: openChallenge.id }}
             currentUserId={user.id}
