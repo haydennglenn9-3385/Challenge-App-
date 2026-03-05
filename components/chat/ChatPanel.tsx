@@ -44,14 +44,17 @@ const SELECT_FIELDS =
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+  // Supabase returns timestamps without timezone — append Z to parse as UTC
+  const normalized = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  return new Date(normalized).toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
 }
 
 function formatDateSeparator(iso: string): string {
-  const date = new Date(iso);
+  const normalized = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  const date = new Date(normalized);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
