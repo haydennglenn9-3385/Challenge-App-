@@ -16,37 +16,43 @@ async function getAuthedUser(req: Request) {
 
 // GET /api/messages?challengeId=x | teamId=x | dmUserId=x
 export async function GET(req: Request) {
-  const user = await getAuthedUser(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = await getAuthedUser(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const challengeId = searchParams.get("challengeId");
-  const teamId      = searchParams.get("teamId");
-  const dmUserId    = searchParams.get("dmUserId");
+    const { searchParams } = new URL(req.url);
+    const challengeId = searchParams.get("challengeId");
+    const teamId      = searchParams.get("teamId");
+    const dmUserId    = searchParams.get("dmUserId");
 
-  let query = supabaseAdmin
-    .from("messages")
-    .select("id, text, created_at, edited_at, author_id, users(id, name)")
-    .order("created_at", { ascending: true })
-    .limit(100);
+    let query = supabaseAdmin
+      .from("messages")
+      .select("id, text, created_at, edited_at, author_id, users(id, name)")
+      .order("created_at", { ascending: true })
+      .limit(100);
 
-  if (challengeId) {
-    query = query.eq("challenge_id", challengeId).eq("is_dm", false);
-  } else if (teamId) {
-    query = query.eq("team_id", teamId).eq("is_dm", false);
-  } else if (dmUserId) {
-    query = query
-      .eq("is_dm", true)
-      .or(
-        `and(author_id.eq.${user.id},recipient_id.eq.${dmUserId}),and(author_id.eq.${dmUserId},recipient_id.eq.${user.id})`
-      );
-  } else {
-    return NextResponse.json({ error: "Missing context param" }, { status: 400 });
+    if (challengeId) {
+      query = query.eq("challenge_id", challengeId).eq("is_dm", false);
+    } else if (teamId) {
+      query = query.eq("team_id", teamId).eq("is_dm", false);
+    } else if (dmUserId) {
+      query = query
+        .eq("is_dm", true)
+        .or(`and(author_id.eq.${user.id},recipient_id.eq.${dmUserId}),and(author_id.eq.${dmUserId},recipient_id.eq.${user.id})`);
+    } else {
+      return NextResponse.json({ error: "Missing context param" }, { status: 400 });
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("Supabase error:", error);
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+    }
+    return NextResponse.json(data);
+  } catch (err: any) {
+    console.error("Unexpected error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
 }
 
 // POST /api/messages
