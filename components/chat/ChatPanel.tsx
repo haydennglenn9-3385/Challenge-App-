@@ -45,6 +45,11 @@ function avatarGradient(userId: string) {
   return AVATAR_GRADIENTS[userId.charCodeAt(0) % AVATAR_GRADIENTS.length];
 }
 
+async function getToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
 export default function ChatPanel({
   context,
   currentUserId,
@@ -64,7 +69,7 @@ export default function ChatPanel({
   function getQueryParam() {
     if (context.type === "challenge") return `challengeId=${context.id}`;
     if (context.type === "team")      return `teamId=${context.id}`;
-    return `dmUserId=${context.userId}`;
+    return `dmUserId=${(context as { type: "dm"; userId: string }).userId}`;
   }
 
   function getContextKey() {
@@ -74,7 +79,14 @@ export default function ChatPanel({
   }
 
   const fetchMessages = useCallback(async () => {
-    const res = await fetch(`/api/messages?${getQueryParam()}`);
+    const token = await getToken();
+    if (!token) return;
+
+    const res = await fetch(`/api/messages?${getQueryParam()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return;
     const data = await res.json();
     if (!Array.isArray(data)) return;
 
@@ -155,20 +167,23 @@ export default function ChatPanel({
     if (!trimmed || sending) return;
     setSending(true);
 
+    const token = await getToken();
     const body: Record<string, any> = { text: trimmed };
     if (context.type === "challenge")      body.challengeId = context.id;
     else if (context.type === "team")      body.teamId = context.id;
-    else                                   body.dmUserId = (context as any).userId;
+    else body.dmUserId = (context as { type: "dm"; userId: string }).userId;
 
     await fetch("/api/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(body),
     });
 
     setText("");
     setSending(false);
-    // Manual re-fetch as fallback when WebSocket is unavailable
     await fetchMessages();
   }
 
@@ -176,9 +191,13 @@ export default function ChatPanel({
     const trimmed = editText.trim();
     if (!trimmed) return;
 
+    const token = await getToken();
     await fetch("/api/messages", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ id, text: trimmed }),
     });
 
@@ -188,15 +207,23 @@ export default function ChatPanel({
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/messages?id=${id}`, { method: "DELETE" });
+    const token = await getToken();
+    await fetch(`/api/messages?id=${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     await fetchMessages();
   }
 
   async function handleReaction(messageId: string, emoji: string) {
     setPickerMsgId(null);
+    const token = await getToken();
     await fetch("/api/reactions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ messageId, emoji }),
     });
     await fetchMessages();
@@ -214,10 +241,8 @@ export default function ChatPanel({
   }
 
   return (
-    <div
-      className="flex flex-col h-full"
-      onClick={() => setPickerMsgId(null)}
-    >
+    <div className="flex flex-col h-full" onClick={() => setPickerMsgId(null)}>
+
       {/* Header */}
       {(title || onBack) && (
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-white/80 backdrop-blur-sm flex-shrink-0">
@@ -276,7 +301,6 @@ export default function ChatPanel({
                     {name}
                   </p>
 
-                  {/* Bubble or edit input */}
                   {isEditing ? (
                     <div className="flex gap-2 items-center">
                       <input
@@ -289,16 +313,10 @@ export default function ChatPanel({
                         }}
                         className="text-sm px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-purple-400 bg-white min-w-[160px]"
                       />
-                      <button
-                        onClick={() => handleEdit(msg.id)}
-                        className="text-xs font-bold text-purple-600"
-                      >
+                      <button onClick={() => handleEdit(msg.id)} className="text-xs font-bold text-purple-600">
                         Save
                       </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="text-xs text-slate-400"
-                      >
+                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-400">
                         Cancel
                       </button>
                     </div>
@@ -310,16 +328,12 @@ export default function ChatPanel({
                             ? "text-white rounded-tr-sm"
                             : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
                         }`}
-                        style={
-                          isOwn
-                            ? { background: "linear-gradient(135deg,#667eea,#a855f7)" }
-                            : {}
-                        }
+                        style={isOwn ? { background: "linear-gradient(135deg,#667eea,#a855f7)" } : {}}
                       >
                         {msg.text}
                       </div>
 
-                      {/* Emoji picker trigger */}
+                      {/* Emoji trigger */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -350,7 +364,7 @@ export default function ChatPanel({
                     </div>
                   )}
 
-                  {/* Reactions row */}
+                  {/* Reactions */}
                   {Object.keys(grouped).length > 0 && (
                     <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : ""}`}>
                       {Object.entries(grouped).map(([emoji, { count, reacted, names }]) => (
@@ -383,10 +397,7 @@ export default function ChatPanel({
                     {isOwn && !isEditing && (
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                         <button
-                          onClick={() => {
-                            setEditingId(msg.id);
-                            setEditText(msg.text);
-                          }}
+                          onClick={() => { setEditingId(msg.id); setEditText(msg.text); }}
                           className="text-[10px] text-slate-400 hover:text-purple-500 font-medium transition-colors"
                         >
                           Edit

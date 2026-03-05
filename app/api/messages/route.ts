@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,20 +7,16 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-async function getAuthedUser() {
-  const cookieStore = await cookies();
-  const client = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => cookieStore.get(name)?.value } }
-  );
-  const { data: { user } } = await client.auth.getUser();
-  return user;
+async function getAuthedUser(req: Request) {
+  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+  if (!token) return null;
+  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+  return user ?? null;
 }
 
 // GET /api/messages?challengeId=x | teamId=x | dmUserId=x
 export async function GET(req: Request) {
-  const user = await getAuthedUser();
+  const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -37,9 +31,9 @@ export async function GET(req: Request) {
     .limit(100);
 
   if (challengeId) {
-    query = query.eq("challenge_id", challengeId).is("is_dm", false);
+    query = query.eq("challenge_id", challengeId).eq("is_dm", false);
   } else if (teamId) {
-    query = query.eq("team_id", teamId).is("is_dm", false);
+    query = query.eq("team_id", teamId).eq("is_dm", false);
   } else if (dmUserId) {
     query = query
       .eq("is_dm", true)
@@ -57,7 +51,7 @@ export async function GET(req: Request) {
 
 // POST /api/messages
 export async function POST(req: Request) {
-  const user = await getAuthedUser();
+  const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
@@ -71,8 +65,8 @@ export async function POST(req: Request) {
     is_dm:     false,
   };
 
-  if (challengeId)  insert.challenge_id  = challengeId;
-  else if (teamId)  insert.team_id       = teamId;
+  if (challengeId)       insert.challenge_id  = challengeId;
+  else if (teamId)       insert.team_id       = teamId;
   else if (dmUserId) {
     insert.is_dm        = true;
     insert.recipient_id = dmUserId;
@@ -90,15 +84,14 @@ export async function POST(req: Request) {
   return NextResponse.json(data);
 }
 
-// PATCH /api/messages  — edit own message
+// PATCH /api/messages — edit own message
 export async function PATCH(req: Request) {
-  const user = await getAuthedUser();
+  const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, text } = await req.json();
   if (!id || !text?.trim()) return NextResponse.json({ error: "id and text required" }, { status: 400 });
 
-  // Verify ownership
   const { data: msg } = await supabaseAdmin
     .from("messages").select("author_id").eq("id", id).single();
   if (!msg || msg.author_id !== user.id)
@@ -117,14 +110,13 @@ export async function PATCH(req: Request) {
 
 // DELETE /api/messages?id=x
 export async function DELETE(req: Request) {
-  const user = await getAuthedUser();
+  const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  // Verify ownership
   const { data: msg } = await supabaseAdmin
     .from("messages").select("author_id").eq("id", id).single();
   if (!msg || msg.author_id !== user.id)
