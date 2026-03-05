@@ -32,7 +32,11 @@ interface Props {
   onBack?: () => void;
 }
 
-const QUICK_EMOJIS = ["🔥", "💪", "🌈", "👏", "❤️", "😂", "🎉", "⚡"];
+const QUICK_EMOJIS = [
+  "🔥", "💪", "🌈", "👏", "❤️", "😂", "🎉", "⚡",
+  "😍", "🙌", "💯", "😅", "🤣", "😤", "💀", "👎",
+  "🫶", "🤩", "😭", "🫠", "✨", "👀", 
+];
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#ff6b9d,#ff9f43)",
@@ -63,7 +67,7 @@ export default function ChatPanel({
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [editText, setEditText]       = useState("");
   const [loading, setLoading]         = useState(true);
-  const [pickerMsgId, setPickerMsgId] = useState<string | null>(null);
+  const [pickerMsgId, setsgId] = useState<string | null>(null);
   const bottomRef                     = useRef<HTMLDivElement>(null);
 
   function getQueryParam() {
@@ -333,36 +337,47 @@ export default function ChatPanel({
                         {msg.text}
                       </div>
 
-                      {/* Emoji trigger */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPickerMsgId(pickerMsgId === msg.id ? null : msg.id);
-                        }}
-                        className={`absolute -bottom-2 ${isOwn ? "-left-2" : "-right-2"} opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-xs hover:scale-110`}
-                      >
-                        😊
-                      </button>
-
-                      {/* Emoji picker */}
-                      {pickerMsgId === msg.id && (
+                      {/* Bubble */}
+                      <div className="relative">
                         <div
-                          onClick={(e) => e.stopPropagation()}
-                          className={`absolute bottom-6 ${isOwn ? "right-0" : "left-0"} z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 flex gap-1`}
+                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                            isOwn
+                              ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+                              : "bg-slate-100 text-slate-800"
+                          }`}
                         >
-                          {QUICK_EMOJIS.map((emoji) => (
-                            <button
-                              key={emoji}
-                              onClick={() => handleReaction(msg.id, emoji)}
-                              className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
+                          {msg.text}
                         </div>
-                      )}
-                    </div>
-                  )}
+
+                        {/* Emoji trigger */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPickerMsgId(pickerMsgId === msg.id ? null : msg.id); }}
+                          className="absolute -bottom-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs shadow-sm"
+                        >
+                          😊
+                        </button>
+
+                        {/* Emoji picker */}
+                        {pickerMsgId === msg.id && (
+                          <div
+                            className="absolute z-50 bottom-8 left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-2"
+                            style={{ width: 220 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex flex-wrap gap-1">
+                              {QUICK_EMOJIS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => handleReaction(msg.id, emoji)}
+                                  className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                   {/* Reactions */}
                   {Object.keys(grouped).length > 0 && (
@@ -388,9 +403,10 @@ export default function ChatPanel({
                   {/* Timestamp + edit/delete */}
                   <div className={`flex items-center gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
                     <p className="text-[10px] text-slate-400">
-                      {new Date(msg.created_at).toLocaleTimeString([], {
+                      {new Date(msg.created_at).toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                       })}
                       {msg.edited_at && " · edited"}
                     </p>

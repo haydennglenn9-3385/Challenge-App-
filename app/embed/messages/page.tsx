@@ -185,12 +185,12 @@ export default function MessagesPage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                className={`flex-1 py-2 rounded-full text-[11px] font-bold transition-all flex items-center justify-center gap-1 min-w-0 ${
                   tab === t.id ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
                 }`}
               >
-                <span>{t.icon}</span>
-                <span>{t.label}</span>
+                <span className="flex-shrink-0">{t.icon}</span>
+                <span className="truncate">{t.label}</span>
               </button>
             ))}
           </div>

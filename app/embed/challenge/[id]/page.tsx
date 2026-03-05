@@ -9,6 +9,7 @@ import {
   formatTimeInput,
   timeDelta,
 } from "@/lib/utils/time";
+import ChatPanel from "@/components/chat/ChatPanel";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -151,8 +152,6 @@ export default function ChallengeDetailPage() {
   // ── Core state ───────────────────────────────────────────────────────────────
   const [challenge,    setChallenge]    = useState<any>(null);
   const [members,      setMembers]      = useState<any[]>([]);
-  const [messages,     setMessages]     = useState<any[]>([]);
-  const [messageText,  setMessageText]  = useState("");
   const [loading,      setLoading]      = useState(true);
   const [notFound,     setNotFound]     = useState(false);
 
@@ -163,6 +162,7 @@ export default function ChallengeDetailPage() {
 
   // ── User state ───────────────────────────────────────────────────────────────
   const [userId,          setUserId]          = useState("");
+  const [userName,        setUserName]        = useState(""); 
   const [isMember,        setIsMember]        = useState(false);
   const [userTeam,        setUserTeam]        = useState("");
   const [userTotalPoints, setUserTotalPoints] = useState(0);
@@ -198,9 +198,7 @@ export default function ChallengeDetailPage() {
   const [saveSuccess,   setSaveSuccess]   = useState(false);
 
   // ── Chat edit/delete state ────────────────────────────────────────────────────
-  const [editingMsgId,   setEditingMsgId]   = useState<string | null>(null);
-  const [editingMsgText, setEditingMsgText] = useState("");
-  const [savingMsg,      setSavingMsg]      = useState(false);
+  
 
   // ─── Derived values ───────────────────────────────────────────────────────────
   const today    = new Date();
@@ -340,17 +338,6 @@ export default function ChallengeDetailPage() {
         setMembers(membersData.map((m: any) => ({ ...m.users })).filter(Boolean));
       }
 
-      // Load messages (with author info and id for edit/delete)
-      if (ch.team_id) {
-        const { data: msgsData } = await supabase
-          .from("messages")
-          .select("id, author_id, text, created_at, users:author_id(name)")
-          .eq("team_id", ch.team_id)
-          .order("created_at", { ascending: true })
-          .limit(100);
-        if (msgsData) setMessages(msgsData);
-      }
-
       // Load teams if applicable
       if (ch.has_teams) {
         const { data: teamsData } = await supabase
@@ -374,7 +361,14 @@ export default function ChallengeDetailPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
-        const { data: memberCheck } = await supabase
+        const { data: profile } = await supabase
+          .from("users")
+          .select("name")
+          .eq("id", user.id)
+          .single();
+      if (profile?.name) setUserName(profile.name);
+        
+      const { data: memberCheck } = await supabase
           .from("challenge_members").select("id")
           .eq("challenge_id", challengeId).eq("user_id", user.id).maybeSingle();
         const member = !!memberCheck;
@@ -480,45 +474,6 @@ export default function ChallengeDetailPage() {
     setChallengeLogs([]);
     setChallengeStreak(0);
     setCheckedInToday(false);
-  }
-
-  // ─── Chat ─────────────────────────────────────────────────────────────────────
-  async function handleEditMessage(msgId: string) {
-    if (!editingMsgText.trim()) return;
-    setSavingMsg(true);
-    await supabase
-      .from("messages")
-      .update({ text: editingMsgText.trim(), edited_at: new Date().toISOString() })
-      .eq("id", msgId)
-      .eq("author_id", userId);
-    setMessages(prev =>
-      prev.map(m => m.id === msgId ? { ...m, text: editingMsgText.trim() } : m)
-    );
-    setEditingMsgId(null);
-    setEditingMsgText("");
-    setSavingMsg(false);
-  }
-
-  async function handleDeleteMessage(msgId: string) {
-    if (!confirm("Delete this message?")) return;
-    await supabase
-      .from("messages")
-      .delete()
-      .eq("id", msgId)
-      .eq("author_id", userId);
-    setMessages(prev => prev.filter(m => m.id !== msgId));
-  }
-
-  async function handleSendMessage(e: React.FormEvent) {
-    e.preventDefault();
-    if (!messageText.trim() || !userId) return;
-    const text = messageText.trim();
-    setMessageText("");
-    await supabase.from("messages").insert({
-      challenge_id: challengeId,
-      author_id:    userId,
-      text,
-    });
   }
   
   // ─── Standard check-in ───────────────────────────────────────────────────────
@@ -1267,122 +1222,27 @@ export default function ChallengeDetailPage() {
         )}
 
         {/* ── Chat ────────────────────────────────────────────────────────── */}
-        <div className="neon-card rounded-2xl overflow-hidden">
-          <div className="h-1 w-full rainbow-cta" />
-          <div style={{ padding: "16px 20px" }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 12 }}>
-              Challenge Chat
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", marginBottom: 12 }}>
-              {messages.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>
-                  No messages yet. {isMember ? "Be the first to say something! 👋" : "Join to chat."}
-                </p>
-              ) : messages.map((msg, i) => {
-                const isOwn    = msg.author_id === userId;
-                const isEditing = editingMsgId === msg.id;
-                return (
-                  <div key={msg.id ?? i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <div
-                      style={{
-                        width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                        background: "linear-gradient(135deg,#ff6b9d,#667eea)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer",
-                      }}
-                      onClick={() => msg.author_id && router.push(`/embed/profile/${msg.author_id}`)}
-                    >
-                      {(msg.users?.name ?? "?")[0].toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <p
-                          style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", cursor: "pointer" }}
-                          onClick={() => msg.author_id && router.push(`/embed/profile/${msg.author_id}`)}
-                        >
-                          {msg.users?.name ?? "Member"}
-                        </p>
-                        {isOwn && !isEditing && (
-                          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-                            <button
-                              onClick={() => { setEditingMsgId(msg.id); setEditingMsgText(msg.text); }}
-                              style={{ fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", padding: "0 4px" }}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              style={{ fontSize: 11, color: "#fca5a5", background: "none", border: "none", cursor: "pointer", padding: "0 4px" }}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {isEditing ? (
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <input
-                            value={editingMsgText}
-                            onChange={e => setEditingMsgText(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") handleEditMessage(msg.id);
-                              if (e.key === "Escape") { setEditingMsgId(null); setEditingMsgText(""); }
-                            }}
-                            autoFocus
-                            style={{
-                              flex: 1, padding: "6px 12px", borderRadius: 10,
-                              border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none",
-                            }}
-                          />
-                          <button
-                            onClick={() => handleEditMessage(msg.id)}
-                            disabled={savingMsg}
-                            style={{
-                              padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700,
-                              background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "#fff",
-                              border: "none", cursor: "pointer",
-                            }}
-                          >
-                            {savingMsg ? "…" : "Save"}
-                          </button>
-                          <button
-                            onClick={() => { setEditingMsgId(null); setEditingMsgText(""); }}
-                            style={{ padding: "6px 10px", borderRadius: 10, fontSize: 12, background: "#f1f5f9", border: "none", cursor: "pointer", color: "#64748b" }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <p style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>
-                          {msg.text}
-                          {msg.edited_at && <span style={{ fontSize: 10, color: "#cbd5e1", marginLeft: 4 }}>(edited)</span>}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {isMember ? (
-              <form onSubmit={handleSendMessage} style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={messageText}
-                  onChange={e => setMessageText(e.target.value)}
-                  placeholder="Send a message…"
-                  style={{
-                    flex: 1, padding: "10px 14px", borderRadius: 12,
-                    border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none", background: "#fff",
-                  }}
-                />
-                <button type="submit" className="rainbow-cta rounded-xl px-4 py-2 text-sm font-bold">Send</button>
-              </form>
-            ) : (
-              <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
-                Join the challenge to chat
-              </p>
-            )}
+        {userId && isMember && (
+          <div className="neon-card rounded-2xl overflow-hidden" style={{ height: 480 }}>
+            <ChatPanel
+              context={{ type: "challenge", id: challengeId }}
+              currentUserId={userId}
+              currentUserName={userName}
+              title="Challenge Chat"
+            />
           </div>
-        </div>
+        )}
+        {userId && !isMember && (
+          <div className="neon-card rounded-2xl overflow-hidden">
+            <div className="h-1 w-full rainbow-cta" />
+            <div className="px-5 py-6 text-center">
+              <p className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-2">
+                Challenge Chat
+              </p>
+              <p className="text-sm text-slate-500">Join the challenge to chat 💬</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Join / Leave ─────────────────────────────────────────────────── */}
         {!userId && (
