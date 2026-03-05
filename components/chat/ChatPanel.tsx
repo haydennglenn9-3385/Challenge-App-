@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 type Reaction = {
@@ -21,8 +21,8 @@ type Message = {
 
 type ChatContext =
   | { type: "challenge"; id: string }
-  | { type: "team";      id: string }
-  | { type: "dm";        userId: string };
+  | { type: "team"; id: string }
+  | { type: "dm"; userId: string };
 
 interface Props {
   context: ChatContext;
@@ -45,15 +45,21 @@ function avatarGradient(userId: string) {
   return AVATAR_GRADIENTS[userId.charCodeAt(0) % AVATAR_GRADIENTS.length];
 }
 
-export default function ChatPanel({ context, currentUserId, currentUserName, title, onBack }: Props) {
-  const [messages, setMessages]   = useState<Message[]>([]);
-  const [text, setText]           = useState("");
-  const [sending, setSending]     = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText]   = useState("");
-  const [loading, setLoading]     = useState(true);
+export default function ChatPanel({
+  context,
+  currentUserId,
+  currentUserName,
+  title,
+  onBack,
+}: Props) {
+  const [messages, setMessages]       = useState<Message[]>([]);
+  const [text, setText]               = useState("");
+  const [sending, setSending]         = useState(false);
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [editText, setEditText]       = useState("");
+  const [loading, setLoading]         = useState(true);
   const [pickerMsgId, setPickerMsgId] = useState<string | null>(null);
-  const bottomRef                 = useRef<HTMLDivElement>(null);
+  const bottomRef                     = useRef<HTMLDivElement>(null);
 
   function getQueryParam() {
     if (context.type === "challenge") return `challengeId=${context.id}`;
@@ -62,33 +68,41 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
   }
 
   function getContextKey() {
-    return context.type === "dm" ? context.userId : (context as any).id;
+    return context.type === "dm"
+      ? (context as { type: "dm"; userId: string }).userId
+      : (context as { type: "challenge" | "team"; id: string }).id;
   }
 
-  async function fetchMessages() {
+  const fetchMessages = useCallback(async () => {
     const res = await fetch(`/api/messages?${getQueryParam()}`);
     const data = await res.json();
     if (!Array.isArray(data)) return;
 
-    // Fetch reactions for all messages in one query
-    const ids = data.map((m: Message) => m.id);
-    if (ids.length > 0) {
-      const { data: reactions } = await supabase
-        .from("reactions")
-        .select("id, emoji, user_id, message_id, users(name)")
-        .in("message_id", ids);
-
-      const reactionsByMsg: Record<string, Reaction[]> = {};
-      (reactions || []).forEach((r: any) => {
-        if (!reactionsByMsg[r.message_id]) reactionsByMsg[r.message_id] = [];
-        reactionsByMsg[r.message_id].push(r);
-      });
-
-      setMessages(data.map((m: Message) => ({ ...m, reactions: reactionsByMsg[m.id] || [] })));
-    } else {
+    if (data.length === 0) {
       setMessages([]);
+      return;
     }
-  }
+
+    const ids = data.map((m: Message) => m.id);
+    const { data: reactions } = await supabase
+      .from("reactions")
+      .select("id, emoji, user_id, message_id, users(name)")
+      .in("message_id", ids);
+
+    const reactionsByMsg: Record<string, Reaction[]> = {};
+    (reactions || []).forEach((r: any) => {
+      if (!reactionsByMsg[r.message_id]) reactionsByMsg[r.message_id] = [];
+      reactionsByMsg[r.message_id].push(r);
+    });
+
+    setMessages(
+      data.map((m: Message) => ({
+        ...m,
+        reactions: reactionsByMsg[m.id] || [],
+      }))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [context.type, getContextKey()]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,21 +115,26 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
 
     load();
 
-    const filterKey = getContextKey();
-    const filter = context.type === "challenge"
-      ? `challenge_id=eq.${filterKey}`
-      : context.type === "team"
-      ? `team_id=eq.${filterKey}`
-      : null;
+    const contextKey = getContextKey();
+    const filter =
+      context.type === "challenge"
+        ? `challenge_id=eq.${contextKey}`
+        : context.type === "team"
+        ? `team_id=eq.${contextKey}`
+        : null;
 
     if (!filter) return;
 
     const channel = supabase
-      .channel(`chat-${context.type}-${filterKey}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter },
+      .channel(`chat-${context.type}-${contextKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages", filter },
         () => { if (!cancelled) fetchMessages(); }
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "reactions" },
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
         () => { if (!cancelled) fetchMessages(); }
       )
       .subscribe();
@@ -137,9 +156,9 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
     setSending(true);
 
     const body: Record<string, any> = { text: trimmed };
-    if (context.type === "challenge")   body.challengeId = context.id;
-    else if (context.type === "team")   body.teamId = context.id;
-    else                                body.dmUserId = context.userId;
+    if (context.type === "challenge")      body.challengeId = context.id;
+    else if (context.type === "team")      body.teamId = context.id;
+    else                                   body.dmUserId = (context as any).userId;
 
     await fetch("/api/messages", {
       method: "POST",
@@ -149,22 +168,28 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
 
     setText("");
     setSending(false);
+    // Manual re-fetch as fallback when WebSocket is unavailable
+    await fetchMessages();
   }
 
   async function handleEdit(id: string) {
     const trimmed = editText.trim();
     if (!trimmed) return;
+
     await fetch("/api/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, text: trimmed }),
     });
+
     setEditingId(null);
     setEditText("");
+    await fetchMessages();
   }
 
   async function handleDelete(id: string) {
     await fetch(`/api/messages?id=${id}`, { method: "DELETE" });
+    await fetchMessages();
   }
 
   async function handleReaction(messageId: string, emoji: string) {
@@ -174,9 +199,9 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messageId, emoji }),
     });
+    await fetchMessages();
   }
 
-  // Group reactions by emoji for display
   function groupReactions(reactions: Reaction[] = []) {
     const grouped: Record<string, { count: number; reacted: boolean; names: string[] }> = {};
     reactions.forEach((r) => {
@@ -189,17 +214,24 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
   }
 
   return (
-    <div className="flex flex-col h-full" onClick={() => setPickerMsgId(null)}>
-
+    <div
+      className="flex flex-col h-full"
+      onClick={() => setPickerMsgId(null)}
+    >
       {/* Header */}
       {(title || onBack) && (
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-white/80 backdrop-blur-sm flex-shrink-0">
           {onBack && (
-            <button onClick={onBack} className="text-slate-400 hover:text-slate-700 transition-colors text-sm font-medium">
+            <button
+              onClick={onBack}
+              className="text-slate-400 hover:text-slate-700 transition-colors text-sm font-medium"
+            >
               ← Back
             </button>
           )}
-          {title && <p className="font-bold text-slate-900 text-base truncate">{title}</p>}
+          {title && (
+            <p className="font-bold text-slate-900 text-base truncate">{title}</p>
+          )}
         </div>
       )}
 
@@ -208,7 +240,9 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 py-20">
             <div className="text-4xl">🏳️‍🌈</div>
-            <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading…</p>
+            <p className="text-sm font-bold tracking-widest uppercase text-purple-600">
+              Loading…
+            </p>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 py-20 text-center">
@@ -224,8 +258,10 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
             const grouped   = groupReactions(msg.reactions);
 
             return (
-              <div key={msg.id} className={`flex gap-3 items-start group ${isOwn ? "flex-row-reverse" : ""}`}>
-
+              <div
+                key={msg.id}
+                className={`flex gap-3 items-start group ${isOwn ? "flex-row-reverse" : ""}`}
+              >
                 {/* Avatar */}
                 <div
                   className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white mt-1"
@@ -236,7 +272,9 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
 
                 {/* Content */}
                 <div className={`flex flex-col gap-1 max-w-[72%] ${isOwn ? "items-end" : "items-start"}`}>
-                  <p className={`text-xs font-semibold text-slate-500 ${isOwn ? "text-right" : ""}`}>{name}</p>
+                  <p className={`text-xs font-semibold text-slate-500 ${isOwn ? "text-right" : ""}`}>
+                    {name}
+                  </p>
 
                   {/* Bubble or edit input */}
                   {isEditing ? (
@@ -251,8 +289,18 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
                         }}
                         className="text-sm px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-purple-400 bg-white min-w-[160px]"
                       />
-                      <button onClick={() => handleEdit(msg.id)} className="text-xs font-bold text-purple-600">Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-400">Cancel</button>
+                      <button
+                        onClick={() => handleEdit(msg.id)}
+                        className="text-xs font-bold text-purple-600"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-xs text-slate-400"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ) : (
                     <div className="relative">
@@ -262,15 +310,22 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
                             ? "text-white rounded-tr-sm"
                             : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
                         }`}
-                        style={isOwn ? { background: "linear-gradient(135deg,#667eea,#a855f7)" } : {}}
+                        style={
+                          isOwn
+                            ? { background: "linear-gradient(135deg,#667eea,#a855f7)" }
+                            : {}
+                        }
                       >
                         {msg.text}
                       </div>
 
-                      {/* Emoji picker trigger — visible on hover */}
+                      {/* Emoji picker trigger */}
                       <button
-                        onClick={(e) => { e.stopPropagation(); setPickerMsgId(pickerMsgId === msg.id ? null : msg.id); }}
-                        className={`absolute -bottom-2 ${isOwn ? "-left-2" : "-right-2"} opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-xs hover:scale-110 transition-transform`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPickerMsgId(pickerMsgId === msg.id ? null : msg.id);
+                        }}
+                        className={`absolute -bottom-2 ${isOwn ? "-left-2" : "-right-2"} opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-xs hover:scale-110`}
                       >
                         😊
                       </button>
@@ -285,7 +340,7 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
                             <button
                               key={emoji}
                               onClick={() => handleReaction(msg.id, emoji)}
-                              className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors hover:scale-125 transition-transform"
+                              className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-colors"
                             >
                               {emoji}
                             </button>
@@ -319,13 +374,19 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
                   {/* Timestamp + edit/delete */}
                   <div className={`flex items-center gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
                     <p className="text-[10px] text-slate-400">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                       {msg.edited_at && " · edited"}
                     </p>
                     {isOwn && !isEditing && (
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                         <button
-                          onClick={() => { setEditingId(msg.id); setEditText(msg.text); }}
+                          onClick={() => {
+                            setEditingId(msg.id);
+                            setEditText(msg.text);
+                          }}
                           className="text-[10px] text-slate-400 hover:text-purple-500 font-medium transition-colors"
                         >
                           Edit
@@ -373,7 +434,6 @@ export default function ChatPanel({ context, currentUserId, currentUserName, tit
           </button>
         </div>
       </div>
-
     </div>
   );
 }
