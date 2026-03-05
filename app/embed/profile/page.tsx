@@ -61,7 +61,7 @@ function ProfileContent() {
       setCreatedChallenges(createdData || []);
 
       const { data: userTeamData } = await supabase
-        .from("team_members").select("team_id").eq("user_id", resolvedId).limit(1).single();
+        .from("team_members").select("team_id").eq("user_id", resolvedId).limit(1).maybeSingle();
       if (userTeamData) {
         const { data: membersData } = await supabase
           .from("team_members")
