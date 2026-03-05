@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -125,57 +126,79 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
   );
 }
 
-function EmojiPicker({
+interface PickerAnchor {
+  msgId: string;
+  top: number;
+  left: number;
+  alignRight: boolean;
+}
+
+function EmojiPickerPortal({
+  anchor,
   onSelect,
-  align,
+  onClose,
 }: {
+  anchor: PickerAnchor;
   onSelect: (emoji: string) => void;
-  align: "left" | "right";
+  onClose: () => void;
 }) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        zIndex: 50,
-        bottom: "calc(100% + 6px)",
-        [align === "right" ? "right" : "left"]: 0,
-        width: 200,
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        border: "1px solid rgba(0,0,0,0.06)",
-        padding: 8,
-      }}
-    >
+  const PICKER_WIDTH = 208;
+  const PICKER_HEIGHT = 148;
+
+  // Clamp horizontally so picker never goes off screen
+  const vw = typeof window !== "undefined" ? window.innerWidth : 400;
+  let left = anchor.alignRight
+    ? anchor.left - PICKER_WIDTH + 60   // align right edge near bubble right
+    : anchor.left;                       // align left edge near bubble left
+  left = Math.max(8, Math.min(left, vw - PICKER_WIDTH - 8));
+
+  // Open above bubble; if not enough room, open below
+  const top = anchor.top - PICKER_HEIGHT - 8 > 60
+    ? anchor.top - PICKER_HEIGHT - 8
+    : anchor.top + 48;
+
+  return createPortal(
+    <>
+      {/* Invisible backdrop to close on outside tap */}
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 998 }}
+        onMouseDown={onClose}
+        onTouchEnd={onClose}
+      />
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 4,
+          position: "fixed",
+          top,
+          left,
+          width: PICKER_WIDTH,
+          zIndex: 999,
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+          border: "1px solid rgba(0,0,0,0.06)",
+          padding: 8,
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
-        {EMOJI_OPTIONS.map((e) => (
-          <button
-            key={e}
-            onMouseDown={(ev) => {
-              ev.preventDefault();
-              onSelect(e);
-            }}
-            onTouchEnd={(ev) => {
-              ev.preventDefault();
-              onSelect(e);
-            }}
-            style={{
-              fontSize: 20, padding: 6, borderRadius: 10,
-              background: "none", border: "none", cursor: "pointer",
-              lineHeight: 1,
-            }}
-          >
-            {e}
-          </button>
-        ))}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+          {EMOJI_OPTIONS.map((e) => (
+            <button
+              key={e}
+              onMouseDown={(ev) => { ev.preventDefault(); onSelect(e); }}
+              onTouchEnd={(ev) => { ev.preventDefault(); onSelect(e); }}
+              style={{
+                fontSize: 22, padding: 6, borderRadius: 10,
+                background: "none", border: "none", cursor: "pointer", lineHeight: 1,
+              }}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </>,
+    document.body
   );
 }
 
@@ -235,6 +258,7 @@ export default function ChatPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [emojiTargetId, setEmojiTargetId] = useState<string | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
   const [sending, setSending] = useState(false);
   // Debug: log currentUserId to verify it matches author_id
   // console.log("[ChatPanel] currentUserId:", currentUserId);
@@ -396,6 +420,7 @@ export default function ChatPanel({
     );
     await supabase.from("messages").update({ reactions: next }).eq("id", messageId);
     setEmojiTargetId(null);
+    setPickerAnchor(null);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -417,7 +442,7 @@ export default function ChatPanel({
         borderRadius: 16,
         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
       }}
-      onClick={() => setEmojiTargetId(null)}
+      onClick={() => { setEmojiTargetId(null); setPickerAnchor(null); }}
     >
       {/* ── Header ── */}
       {title && (
@@ -577,7 +602,19 @@ export default function ChatPanel({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setEmojiTargetId((prev) => prev === msg.id ? null : msg.id);
+                              if (emojiTargetId === msg.id) {
+                                setEmojiTargetId(null);
+                                setPickerAnchor(null);
+                              } else {
+                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                setEmojiTargetId(msg.id);
+                                setPickerAnchor({
+                                  msgId: msg.id,
+                                  top: rect.top,
+                                  left: rect.left,
+                                  alignRight: isOwn,
+                                });
+                              }
                               setEditingId(null);
                             }}
                             style={{
@@ -604,16 +641,6 @@ export default function ChatPanel({
                               {msg.text}
                             </div>
                           </button>
-
-                          {/* Emoji picker */}
-                          {emojiTargetId === msg.id && (
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <EmojiPicker
-                                onSelect={(emoji) => handleReact(msg.id, emoji)}
-                                align={isOwn ? "right" : "left"}
-                              />
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -746,6 +773,15 @@ export default function ChatPanel({
 
       {/* Spin keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Emoji picker portal — renders outside overflow:hidden containers ── */}
+      {pickerAnchor && (
+        <EmojiPickerPortal
+          anchor={pickerAnchor}
+          onSelect={(emoji) => handleReact(pickerAnchor.msgId, emoji)}
+          onClose={() => { setEmojiTargetId(null); setPickerAnchor(null); }}
+        />
+      )}
     </div>
   );
 }
