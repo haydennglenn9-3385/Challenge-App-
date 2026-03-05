@@ -369,7 +369,7 @@ export default function MessagesPage() {
 
       {/* ── DM chat open ── */}
       {openDmUser && user && (
-        <div style={{ position: "fixed", inset: "0 0 82px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 86px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "dm", id: openDmUser.id }}
             currentUserId={user.id}
