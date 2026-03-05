@@ -26,6 +26,7 @@ interface Props {
   currentUserId: string;
   currentUserName: string;
   title?: string;
+  onBack?: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -226,6 +227,7 @@ export default function ChatPanel({
   currentUserId,
   currentUserName,
   title,
+  onBack,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -425,12 +427,33 @@ export default function ChatPanel({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            position: "relative",
             padding: "10px 16px",
             borderBottom: "1px solid rgba(0,0,0,0.06)",
             background:
               "linear-gradient(135deg, #d9f99d 0%, #bbf7d0 25%, #a5f3fc 50%, #e9d5ff 75%, #fecdd3 100%)",
           }}
         >
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{
+                position: "absolute",
+                left: 12,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#4f46e5",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              ← Back
+            </button>
+          )}
           <span style={{ fontSize: 13, fontWeight: 600, color: "#1f2937" }}>
             {title}
           </span>
