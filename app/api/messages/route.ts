@@ -14,45 +14,41 @@ async function getAuthedUser(req: Request) {
   return user ?? null;
 }
 
+const MSG_SELECT = "id, text, created_at, edited_at, author_id, users!messages_author_id_fkey(id, name)";
+
 // GET /api/messages?challengeId=x | teamId=x | dmUserId=x
 export async function GET(req: Request) {
-  try {
-    const user = await getAuthedUser(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getAuthedUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const challengeId = searchParams.get("challengeId");
-    const teamId      = searchParams.get("teamId");
-    const dmUserId    = searchParams.get("dmUserId");
+  const { searchParams } = new URL(req.url);
+  const challengeId = searchParams.get("challengeId");
+  const teamId      = searchParams.get("teamId");
+  const dmUserId    = searchParams.get("dmUserId");
 
-    let query = supabaseAdmin
-      .from("messages")
-      .select("id, text, created_at, edited_at, author_id, users(id, name)")
-      .order("created_at", { ascending: true })
-      .limit(100);
+  let query = supabaseAdmin
+    .from("messages")
+    .select(MSG_SELECT)
+    .order("created_at", { ascending: true })
+    .limit(100);
 
-    if (challengeId) {
-      query = query.eq("challenge_id", challengeId).eq("is_dm", false);
-    } else if (teamId) {
-      query = query.eq("team_id", teamId).eq("is_dm", false);
-    } else if (dmUserId) {
-      query = query
-        .eq("is_dm", true)
-        .or(`and(author_id.eq.${user.id},recipient_id.eq.${dmUserId}),and(author_id.eq.${dmUserId},recipient_id.eq.${user.id})`);
-    } else {
-      return NextResponse.json({ error: "Missing context param" }, { status: 400 });
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("Supabase error:", error);
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
-    }
-    return NextResponse.json(data);
-  } catch (err: any) {
-    console.error("Unexpected error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  if (challengeId) {
+    query = query.eq("challenge_id", challengeId).eq("is_dm", false);
+  } else if (teamId) {
+    query = query.eq("team_id", teamId).eq("is_dm", false);
+  } else if (dmUserId) {
+    query = query
+      .eq("is_dm", true)
+      .or(
+        `and(author_id.eq.${user.id},recipient_id.eq.${dmUserId}),and(author_id.eq.${dmUserId},recipient_id.eq.${user.id})`
+      );
+  } else {
+    return NextResponse.json({ error: "Missing context param" }, { status: 400 });
   }
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
 
 // POST /api/messages
@@ -71,8 +67,8 @@ export async function POST(req: Request) {
     is_dm:     false,
   };
 
-  if (challengeId)       insert.challenge_id  = challengeId;
-  else if (teamId)       insert.team_id       = teamId;
+  if (challengeId)  insert.challenge_id  = challengeId;
+  else if (teamId)  insert.team_id       = teamId;
   else if (dmUserId) {
     insert.is_dm        = true;
     insert.recipient_id = dmUserId;
@@ -83,7 +79,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin
     .from("messages")
     .insert(insert)
-    .select("id, text, created_at, edited_at, author_id, users(id, name)")
+    .select(MSG_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -96,7 +92,8 @@ export async function PATCH(req: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, text } = await req.json();
-  if (!id || !text?.trim()) return NextResponse.json({ error: "id and text required" }, { status: 400 });
+  if (!id || !text?.trim())
+    return NextResponse.json({ error: "id and text required" }, { status: 400 });
 
   const { data: msg } = await supabaseAdmin
     .from("messages").select("author_id").eq("id", id).single();
@@ -107,7 +104,7 @@ export async function PATCH(req: Request) {
     .from("messages")
     .update({ text: text.trim(), edited_at: new Date().toISOString() })
     .eq("id", id)
-    .select("id, text, created_at, edited_at, author_id, users(id, name)")
+    .select(MSG_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
