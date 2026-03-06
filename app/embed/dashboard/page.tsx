@@ -39,7 +39,7 @@ const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
 const ACTIONS = [
   { icon: "➕", label: "New Challenge", iconBg: "#fde0ef", route: "/embed/challenges/new" },
   { icon: "🔥", label: "My Streak",     iconBg: "#fde0ef", route: "/embed/profile"       },
-  { icon: "⚡", label: "My Challenges", iconBg: "#d4f5e2", route: "/embed/challenges"    },
+  { icon: "⚡", label: "My Challenges", iconBg: "#d4f5e2", route: "/embed/challenges?filter=mine" },
   { icon: "🏆", label: "My Teams",      iconBg: "#e8d9f7", route: "/embed/teams"        },
 ];
 

@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (pageState !== "success") return;
     if (countdown <= 0) {
-      router.push("/embed/home");
+      router.push("/embed/dashboard");
       return;
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -210,7 +210,7 @@ export default function ResetPasswordPage() {
               </button>
 
               <button
-                onClick={() => router.push("/embed/home")}
+                onClick={() => router.push("/embed/dashboard")}
                 style={{ background: "none", border: "none", color: "#888", fontSize: 13, cursor: "pointer" }}
               >
                 Back to home
@@ -280,7 +280,7 @@ export default function ResetPasswordPage() {
                 Redirecting in <span style={{ fontWeight: 700, color: "#7b2d8b" }}>{countdown}</span>…
               </p>
 
-              <button className="primary-btn" onClick={() => router.push("/embed/home")}>
+              <button className="primary-btn" onClick={() => router.push("/embed/dashboard")}>
                 Go to app now →
               </button>
             </div>

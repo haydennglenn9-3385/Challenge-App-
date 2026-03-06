@@ -164,7 +164,7 @@ export default function ChallengesPage() {
             const created   = isCreated(challenge.id);
             const daysLeft  = getDaysLeft(challenge);
             const duration  = getDuration(challenge);
-            const isOngoing = challenge.end_date === null;           // ← ADD
+            const isOngoing = challenge.end_date === null;          
             const active    = isOngoing || (daysLeft !== null && daysLeft > 0);
             const progress  = getProgress(challenge);
 
