@@ -150,10 +150,16 @@ export default function DashboardPage() {
       }
 
       const { data: cData } = await supabase
-        .from("challenges").select("*")
-        .order("member_count", { ascending: false }).limit(6);
-      setChallenges((cData as Challenge[]) || []);
-
+        .from("challenges")
+        .select("*, challenge_members(count)")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      setChallenges(
+        (cData || []).map((c: any) => ({
+          ...c,
+          member_count: c.challenge_members?.[0]?.count ?? 0,
+        })) as Challenge[]
+      );
       const { data: fData } = await supabase
         .from("activity_feed").select("*")
         .order("created_at", { ascending: false }).limit(10);

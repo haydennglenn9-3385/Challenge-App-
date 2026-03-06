@@ -56,7 +56,7 @@ export default function ChallengesPage() {
           member_count: c.challenge_members?.[0]?.count ?? 0,
         })) as Challenge[]
       );
-      setLoading(false);  // ← THIS WAS MISSING
+      setLoading(false);  
     }
     load();
   }, []);
@@ -160,13 +160,13 @@ export default function ChallengesPage() {
       ) : (
         <div className="space-y-3">
           {sorted.map((challenge) => {
-            const joined   = isJoined(challenge.id);
-            const created  = isCreated(challenge.id);
-            const progress = getProgress(challenge);
-            const daysLeft = getDaysLeft(challenge);
-            const duration = getDuration(challenge);
-            const isOngoing = challenge.end_date === null;
-            const active = isOngoing || (daysLeft !== null && daysLeft > 0);
+            const joined    = isJoined(challenge.id);
+            const created   = isCreated(challenge.id);
+            const daysLeft  = getDaysLeft(challenge);
+            const duration  = getDuration(challenge);
+            const isOngoing = challenge.end_date === null;           // ← ADD
+            const active    = isOngoing || (daysLeft !== null && daysLeft > 0);
+            const progress  = getProgress(challenge);
 
             return (
               <div key={challenge.id} className="neon-card rounded-2xl overflow-hidden">
@@ -200,7 +200,7 @@ export default function ChallengesPage() {
 
                   <p className="text-xs text-slate-500 font-medium mb-2">
                     {isOngoing
-                      ? "Ongoing challenge"
+                      ? "Ongoing"
                       : `${duration}-day challenge · ${active ? `${daysLeft} days left` : "Ended"}`}
                     {" · "}
                     {challenge.member_count} member{challenge.member_count !== 1 ? "s" : ""}
