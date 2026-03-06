@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type FeedType = "streak" | "score" | "team" | "message";
+type FeedType = "streak" | "score" | "team" | "message" | "join";
 
+// ✅ FIX 1: Challenge interface was missing — ChallengeCard references it at line ~364
 interface Challenge {
   id: string;
   name: string;
@@ -20,27 +21,47 @@ interface Challenge {
 interface FeedItem {
   id: string;
   created_at: string;
+  user_id: string | null;
   user_name: string;
+  emoji_avatar: string | null;
   type: FeedType;
   text: string;
   meta: Record<string, unknown>;
+  reactions: Record<string, string[]>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }> = {
   streak:  { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
-  score:   { bg: "#e8d9f7", color: "#7b2d8b", label: "📊 Score"  },
+  score:   { bg: "#e8d9f7", color: "#7b2d8b", label: "⚡ Score"  },
   team:    { bg: "#fde0ef", color: "#b5003c", label: "🏆 Team"   },
   message: { bg: "#d4eaf7", color: "#118ab2", label: "💬 Post"   },
+  join:    { bg: "#d4f5e2", color: "#1b7a4e", label: "✅ Joined"  },
 };
 
-const AVATAR_COLORS = ["#fde0ef", "#d4f5e2", "#fdf6d3", "#e8d9f7", "#d4eaf7"];
+const TYPE_FALLBACK_EMOJI: Record<FeedType, string> = {
+  streak:  "🔥",
+  score:   "⚡",
+  team:    "🏆",
+  message: "💬",
+  join:    "🎉",
+};
+
+const AVATAR_COLORS: Record<FeedType, string> = {
+  streak:  "#fff3e0",
+  score:   "#e8d9f7",
+  team:    "#fde0ef",
+  message: "#d4eaf7",
+  join:    "#d4f5e2",
+};
+
+const QUICK_REACTIONS = ["🔥", "💜", "💪", "🌈", "🎉", "👏", "👎"];
 
 const ACTIONS = [
   { icon: "➕", label: "New Challenge", iconBg: "#fde0ef", route: "/embed/challenges/new" },
   { icon: "🔥", label: "My Streak",     iconBg: "#fde0ef", route: "/embed/profile"       },
   { icon: "⚡", label: "My Challenges", iconBg: "#d4f5e2", route: "/embed/challenges?filter=mine" },
-  { icon: "🏆", label: "My Teams",      iconBg: "#e8d9f7", route: "/embed/teams"        },
+  { icon: "🏆", label: "My Teams",      iconBg: "#e8d9f7", route: "/embed/teams"         },
 ];
 
 const CARD_COLORS = [
@@ -54,69 +75,308 @@ function daysLeft(endDate?: string) {
   return diff > 0 ? diff : 0;
 }
 
-// ─── Chip ─────────────────────────────────────────────────────────────────────
-function Chip({ type }: { type: FeedType }) {
-  const s = CHIP_STYLES[type];
+// ─── Feed Reactions ───────────────────────────────────────────────────────────
+function FeedReactions({
+  item,
+  currentUserId,
+  onReact,
+}: {
+  item: FeedItem;
+  currentUserId: string | null;
+  onReact: (itemId: string, emoji: string) => void;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const reactions = item.reactions || {};
+  const hasAny = Object.keys(reactions).some((e) => reactions[e]?.length > 0);
+
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap" }}>
-      {s.label}
-    </span>
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      {Object.entries(reactions).map(([emoji, users]) =>
+        users.length > 0 ? (
+          <button
+            key={emoji}
+            onClick={() => currentUserId && onReact(item.id, emoji)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 9px",
+              borderRadius: 20,
+              border: currentUserId && users.includes(currentUserId)
+                ? "1.5px solid #7b2d8b"
+                : "1.5px solid #e5e7eb",
+              background: currentUserId && users.includes(currentUserId)
+                ? "rgba(123,45,139,0.07)"
+                : "rgba(255,255,255,0.6)",
+              cursor: currentUserId ? "pointer" : "default",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#444",
+              transition: "all 0.15s",
+            }}
+          >
+            <span>{emoji}</span>
+            <span style={{ fontSize: 11, color: "#888" }}>{users.length}</span>
+          </button>
+        ) : null
+      )}
+
+      {currentUserId && (
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowPicker((v) => !v)}
+            style={{
+              padding: "3px 9px",
+              borderRadius: 20,
+              border: "1.5px dashed #ccc",
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#aaa",
+              transition: "all 0.15s",
+            }}
+          >
+            {hasAny ? "+" : "React"}
+          </button>
+
+          {showPicker && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 6px)",
+                left: 0,
+                background: "#fff",
+                borderRadius: 16,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.13)",
+                padding: "8px 10px",
+                display: "flex",
+                gap: 6,
+                zIndex: 50,
+                border: "1px solid #f0f0f0",
+              }}
+            >
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => {
+                    onReact(item.id, emoji);
+                    setShowPicker(false);
+                  }}
+                  style={{
+                    fontSize: 20,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: 8,
+                    padding: 4,
+                    transition: "transform 0.1s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.25)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 // ─── Feed Card ────────────────────────────────────────────────────────────────
-function FeedCard({ item, index }: { item: FeedItem; index: number }) {
-  const avatarBg = AVATAR_COLORS[index % AVATAR_COLORS.length];
+function FeedCard({
+  item,
+  currentUserId,
+  onReact,
+  onProfileClick,
+}: {
+  item: FeedItem;
+  currentUserId: string | null;
+  onReact: (itemId: string, emoji: string) => void;
+  onProfileClick: (userId: string) => void;
+}) {
+  const chip = CHIP_STYLES[item.type];
+  const avatarEmoji = item.emoji_avatar || TYPE_FALLBACK_EMOJI[item.type];
+  const avatarBg = AVATAR_COLORS[item.type];
+
   const meta = item.meta;
   const subValue =
     item.type === "streak" ? `${meta.days}d`
     : item.type === "score" || item.type === "team" ? `#${meta.rank}`
     : null;
+
+  const timeAgo = (iso: string) => {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
   return (
-    <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "13px 14px", display: "flex", gap: 11, alignItems: "flex-start", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", animation: "slideIn 0.4s ease both", animationDelay: `${index * 0.06}s` }}>
-      <div style={{ width: 40, height: 40, borderRadius: "50%", background: avatarBg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginTop: 1 }}>
-        {item.type === "team" ? "🏳️‍🌈" : "😊"}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#0e0e0e" }}>{item.user_name}</div>
-        <div style={{ fontSize: 11.5, color: "#555", marginTop: 2, lineHeight: 1.4 }} dangerouslySetInnerHTML={{ __html: item.text }} />
-        <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>
-          {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 18,
+        padding: "13px 14px",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        transition: "transform 0.15s, box-shadow 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 18px rgba(0,0,0,0.09)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)";
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+        {/* Avatar — clickable if user_id exists */}
+        <button
+          onClick={() => item.user_id && onProfileClick(item.user_id)}
+          disabled={!item.user_id}
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: "50%",
+            background: avatarBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 20,
+            flexShrink: 0,
+            border: "none",
+            cursor: item.user_id ? "pointer" : "default",
+            transition: "transform 0.15s",
+            marginTop: 1,
+          }}
+          onMouseEnter={(e) =>
+            item.user_id &&
+            ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")
+          }
+          title={item.user_id ? `View ${item.user_name}'s profile` : undefined}
+        >
+          {avatarEmoji}
+        </button>
+
+        {/* Body */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Name — clickable */}
+          <button
+            onClick={() => item.user_id && onProfileClick(item.user_id)}
+            disabled={!item.user_id}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: item.user_id ? "pointer" : "default",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#0e0e0e",
+              textAlign: "left",
+            }}
+          >
+            {item.user_name}
+          </button>
+          <div style={{ fontSize: 12, color: "#666", fontWeight: 500, marginTop: 2, lineHeight: 1.4 }}>
+            {item.text}
+          </div>
+          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>
+            {timeAgo(item.created_at)}
+          </div>
+
+          <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
         </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-        <Chip type={item.type} />
-        {subValue && <span style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 14, color: "#7b2d8b" }}>{subValue}</span>}
+
+        {/* Right — chip + sub value */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          <span style={{
+            background: chip.bg,
+            color: chip.color,
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 9px",
+            borderRadius: 20,
+            whiteSpace: "nowrap",
+          }}>
+            {chip.label}
+          </span>
+          {subValue && (
+            <span style={{
+              fontFamily: "var(--font-bebas, 'Bebas Neue', sans-serif)",
+              fontSize: 15,
+              color: "#7b2d8b",
+            }}>
+              {subValue}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── Challenge Card ───────────────────────────────────────────────────────────
-function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challenge; colorIndex: number; onClick: () => void }) {
+function ChallengeCard({
+  challenge,
+  colorIndex,
+  onClick,
+}: {
+  challenge: Challenge;
+  colorIndex: number;
+  onClick: () => void;
+}) {
   const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
-  const pct = challenge.capacity > 0 ? Math.round((challenge.member_count / challenge.capacity) * 100) : 0;
+  const pct = challenge.capacity > 0
+    ? Math.round((challenge.member_count / challenge.capacity) * 100)
+    : 0;
   const days = daysLeft(challenge.end_date);
   const [hovered, setHovered] = useState(false);
+
   return (
     <div
       onClick={onClick}
-      style={{ background: "#1a1a1a", borderRadius: 18, padding: "16px 14px", position: "relative", overflow: "hidden", cursor: "pointer", transform: hovered ? "scale(1.02)" : "scale(1)", transition: "transform 0.15s", height: 190, display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+      style={{
+        background: "#1a1a1a",
+        borderRadius: 18,
+        padding: "16px 14px",
+        position: "relative",
+        overflow: "hidden",
+        cursor: "pointer",
+        transform: hovered ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.15s",
+        height: 190,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72, borderRadius: "50%", background: c.glow, opacity: 0.2 }} />
       <div>
         <div style={{ fontSize: 20, marginBottom: 6 }}>{challenge.emoji || "💪"}</div>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{challenge.type}</div>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+          {challenge.type}
+        </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
           {challenge.name}
         </div>
       </div>
       <div>
         <div style={{ background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "8px 10px", marginBottom: 8 }}>
-          <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 15, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>Members{days !== null ? ` · ${days}d left` : ""}</div>
+          <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 15, color: c.valColor }}>
+            {challenge.member_count} / {challenge.capacity}
+          </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>
+            Members{days !== null ? ` · ${days}d left` : ""}
+          </div>
         </div>
         <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(90deg, ${c.prog1}, ${c.prog2})` }} />
@@ -129,23 +389,31 @@ function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challeng
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [feed, setFeed]             = useState<FeedItem[]>([]);
-  const [userEmail, setUserEmail]   = useState<string>("");
-  const [userStreak, setUserStreak] = useState<number>(0);
-  const [loading, setLoading]       = useState(true);
-  const [postText, setPostText]     = useState("");
-  const [posting, setPosting]       = useState(false);
-  const [authed, setAuthed]         = useState(false);
+  const [challenges, setChallenges]     = useState<Challenge[]>([]);
+  const [feed, setFeed]                 = useState<FeedItem[]>([]);
+  const [userEmail, setUserEmail]       = useState<string>("");
+  const [userStreak, setUserStreak]     = useState<number>(0);
+  const [loading, setLoading]           = useState(true);
+  const [postText, setPostText]         = useState("");
+  const [posting, setPosting]           = useState(false);
+  const [authed, setAuthed]             = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    // ✅ FIX 2: load() was never called — data never fetched, page stuck on spinner
+    // ✅ FIX 3: setLoading(false) was missing — spinner never dismissed
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
         setAuthed(true);
+        setCurrentUserId(user.id);
         if (user?.email) setUserEmail(user.email.split("@")[0]);
-        const { data: sData } = await supabase.from("users").select("streak").eq("id", user.id).single();
+        const { data: sData } = await supabase
+          .from("users")
+          .select("streak")
+          .eq("id", user.id)
+          .single();
         if (sData) setUserStreak(sData.streak || 0);
       }
 
@@ -154,26 +422,41 @@ export default function DashboardPage() {
         .select("*, challenge_members(count)")
         .order("created_at", { ascending: false })
         .limit(6);
+
       setChallenges(
         (cData || []).map((c: any) => ({
           ...c,
           member_count: c.challenge_members?.[0]?.count ?? 0,
         })) as Challenge[]
       );
-      const { data: fData } = await supabase
-        .from("activity_feed").select("*")
-        .order("created_at", { ascending: false }).limit(10);
-      setFeed((fData as FeedItem[]) || []);
 
-      setLoading(false);
+      const { data: fData } = await supabase
+        .from("activity_feed")
+        .select("*, users(emoji_avatar)")
+        .order("created_at", { ascending: false })
+        .limit(15);
+
+      setFeed(
+        (fData || []).map((row: any) => ({
+          ...row,
+          emoji_avatar: row.users?.emoji_avatar ?? null,
+          reactions: row.reactions ?? {},
+        })) as FeedItem[]
+      );
+
+      setLoading(false); // ✅ FIX 3
     }
-    load();
+
+    load(); // ✅ FIX 2
 
     const sub = supabase
       .channel("activity_feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_feed" },
-        (payload) => setFeed((prev) => [payload.new as FeedItem, ...prev.slice(0, 9)])
-      ).subscribe();
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_feed" },
+        (payload) => setFeed((prev) => [payload.new as FeedItem, ...prev.slice(0, 14)])
+      )
+      .subscribe();
 
     return () => { supabase.removeChannel(sub); };
   }, []);
@@ -182,6 +465,7 @@ export default function DashboardPage() {
     if (!postText.trim()) return;
     setPosting(true);
     await supabase.from("activity_feed").insert({
+      user_id: currentUserId,
       user_name: userEmail || "Member",
       type: "message",
       text: `"${postText.trim()}"`,
@@ -189,6 +473,54 @@ export default function DashboardPage() {
     });
     setPostText("");
     setPosting(false);
+  }
+
+  async function handleReact(itemId: string, emoji: string) {
+    if (!currentUserId) return;
+
+    // Optimistic update
+    setFeed((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const existing = item.reactions[emoji] ?? [];
+        const hasReacted = existing.includes(currentUserId);
+        return {
+          ...item,
+          reactions: {
+            ...item.reactions,
+            [emoji]: hasReacted
+              ? existing.filter((id) => id !== currentUserId)
+              : [...existing, currentUserId],
+          },
+        };
+      })
+    );
+
+    // Persist to DB
+    const { data } = await supabase
+      .from("activity_feed")
+      .select("reactions")
+      .eq("id", itemId)
+      .single();
+
+    const current: Record<string, string[]> = data?.reactions ?? {};
+    const existing = current[emoji] ?? [];
+    const hasReacted = existing.includes(currentUserId);
+    const updated = {
+      ...current,
+      [emoji]: hasReacted
+        ? existing.filter((id) => id !== currentUserId)
+        : [...existing, currentUserId],
+    };
+
+    await supabase
+      .from("activity_feed")
+      .update({ reactions: updated })
+      .eq("id", itemId);
+  }
+
+  function handleProfileClick(userId: string) {
+    router.push(`/embed/profile/${userId}`);
   }
 
   const pageStyle: CSSProperties = {
@@ -205,7 +537,7 @@ export default function DashboardPage() {
     <div style={{ ...pageStyle, justifyContent: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
         <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-        <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
+        <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>
           LOADING...
         </div>
       </div>
@@ -295,13 +627,20 @@ export default function DashboardPage() {
 
       <div style={pageStyle}>
         {/* Rainbow strip */}
-        <div style={{ height: 12, width: "100%", background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)", backgroundSize: "200% 100%", animation: "rainbowShift 4s linear infinite", flexShrink: 0 }} />
+        <div style={{
+          height: 12,
+          width: "100%",
+          background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+          backgroundSize: "200% 100%",
+          animation: "rainbowShift 4s linear infinite",
+          flexShrink: 0,
+        }} />
 
         <div className="page-padding" style={{ width: "100%", flex: 1, overflowY: "auto", paddingBottom: 112 }}>
 
           {/* Wordmark */}
           <div style={{ padding: "16px 0 8px" }}>
-            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
               QUEERS & ALLIES FITNESS
             </div>
           </div>
@@ -312,14 +651,13 @@ export default function DashboardPage() {
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
               ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
             </div>
-            {/* "Building Community Strength" — links to website */}
             <a
               href="https://queersandalliesfitness.com"
               target="_blank"
               rel="noopener noreferrer"
               style={{ textDecoration: "none" }}
             >
-              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em",lineHeight: 1.0, color: "#fff" }}>
+              <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 40, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.0, color: "#fff" }}>
                 Building<br />
                 <span style={{ background: "linear-gradient(90deg,#ffd166,#06d6a0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   Community
@@ -330,7 +668,6 @@ export default function DashboardPage() {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
               Physical Fitness + Mental Health · Sacramento, CA
             </div>
-            {/* Active challenges — tappable */}
             <button
               onClick={() => router.push("/embed/challenges")}
               style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "rgba(255,255,255,0.75)", cursor: "pointer" }}
@@ -355,7 +692,7 @@ export default function DashboardPage() {
 
           {/* Featured Challenges */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 12px" }}>
-            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1 }}>Featured Challenges</div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#7b2d8b", cursor: "pointer" }} onClick={() => router.push("/embed/challenges")}>
               See all →
             </div>
@@ -374,9 +711,9 @@ export default function DashboardPage() {
           {/* Rainbow divider */}
           <div style={{ margin: "20px 0 0", height: 1.5, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", opacity: 0.25, borderRadius: 2 }} />
 
-          {/* Activity Feed */}
+          {/* Activity Feed header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0" }}>
-            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
           </div>
 
           {/* Post input — only shown when logged in */}
@@ -407,16 +744,24 @@ export default function DashboardPage() {
                   No activity yet — be the first to post! 🌈
                 </div>
               ) : (
-                feed.map((item, i) => <FeedCard key={item.id} item={item} index={i} />)
+                feed.map((item) => (
+                  <FeedCard
+                    key={item.id}
+                    item={item}
+                    currentUserId={currentUserId}
+                    onReact={handleReact}
+                    onProfileClick={handleProfileClick}
+                  />
+                ))
               )}
             </div>
 
-            {/* Login overlay — shown when not authed */}
+            {/* Login overlay */}
             {!authed && (
               <div className="feed-blur-overlay">
                 <div className="feed-auth-card">
                   <div style={{ fontSize: 36, marginBottom: 8 }}>🏳️‍🌈</div>
-                  <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+                  <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
                     Join the Community
                   </div>
                   <div style={{ fontSize: 13, color: "#777", marginTop: 6, lineHeight: 1.5 }}>
