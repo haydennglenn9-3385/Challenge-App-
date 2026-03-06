@@ -303,7 +303,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        //* ── Duration ── */
+        {/* ── Duration ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">

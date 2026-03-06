@@ -219,14 +219,17 @@ export default function ChallengeDetailPage() {
   const hasTeams        = challenge?.has_teams ?? false;
 
   const startDate = challenge?.start_date ?? todayStr;
-  const endDate   = challenge?.end_date   ?? todayStr;
+  const endDate   = challenge?.end_date   // allow null
 
   // ── End state ─────────────────────────────────────────────────────────────────
-  const isEnded = endDate < todayStr;
+  const isEnded = endDate ? endDate < todayStr : false;
 
-  const daysLeft   = Math.max(0, Math.ceil(
-    (new Date(endDate).getTime() - today.getTime()) / 86400000
-  ));
+  const daysLeft = endDate
+  ? Math.max(0, Math.ceil(
+      (new Date(endDate).getTime() - today.getTime()) / 86400000
+    ))
+  : null; // ongoing
+
   const currentWeek = getWeekNum(todayStr, startDate);
 
   // Progressive targets
@@ -762,16 +765,32 @@ export default function ChallengeDetailPage() {
               <p style={{ fontSize: 14, color: "#64748b", marginBottom: 12 }}>{challenge.description}</p>
             )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+            {/* Dates */}
+            {challenge.end_date === null ? (
+              <span>📅 {formatDate(challenge.start_date)} → Ongoing</span>
+            ) : (
               <span>📅 {formatDate(challenge.start_date)} → {formatDate(challenge.end_date)}</span>
-              {isEnded
-                ? <span style={{ color: "#94a3b8" }}>✅ Ended</span>
-                : <span>⏳ {daysLeft}d left</span>
-              }
-              <span>📆 Week {currentWeek}</span>
-              {challenge.join_code && (
-                <span className="neon-chip rounded-full px-3 py-0.5">Code: {challenge.join_code}</span>
-              )}
-            </div>
+            )}
+
+            {/* Status */}
+            {challenge.end_date === null ? (
+              <span>⏳ Ongoing</span>
+            ) : isEnded ? (
+              <span style={{ color: "#94a3b8" }}>✅ Ended</span>
+            ) : (
+              <span>⏳ {daysLeft}d left</span>
+            )}
+
+            {/* Week */}
+            <span>📆 Week {currentWeek}</span>
+
+            {/* Join Code */}
+            {challenge.join_code && (
+              <span className="neon-chip rounded-full px-3 py-0.5">
+                Code: {challenge.join_code}
+              </span>
+            )}
+          </div>
           </div>
         </div>
 
