@@ -1,26 +1,37 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
 
 interface Challenge {
   id:           string;
   name:         string;
-  description?: string; 
+  description?: string;
   is_public:    boolean;
   join_code?:   string;
   start_date:   string;
-  end_date:     string | null;  
+  end_date:     string | null;
   member_count: number;
   capacity:     number;
   creator_id:   string;
   scoring_type?: string;
 }
 
-export default function ChallengesPage() {
-  const router = useRouter();
+type FilterTab = "all" | "mine";
+
+// ─── Inner component (needs useSearchParams inside Suspense) ──────────────────
+
+function ChallengesInner() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const { user, getUserParams } = useUser();
+
+  // Derive directly from URL on every render — avoids useState hydration freeze
+  const activeFilter: FilterTab = searchParams.get("filter") === "mine" ? "mine" : "all";
+
+  const setActiveFilter = (f: FilterTab) =>
+    router.push(f === "mine" ? "/embed/challenges?filter=mine" : "/embed/challenges");
 
   const [challenges, setChallenges]       = useState<Challenge[]>([]);
   const [joinedIds, setJoinedIds]         = useState<Set<string>>(new Set());
@@ -46,28 +57,30 @@ export default function ChallengesPage() {
           .from("challenges").select("id").eq("creator_id", authUser.id);
         if (created) setCreatedIds(new Set(created.map((c: any) => c.id)));
       }
+
       const { data } = await supabase
         .from("challenges")
         .select("*, challenge_members(count)")
         .order("created_at", { ascending: false });
+
       setChallenges(
         (data || []).map((c: any) => ({
           ...c,
           member_count: c.challenge_members?.[0]?.count ?? 0,
         })) as Challenge[]
       );
-      setLoading(false);  
+      setLoading(false);
     }
     load();
   }, []);
 
-  // Returns null for ongoing challenges
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
   const getDuration = (c: Challenge): number | null =>
     c.end_date
       ? Math.ceil((new Date(c.end_date).getTime() - new Date(c.start_date).getTime()) / 86400000)
       : null;
 
-  // Returns null for ongoing challenges
   const getDaysLeft = (c: Challenge): number | null =>
     c.end_date
       ? Math.max(0, Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86400000))
@@ -76,9 +89,26 @@ export default function ChallengesPage() {
   const getProgress = (c: Challenge): number => {
     const total = getDuration(c);
     const left  = getDaysLeft(c);
-    if (total === null || left === null) return 0; // ongoing = indeterminate
+    if (total === null || left === null) return 0;
     return Math.min(100, Math.round(((total - left) / total) * 100));
   };
+
+  const isJoined  = (id: string) => joinedIds.has(id);
+  const isCreated = (id: string) => createdIds.has(id);
+
+  // ── Filter + sort ─────────────────────────────────────────────────────────
+
+  const filtered = challenges.filter((c) => {
+    if (activeFilter === "mine") return isJoined(c.id) || isCreated(c.id);
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) =>
+    (isJoined(a.id) || isCreated(a.id) ? 0 : 1) -
+    (isJoined(b.id) || isCreated(b.id) ? 0 : 1)
+  );
+
+  // ── Join handlers ─────────────────────────────────────────────────────────
 
   const handleJoinPublic = async (challenge: Challenge) => {
     if (!currentUserId) { router.push("/auth"); return; }
@@ -109,17 +139,12 @@ export default function ChallengesPage() {
     setJoining(false);
   };
 
-  const isJoined  = (id: string) => joinedIds.has(id);
-  const isCreated = (id: string) => createdIds.has(id);
-
-  const sorted = [...challenges].sort((a, b) =>
-    (isJoined(a.id) || isCreated(a.id) ? 0 : 1) - (isJoined(b.id) || isCreated(b.id) ? 0 : 1)
-  );
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen px-5 pt-6 pb-28 space-y-5">
 
-      {/* Header — no + button */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1" style={{
@@ -130,7 +155,7 @@ export default function ChallengesPage() {
         </div>
       </div>
 
-      {/* Quick Actions — renamed "Enter Code" → "Join with Code" */}
+      {/* Quick actions */}
       <div className="flex gap-3">
         <button onClick={() => navigate("/embed/challenges/new")}
           className="flex-1 rainbow-cta rounded-xl py-3 font-bold text-sm">
@@ -142,6 +167,32 @@ export default function ChallengesPage() {
         </button>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex p-1 rounded-2xl bg-slate-100 gap-1">
+        {([
+          { id: "all",  label: "All Challenges" },
+          { id: "mine", label: "My Challenges"  },
+        ] as { id: FilterTab; label: string }[]).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveFilter(tab.id)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeFilter === tab.id
+                ? "bg-white shadow text-slate-900"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {tab.label}
+            {tab.id === "mine" && (joinedIds.size + createdIds.size > 0) && (
+              <span className="ml-1.5 text-xs font-extrabold px-1.5 py-0.5 rounded-full"
+                style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white" }}>
+                {new Set([...joinedIds, ...createdIds]).size}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* List */}
       {loading ? (
         <div className="neon-card rounded-2xl p-12 text-center">
@@ -150,12 +201,25 @@ export default function ChallengesPage() {
       ) : sorted.length === 0 ? (
         <div className="neon-card rounded-2xl p-10 text-center space-y-3">
           <p className="text-2xl">⚡</p>
-          <p className="font-bold text-slate-800">No challenges yet</p>
-          <p className="text-sm text-slate-500">Create the first one and invite your crew.</p>
-          <button onClick={() => navigate("/embed/challenges/new")}
-            className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
-            Create Challenge
-          </button>
+          {activeFilter === "mine" ? (
+            <>
+              <p className="font-bold text-slate-800">You haven't joined any challenges yet</p>
+              <p className="text-sm text-slate-500">Browse all challenges or create your own.</p>
+              <button onClick={() => setActiveFilter("all")}
+                className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
+                Browse All
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-slate-800">No challenges yet</p>
+              <p className="text-sm text-slate-500">Create the first one and invite your crew.</p>
+              <button onClick={() => navigate("/embed/challenges/new")}
+                className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
+                Create Challenge
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -164,7 +228,7 @@ export default function ChallengesPage() {
             const created   = isCreated(challenge.id);
             const daysLeft  = getDaysLeft(challenge);
             const duration  = getDuration(challenge);
-            const isOngoing = challenge.end_date === null;          
+            const isOngoing = challenge.end_date === null;
             const active    = isOngoing || (daysLeft !== null && daysLeft > 0);
             const progress  = getProgress(challenge);
 
@@ -212,8 +276,8 @@ export default function ChallengesPage() {
                     </p>
                   )}
 
-                  {/* Progress — joined/created only */}
-                  {(joined || created) && (
+                  {/* Progress bar — joined/created only */}
+                  {(joined || created) && !isOngoing && (
                     <div className="mb-3">
                       <div className="flex justify-between text-xs font-bold text-slate-400 mb-1.5">
                         <span>Progress</span><span>{progress}%</span>
@@ -229,46 +293,48 @@ export default function ChallengesPage() {
                   <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                     {created ? (
                       <>
-                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
+                        <button
+                          onClick={() => navigate(`/embed/challenge/${challenge.id}/manage`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                          Open
+                          ⚙️ Manage
                         </button>
-                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
-                          className="text-xs font-bold px-4 py-1.5 rounded-full text-white"
-                          style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}>
-                          Manage
+                        <button
+                          onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                          className="text-xs font-bold px-4 py-1.5 rounded-full rainbow-cta">
+                          Open →
                         </button>
                       </>
                     ) : joined ? (
-                      <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
-                        className="text-xs font-bold px-4 py-1.5 rounded-full text-white"
-                        style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}>
-                        Open
+                      <button
+                        onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
+                        className="text-xs font-bold px-4 py-1.5 rounded-full rainbow-cta">
+                        Open →
                       </button>
                     ) : challenge.is_public ? (
                       <>
-                        {/* Preview button for non-members */}
-                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
+                        <button
+                          onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                           Preview
                         </button>
-                        <button onClick={() => handleJoinPublic(challenge)} disabled={joining}
-                          className="text-xs font-bold px-4 py-1.5 rounded-full text-white disabled:opacity-50"
-                          style={{ background: "linear-gradient(90deg,#48cfad,#667eea)" }}>
-                          {joining ? "..." : "Join Now"}
+                        <button
+                          onClick={() => handleJoinPublic(challenge)}
+                          disabled={joining}
+                          className="text-xs font-bold px-4 py-1.5 rounded-full rainbow-cta disabled:opacity-50">
+                          Join
                         </button>
                       </>
                     ) : (
                       <>
-                        {/* Preview + Enter Code for private non-members */}
-                        <button onClick={() => router.push(`/embed/challenge/${challenge.id}`)}
+                        <button
+                          onClick={() => navigate(`/embed/challenge/${challenge.id}`)}
                           className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                           Preview
                         </button>
-                        <button onClick={() => { setCodeModal(challenge); setCodeInput(""); setCodeError(""); }}
-                          className="text-xs font-bold px-4 py-1.5 rounded-full border-2 text-slate-700 hover:bg-slate-50 transition-colors"
-                          style={{ borderColor: "#e2e8f0" }}>
-                          Join with Code
+                        <button
+                          onClick={() => { setCodeModal(challenge); setCodeInput(""); setCodeError(""); }}
+                          className="text-xs font-bold px-4 py-1.5 rounded-full rainbow-cta">
+                          Enter Code
                         </button>
                       </>
                     )}
@@ -280,39 +346,57 @@ export default function ChallengesPage() {
         </div>
       )}
 
-      {/* Join with Code bottom sheet */}
+      {/* Private join code modal */}
       {codeModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center"
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4"
           style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setCodeModal(null); }}>
-          <div className="w-full max-w-md bg-white rounded-t-3xl p-6 space-y-4"
-            style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
-            <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-2" />
+          onClick={() => setCodeModal(null)}>
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="h-1 w-full rounded-full rainbow-cta" />
             <div>
-              <p className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-1">Private Challenge</p>
-              <h3 className="text-xl font-extrabold text-slate-900">{codeModal.name}</h3>
+              <p className="font-extrabold text-slate-900 text-lg">{codeModal.name}</p>
+              <p className="text-sm text-slate-500 mt-1">Enter the invite code to join this private challenge.</p>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Enter Join Code</label>
-              <input type="text" value={codeInput}
-                onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeError(""); }}
-                placeholder="e.g. ABC123"
-                className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-center text-lg font-bold tracking-widest uppercase focus:outline-none focus:border-slate-400"
-                autoFocus />
-              {codeError && <p className="text-xs font-semibold text-red-500 mt-1.5 text-center">{codeError}</p>}
+            <input
+              autoFocus
+              value={codeInput}
+              onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleJoinWithCode()}
+              placeholder="XXXXXX"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-2xl font-extrabold tracking-[0.3em] outline-none focus:border-purple-400 uppercase"
+              maxLength={8}
+            />
+            {codeError && <p className="text-xs text-red-500 font-semibold text-center">{codeError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setCodeModal(null)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm">
+                Cancel
+              </button>
+              <button
+                onClick={handleJoinWithCode}
+                disabled={joining || !codeInput.trim()}
+                className="flex-1 py-3 rounded-xl rainbow-cta font-bold text-sm disabled:opacity-50">
+                {joining ? "Joining…" : "Join"}
+              </button>
             </div>
-            <button onClick={handleJoinWithCode} disabled={joining || !codeInput.trim()}
-              className="w-full py-4 rounded-xl font-bold text-sm disabled:opacity-50"
-              style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)", color: "#1a1a1a" }}>
-              {joining ? "Joining..." : "Join Challenge"}
-            </button>
-            <button onClick={() => setCodeModal(null)}
-              className="w-full py-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 transition-colors">
-              Cancel
-            </button>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Export (wrapped in Suspense for useSearchParams) ─────────────────────────
+
+export default function ChallengesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-400 font-semibold">Loading…</p>
+      </div>
+    }>
+      <ChallengesInner />
+    </Suspense>
   );
 }
