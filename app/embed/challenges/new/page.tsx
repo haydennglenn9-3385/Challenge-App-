@@ -82,6 +82,7 @@ export default function NewChallengePage() {
   const [durationMode, setDurationMode] = useState<"days" | "dates">("days");
   const [startDate,    setStartDate]    = useState("");
   const [endDate,      setEndDate]      = useState("");
+  const [isOngoing, setIsOngoing] = useState(false);
   const [title,        setTitle]        = useState("");
   const [description,  setDescription]  = useState("");
   const [durationDays, setDurationDays] = useState(21);
@@ -302,7 +303,7 @@ export default function NewChallengePage() {
           </div>
         </div>
 
-        {/* ── Duration ── */}
+        //* ── Duration ── */
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-3">
@@ -313,7 +314,10 @@ export default function NewChallengePage() {
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setDurationMode(mode)}
+                  onClick={() => {
+                    setDurationMode(mode);
+                    if (mode === "days") setIsOngoing(false); // reset ongoing when switching
+                  }}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
                     durationMode === mode
                       ? "bg-white shadow text-slate-900"
@@ -332,7 +336,10 @@ export default function NewChallengePage() {
                     <button
                       key={p.days}
                       type="button"
-                      onClick={() => { setDurationDays(p.days); setCustomDays(""); }}
+                      onClick={() => {
+                        setDurationDays(p.days);
+                        setCustomDays("");
+                      }}
                       className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition ${
                         !customDays && durationDays === p.days
                           ? "border-slate-800 bg-slate-50 text-slate-900"
@@ -343,6 +350,7 @@ export default function NewChallengePage() {
                     </button>
                   ))}
                 </div>
+
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                     Custom (days)
@@ -356,6 +364,7 @@ export default function NewChallengePage() {
                     className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                   />
                 </div>
+
                 {activeDays > 0 && (
                   <p className="text-xs text-slate-400 font-semibold">
                     Challenge runs for{" "}
@@ -364,36 +373,68 @@ export default function NewChallengePage() {
                 )}
               </>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      disabled={isOngoing}
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className={`w-full rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                        isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
+                      }`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                    End Date
-                  </label>
+
+                {/* Ongoing toggle */}
+                <div className="flex items-center gap-2">
                   <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    type="checkbox"
+                    id="ongoing"
+                    checked={isOngoing}
+                    onChange={(e) => setIsOngoing(e.target.checked)}
+                    className="h-4 w-4"
                   />
+                  <label htmlFor="ongoing" className="text-sm text-slate-700">
+                    This challenge has no end date (ongoing)
+                  </label>
                 </div>
-                {startDate && endDate && new Date(endDate) > new Date(startDate) && (
-                  <p className="text-xs text-slate-400 font-semibold col-span-2">
-                    {Math.round(
-                      (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
-                    )}{" "}
-                    days
+
+                {/* Summary */}
+                {isOngoing ? (
+                  <p className="text-xs text-slate-400 font-semibold">
+                    This challenge is ongoing.
                   </p>
+                ) : (
+                  startDate &&
+                  endDate &&
+                  new Date(endDate) > new Date(startDate) && (
+                    <p className="text-xs text-slate-400 font-semibold">
+                      {Math.round(
+                        (new Date(endDate).getTime() -
+                          new Date(startDate).getTime()) /
+                          86_400_000
+                      )}{" "}
+                      days
+                    </p>
+                  )
                 )}
               </div>
             )}
