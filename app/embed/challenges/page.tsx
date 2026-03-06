@@ -55,7 +55,8 @@ export default function ChallengesPage() {
           ...c,
           member_count: c.challenge_members?.[0]?.count ?? 0,
         })) as Challenge[]
-    );
+      );
+      setLoading(false);  // ← THIS WAS MISSING
     }
     load();
   }, []);
