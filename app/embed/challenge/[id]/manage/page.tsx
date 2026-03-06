@@ -234,6 +234,7 @@ export default function ManageChallengePage() {
   const [hasAccess, setHasAccess] = useState(false);
 
   // ── Detail fields ─────────────────────────────────────────────────────────
+  const [name,        setName]        = useState(""); 
   const [description, setDescription] = useState("");
   const [rules,       setRules]       = useState("");
   const [saving,      setSaving]      = useState(false);
@@ -285,6 +286,7 @@ export default function ManageChallengePage() {
 
       setChallenge(ch)
       setHasAccess(access);
+      setName(ch.name || ""); 
       setDescription(ch.description || "");
       setRules(ch.rules || "");
       setStartDate(ch.start_date || "");
@@ -334,10 +336,17 @@ export default function ManageChallengePage() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function handleSaveDetails() {
+    if (!name.trim()) return;
     setSaving(true);
     const { error } = await supabase
-      .from("challenges").update({ description, rules }).eq("id", challengeId);
-    if (error) alert("Error: " + error.message);
+      .from("challenges")
+      .update({ name: name.trim(), description, rules })
+      .eq("id", challengeId);
+    if (!error) {
+      setChallenge(p => p ? { ...p, name: name.trim() } : p);
+    } else {
+      alert("Error: " + error.message);
+    }
     setSaving(false);
   }
 
@@ -526,6 +535,22 @@ export default function ManageChallengePage() {
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
             <p className="font-extrabold text-slate-900">Challenge Details</p>
+
+            {/* ── Name ── */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Challenge name"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
+            </div>
+
+            {/* ── Description ── */}
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                 Description
@@ -538,6 +563,8 @@ export default function ManageChallengePage() {
                 rows={3}
               />
             </div>
+
+            {/* ── Rules ── */}
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                 Rules / Notes
@@ -550,9 +577,10 @@ export default function ManageChallengePage() {
                 rows={4}
               />
             </div>
+
             <button
               onClick={handleSaveDetails}
-              disabled={saving}
+              disabled={saving || !name.trim()}
               className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save Details"}
