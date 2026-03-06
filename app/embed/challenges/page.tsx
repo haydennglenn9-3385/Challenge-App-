@@ -5,16 +5,16 @@ import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
 
 interface Challenge {
-  id: string;
-  name: string;
-  description?: string;
-  is_public: boolean;
-  join_code?: string;
-  start_date: string;
-  end_date: string;
+  id:           string;
+  name:         string;
+  description?: string; 
+  is_public:    boolean;
+  join_code?:   string;
+  start_date:   string;
+  end_date:     string | null;  
   member_count: number;
-  capacity: number;
-  creator_id: string;
+  capacity:     number;
+  creator_id:   string;
   scoring_type?: string;
 }
 
@@ -47,20 +47,36 @@ export default function ChallengesPage() {
         if (created) setCreatedIds(new Set(created.map((c: any) => c.id)));
       }
       const { data } = await supabase
-        .from("challenges").select("*").order("created_at", { ascending: false });
-      setChallenges((data as Challenge[]) || []);
-      setLoading(false);
+        .from("challenges")
+        .select("*, challenge_members(count)")
+        .order("created_at", { ascending: false });
+      setChallenges(
+        (data || []).map((c: any) => ({
+          ...c,
+          member_count: c.challenge_members?.[0]?.count ?? 0,
+        })) as Challenge[]
+    );
     }
     load();
   }, []);
 
-  const getDuration = (c: Challenge) =>
-    Math.ceil((new Date(c.end_date).getTime() - new Date(c.start_date).getTime()) / 86400000);
-  const getDaysLeft = (c: Challenge) =>
-    Math.max(0, Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86400000));
-  const getProgress = (c: Challenge) => {
+  // Returns null for ongoing challenges
+  const getDuration = (c: Challenge): number | null =>
+    c.end_date
+      ? Math.ceil((new Date(c.end_date).getTime() - new Date(c.start_date).getTime()) / 86400000)
+      : null;
+
+  // Returns null for ongoing challenges
+  const getDaysLeft = (c: Challenge): number | null =>
+    c.end_date
+      ? Math.max(0, Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86400000))
+      : null;
+
+  const getProgress = (c: Challenge): number => {
     const total = getDuration(c);
-    return Math.min(100, Math.round(((total - getDaysLeft(c)) / total) * 100));
+    const left  = getDaysLeft(c);
+    if (total === null || left === null) return 0; // ongoing = indeterminate
+    return Math.min(100, Math.round(((total - left) / total) * 100));
   };
 
   const handleJoinPublic = async (challenge: Challenge) => {
@@ -148,7 +164,8 @@ export default function ChallengesPage() {
             const progress = getProgress(challenge);
             const daysLeft = getDaysLeft(challenge);
             const duration = getDuration(challenge);
-            const active   = daysLeft > 0;
+            const isOngoing = challenge.end_date === null;
+            const active = isOngoing || (daysLeft !== null && daysLeft > 0);
 
             return (
               <div key={challenge.id} className="neon-card rounded-2xl overflow-hidden">
@@ -181,8 +198,11 @@ export default function ChallengesPage() {
                   </div>
 
                   <p className="text-xs text-slate-500 font-medium mb-2">
-                    {duration}-day challenge · {active ? `${daysLeft} days left` : "Ended"}
-                    {" · "}{challenge.member_count || 0} members
+                    {isOngoing
+                      ? "Ongoing challenge"
+                      : `${duration}-day challenge · ${active ? `${daysLeft} days left` : "Ended"}`}
+                    {" · "}
+                    {challenge.member_count} member{challenge.member_count !== 1 ? "s" : ""}
                   </p>
 
                   {challenge.description && (

@@ -218,6 +218,9 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       creatorId: string;
       isPublic?: boolean;
       hasTeams?: boolean;
+      isOngoing?: boolean;          
+      startDate?: string;
+      endDate?: string;
       scoringType?: string;
       localPointsPerCheckin?: number;
       dailyTarget?: number | null;
@@ -225,12 +228,16 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       progressionType?: string | null;
       everyXDaysValue?: number | null;
     }): Promise<Challenge | null> {
-      
-  const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const startDate = new Date().toISOString().split("T")[0];
-  const endDate = new Date(Date.now() + challengeData.duration * 86400000)
-    .toISOString()
-    .split("T")[0];
+
+      const joinCode  = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const startDate = challengeData.startDate ?? new Date().toISOString().split("T")[0];
+
+      // ← CHANGED: null for ongoing challenges
+      const endDate = challengeData.isOngoing
+        ? null
+        : challengeData.endDate
+          ?? new Date(Date.now() + challengeData.duration * 86400000)
+              .toISOString().split("T")[0];
 
   // Create a team for this challenge
   const { data: team, error: teamError } = await supabase

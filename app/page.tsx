@@ -474,8 +474,11 @@ export default function HomePage() {
             </div>
           ) : (
             popularChallenges.map((challenge, i) => {
-              const memberCount = challenge.challenge_members?.[0]?.count || 0;
-              const daysLeft = getDaysLeft(challenge.end_date);
+              const memberCount = challenge.challenge_members?.[0]?.count ?? 0;
+              const isOngoing   = challenge.end_date === null;
+              const daysLeft    = !isOngoing && challenge.end_date
+                ? Math.max(0, Math.ceil((new Date(challenge.end_date).getTime() - Date.now()) / 86400000))
+                : null;
               const icons = ["⚡", "🔥", "💪"];
               return (
                 <Link
@@ -487,7 +490,8 @@ export default function HomePage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="challenge-name">{challenge.name}</div>
                     <div className="challenge-meta">
-                      {memberCount} member{memberCount !== 1 ? "s" : ""} · {daysLeft} days left
+                      {memberCount} member{memberCount !== 1 ? "s" : ""} ·{" "}
+                      {isOngoing ? "Ongoing" : `${daysLeft} days left`}
                     </div>
                   </div>
                   <span className="challenge-badge">Active</span>

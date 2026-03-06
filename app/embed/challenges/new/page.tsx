@@ -185,12 +185,15 @@ export default function NewChallengePage() {
         description: description.trim() || undefined,
         creatorId:   session.user.id,
         isPublic,
+        isOngoing,                // ← ADD
         scoringType: scoringType === "progressive_exercise" ? "progressive" : scoringType,
         hasTeams,
         dailyTarget: scoringType === "progressive_exercise" ? parseInt(dailyTarget, 10) : undefined,
         targetUnit:  targetUnit || undefined,
-        ...(durationMode === "dates" && startDate && endDate
-          ? { startDate, endDate }
+        ...(durationMode === "dates" && startDate && !isOngoing && endDate
+          ? { startDate, endDate }                              // ← Guard with !isOngoing
+          : durationMode === "dates" && startDate && isOngoing
+          ? { startDate }
           : {}),
       });
 
