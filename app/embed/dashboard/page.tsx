@@ -374,14 +374,14 @@ export default function DashboardPage() {
         // ── REPLACE the old sData fetch with this ──
         const { data: profile } = await supabase
           .from("users")
-          .select("display_name, streak")
+          .select("name, streak")
           .eq("id", user.id)
           .single();
 
         if (profile) {
           setUserStreak(profile.streak || 0);
           setUserName(
-            profile.display_name ||
+            profile.name ||
             user.email?.split("@")[0] ||
             "Member"
           );
