@@ -467,7 +467,7 @@ export async function recordCheckIn(
   // ── Current user state ───────────────────────────────────────────────────────
   const { data: currentUser } = await supabase
     .from("users")
-    .select("streak, total_points, global_points, name, emoji_avatar")
+    .select("streak, total_points, global_points, name, display_name, emoji_avatar")
     .eq("id", userId)
     .single();
 
@@ -511,7 +511,7 @@ export async function recordCheckIn(
     .eq("id", userId);
 
   // ── Activity feed ────────────────────────────────────────────────────────────
-  const userName = currentUser?.name || "Member";
+  const userName = currentUser?.display_name || currentUser?.name || "Member";
 
   // Standard check-in post
   await supabase.from("activity_feed").insert({

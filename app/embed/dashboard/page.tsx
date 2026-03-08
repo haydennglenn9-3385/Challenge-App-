@@ -347,17 +347,19 @@ function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challeng
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [challenges, setChallenges]       = useState<Challenge[]>([]);
-  const [feed, setFeed]                   = useState<FeedItem[]>([]);
-  const [userEmail, setUserEmail]         = useState<string>("");
-  const [userStreak, setUserStreak]       = useState<number>(0);
-  const [appStreak, setAppStreak]         = useState<number>(0);
-  const [loading, setLoading]             = useState(true);
-  const [postText, setPostText]           = useState("");
-  const [posting, setPosting]             = useState(false);
-  const [authed, setAuthed]               = useState(false);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");        // ← ADD THIS
+  const [userStreak, setUserStreak] = useState<number>(0);
+  const [appStreak, setAppStreak] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [postText, setPostText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [authed, setAuthed] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -369,10 +371,21 @@ export default function DashboardPage() {
         setCurrentUserId(user.id);
         if (user?.email) setUserEmail(user.email.split("@")[0]);
 
-        const { data: sData } = await supabase
-          .from("users").select("streak").eq("id", user.id).single();
-        if (sData) setUserStreak(sData.streak || 0);
+        // ── REPLACE the old sData fetch with this ──
+        const { data: profile } = await supabase
+          .from("users")
+          .select("display_name, streak")
+          .eq("id", user.id)
+          .single();
 
+        if (profile) {
+          setUserStreak(profile.streak || 0);
+          setUserName(
+            profile.display_name ||
+            user.email?.split("@")[0] ||
+            "Member"
+          );
+        }
         const { appStreak: streak } = await handleAppCheckin(user.id);
         setAppStreak(streak);
       }
@@ -425,7 +438,7 @@ export default function DashboardPage() {
     setPosting(true);
     await supabase.from("activity_feed").insert({
       user_id:   currentUserId,
-      user_name: userEmail || "Member",
+      user_name: userName || "Member",
       type:      "message",
       text:      postText.trim(),
       meta:      {},
@@ -525,7 +538,7 @@ export default function DashboardPage() {
           <div style={{ background: "#0e0e0e", borderRadius: 22, padding: "24px 22px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
-              ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
+              ⚡ 'Welcome back${userName ? `, ${userName}` : ""}`
               {streakContext && <span style={{ marginLeft: 8, color: "#ff8c42" }}>· {streakContext}</span>}
             </div>
             <a href="https://queersandalliesfitness.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
