@@ -21,22 +21,21 @@ type DMConversation = {
 };
 
 export default function MessagesPage() {
-  const router       = useSearchParams();
   const nav          = useRouter();
   const searchParams = useSearchParams();
   const { user }     = useUser();
 
-  const [tab, setTab]                             = useState<MsgTab>("community");
-  const [feed, setFeed]                           = useState<any[]>([]);
-  const [challenges, setChallenges]               = useState<Challenge[]>([]);
-  const [dmConversations, setDmConversations]     = useState<DMConversation[]>([]);
-  const [openChallenge, setOpenChallenge]         = useState<Challenge | null>(null);
-  const [openDmUser, setOpenDmUser]               = useState<{ id: string; name: string } | null>(null);
-  const [postText, setPostText]                   = useState("");
-  const [posting, setPosting]                     = useState(false);
-  const [loading, setLoading]                     = useState(true);
+  const [tab, setTab]                         = useState<MsgTab>("community");
+  const [feed, setFeed]                       = useState<any[]>([]);
+  const [challenges, setChallenges]           = useState<Challenge[]>([]);
+  const [dmConversations, setDmConversations] = useState<DMConversation[]>([]);
+  const [openChallenge, setOpenChallenge]     = useState<Challenge | null>(null);
+  const [openDmUser, setOpenDmUser]           = useState<{ id: string; name: string } | null>(null);
+  const [postText, setPostText]               = useState("");
+  const [posting, setPosting]                 = useState(false);
+  const [loading, setLoading]                 = useState(true);
 
-  // Handle ?dm=userId from profile page
+  // Handle ?dm=userId deep-link from profile page
   useEffect(() => {
     const dmUserId = searchParams.get("dm");
     if (!dmUserId || !user) return;
@@ -47,7 +46,6 @@ export default function MessagesPage() {
         .select("id, name")
         .eq("id", dmUserId)
         .single();
-
       if (data) {
         setTab("dms");
         setOpenDmUser({ id: data.id, name: data.name });
@@ -59,63 +57,73 @@ export default function MessagesPage() {
 
   useEffect(() => {
     async function load() {
-      // Community feed
-      const { data: fData } = await supabase
-        .from("activity_feed")
-        .select("*")
-        .eq("type", "message")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setFeed(fData || []);
+      // ── Parallel fetch: community feed + challenge memberships ──────────────
+      const [fResult, joinedResult] = await Promise.all([
+        supabase
+          .from("activity_feed")
+          .select("*")
+          .eq("type", "message")
+          .order("created_at", { ascending: false })
+          .limit(20),
 
-      if (!user) { setLoading(false); return; }
+        user
+          ? supabase
+              .from("challenge_members")
+              .select("challenge_id, challenges(id, name, member_count)")
+              .eq("user_id", user.id)
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-      // Joined challenges
-      const { data: joined } = await supabase
-        .from("challenge_members")
-        .select("challenge_id, challenges(id, name, member_count)")
-        .eq("user_id", user.id);
-      if (joined) {
-        setChallenges(joined.map((j: any) => j.challenges).filter(Boolean));
+      setFeed(fResult.data || []);
+
+      if (joinedResult.data) {
+        setChallenges(
+          (joinedResult.data as any[]).map((j) => j.challenges).filter(Boolean)
+        );
       }
 
-      // DM conversations — find all users this person has exchanged messages with
-      const { data: sentMsgs } = await supabase
-        .from("messages")
-        .select("recipient_id, text, created_at, users!messages_recipient_id_fkey(id, name)")
-        .eq("author_id", user.id)
-        .eq("is_dm", true)
-        .order("created_at", { ascending: false });
+      // ── DM conversations — only if logged in ────────────────────────────────
+      if (user) {
+        const [sentResult, receivedResult] = await Promise.all([
+          supabase
+            .from("messages")
+            .select("recipient_id, text, created_at, users!messages_recipient_id_fkey(id, name)")
+            .eq("author_id", user.id)
+            .eq("is_dm", true)
+            .order("created_at", { ascending: false }),
 
-      const { data: receivedMsgs } = await supabase
-        .from("messages")
-        .select("author_id, text, created_at, users!messages_author_id_fkey(id, name)")
-        .eq("recipient_id", user.id)
-        .eq("is_dm", true)
-        .order("created_at", { ascending: false });
+          supabase
+            .from("messages")
+            .select("author_id, text, created_at, users!messages_author_id_fkey(id, name)")
+            .eq("recipient_id", user.id)
+            .eq("is_dm", true)
+            .order("created_at", { ascending: false }),
+        ]);
 
-      // Build unique conversation list
-      const convMap: Record<string, DMConversation> = {};
+        const convMap: Record<string, DMConversation> = {};
 
-      (sentMsgs || []).forEach((m: any) => {
-        const otherId = m.recipient_id;
-        const otherName = m.users?.name || "Member";
-        if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
-          convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
-        }
-      });
+        (sentResult.data || []).forEach((m: any) => {
+          const otherId   = m.recipient_id;
+          const otherName = m.users?.name || "Member";
+          if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
+            convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
+          }
+        });
 
-      (receivedMsgs || []).forEach((m: any) => {
-        const otherId = m.author_id;
-        const otherName = m.users?.name || "Member";
-        if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
-          convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
-        }
-      });
+        (receivedResult.data || []).forEach((m: any) => {
+          const otherId   = m.author_id;
+          const otherName = m.users?.name || "Member";
+          if (!convMap[otherId] || new Date(m.created_at) > new Date(convMap[otherId].lastAt!)) {
+            convMap[otherId] = { userId: otherId, name: otherName, lastMessage: m.text, lastAt: m.created_at };
+          }
+        });
 
-      setDmConversations(Object.values(convMap).sort((a, b) =>
-        new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime()
-      ));
+        setDmConversations(
+          Object.values(convMap).sort((a, b) =>
+            new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime()
+          )
+        );
+      }
 
       setLoading(false);
     }
@@ -124,13 +132,16 @@ export default function MessagesPage() {
 
     const sub = supabase
       .channel("messages_feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_feed" },
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_feed" },
         (payload) => {
           if (payload.new.type === "message") {
-            setFeed(prev => [payload.new, ...prev.slice(0, 19)]);
+            setFeed((prev) => [payload.new, ...prev.slice(0, 19)]);
           }
         }
-      ).subscribe();
+      )
+      .subscribe();
 
     return () => { supabase.removeChannel(sub); };
   }, [user]);
@@ -139,10 +150,11 @@ export default function MessagesPage() {
     if (!postText.trim()) return;
     setPosting(true);
     await supabase.from("activity_feed").insert({
+      user_id:   user?.id,           // required for RLS
       user_name: user?.name || "Member",
-      type: "message",
-      text: postText.trim(),
-      meta: {},
+      type:      "message",
+      text:      postText.trim(),
+      meta:      {},
     });
     setPostText("");
     setPosting(false);
@@ -169,11 +181,19 @@ export default function MessagesPage() {
       {/* Header */}
       {!isInChat && (
         <div className="px-5 mb-4">
-          <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
-            style={{ background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <p
+            className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
+            style={{
+              background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
             Queers & Allies Fitness
           </p>
-          <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">Messages</h1>
+          <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">
+            Messages
+          </h1>
         </div>
       )}
 
@@ -197,33 +217,40 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── COMMUNITY TAB ── */}
+      {/* ── COMMUNITY TAB ─────────────────────────────────────────────────────── */}
       {!isInChat && tab === "community" && (
         <div className="px-5 flex flex-col gap-4 flex-1">
+
+          {/* Post input */}
           <div className="neon-card rounded-2xl p-4 flex gap-3 items-center">
-            <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}>
+            <div
+              className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
+            >
               {user?.name?.[0]?.toUpperCase() || "?"}
             </div>
             <input
               value={postText}
               onChange={(e) => setPostText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handlePost()}
-              placeholder="Post a shoutout"
+              placeholder="Post a shoutout to the community…"
               className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
             />
             <button
               onClick={handlePost}
               disabled={posting || !postText.trim()}
               className="text-xs font-bold px-4 py-2 rounded-full transition-all flex-shrink-0"
-              style={postText.trim() && !posting
-                ? { background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white" }
-                : { background: "#f1f1f1", color: "#aaa" }}
+              style={
+                postText.trim() && !posting
+                  ? { background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white" }
+                  : { background: "#f1f1f1", color: "#aaa" }
+              }
             >
               {posting ? "…" : "Post"}
             </button>
           </div>
 
+          {/* Feed */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="text-5xl">🏳️‍🌈</div>
@@ -239,9 +266,11 @@ export default function MessagesPage() {
             <div className="space-y-3">
               {feed.map((item, i) => (
                 <div key={item.id || i} className="neon-card rounded-2xl px-4 py-4 flex gap-3 items-start">
-                  <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white"
-                    style={{ background: AVATAR_GRADIENTS[i % 4] }}>
-                    {item.user_name?.[0]?.toUpperCase() || "?"}
+                  <div
+                    className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white"
+                    style={{ background: AVATAR_GRADIENTS[i % 4] }}
+                  >
+                    {item.emoji_avatar || item.user_name?.[0]?.toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-slate-900">{item.user_name}</p>
@@ -257,7 +286,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── GROUPS TAB — list ── */}
+      {/* ── GROUPS TAB ────────────────────────────────────────────────────────── */}
       {!isInChat && tab === "groups" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
@@ -270,8 +299,10 @@ export default function MessagesPage() {
               <p className="text-2xl mb-2">⚡</p>
               <p className="font-bold text-slate-800">No challenge chats yet</p>
               <p className="text-sm text-slate-500 mt-2 mb-4">Join a challenge to unlock its group chat</p>
-              <button onClick={() => nav.push("/embed/challenges")}
-                className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
+              <button
+                onClick={() => nav.push("/embed/challenges")}
+                className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm"
+              >
                 Browse Challenges
               </button>
             </div>
@@ -284,8 +315,10 @@ export default function MessagesPage() {
               >
                 <div className="h-1 w-full rainbow-cta" />
                 <div className="px-5 py-4 flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg,#ff6b9d22,#667eea22)" }}>
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg,#ff6b9d22,#667eea22)" }}
+                  >
                     💬
                   </div>
                   <div className="flex-1 min-w-0">
@@ -302,7 +335,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── DMs TAB — conversation list ── */}
+      {/* ── DMs TAB ───────────────────────────────────────────────────────────── */}
       {!isInChat && tab === "dms" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
@@ -332,8 +365,10 @@ export default function MessagesPage() {
                 className="w-full neon-card rounded-2xl overflow-hidden text-left hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="px-5 py-4 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
-                    style={{ background: AVATAR_GRADIENTS[i % 4] }}>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
+                    style={{ background: AVATAR_GRADIENTS[i % 4] }}
+                  >
                     {conv.name[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -354,9 +389,9 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── Challenge chat open ── */}
+      {/* ── Challenge chat ─────────────────────────────────────────────────────── */}
       {openChallenge && user && (
-        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 94px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "challenge", id: openChallenge.id }}
             currentUserId={user.id}
@@ -367,9 +402,9 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── DM chat open ── */}
+      {/* ── DM chat ───────────────────────────────────────────────────────────── */}
       {openDmUser && user && (
-        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 94px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "dm", id: openDmUser.id }}
             currentUserId={user.id}
@@ -377,7 +412,6 @@ export default function MessagesPage() {
             title={openDmUser.name}
             onBack={() => {
               setOpenDmUser(null);
-              // Clear the ?dm= param without full reload
               nav.replace("/embed/messages?tab=dms");
             }}
           />
