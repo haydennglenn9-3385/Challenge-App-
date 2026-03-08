@@ -839,6 +839,17 @@ export default function ChallengeDetailPage() {
           </div>
         )}
 
+        {isEnded && isMember && (
+          <div style={{ textAlign: "center", marginTop: -8 }}>
+            <button
+              onClick={() => setShowCalendar(true)}
+              style={{ fontSize: 13, fontWeight: 700, color: "#7b2d8b",
+                background: "transparent", border: "none", cursor: "pointer" }}
+            >
+              ✏️ Edit Past Entries
+            </button>
+          </div>
+        )}
         {/* ── Challenge rules ─────────────────────────────────────────────── */}
         <details className="neon-card rounded-2xl px-5 py-4 cursor-pointer">
           <summary className="font-semibold text-slate-800 text-sm list-none flex items-center gap-2">

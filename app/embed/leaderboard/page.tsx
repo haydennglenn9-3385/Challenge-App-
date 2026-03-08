@@ -302,9 +302,11 @@ export default function LeaderboardPage() {
           joined
             .map((j: any) => j.challenges)
             .filter(Boolean)
-            .sort((a: any, b: any) =>
-              new Date(b.end_date).getTime() - new Date(a.end_date).getTime()
-            )
+            .sort((a: any, b: any) => {
+              if (a.end_date === null) return -1;
+              if (b.end_date === null) return 1;
+              return new Date(b.end_date).getTime() - new Date(a.end_date).getTime();
+            })
         );
       }
       setLoading(false);
@@ -469,10 +471,12 @@ export default function LeaderboardPage() {
   };
 
   const isActive = (c: UserChallenge) =>
-    new Date(c.end_date).getTime() > Date.now();
+  c.end_date === null || new Date(c.end_date).getTime() > Date.now();
 
-  const daysLeft = (c: UserChallenge) =>
-    Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86_400_000);
+const daysLeft = (c: UserChallenge) =>
+  c.end_date === null
+    ? null
+    : Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86_400_000);
 
   // ── Render ────────────────────────────────────────────────────────────────────
   if (loading) {
@@ -663,7 +667,9 @@ export default function LeaderboardPage() {
                         <span className="text-slate-300">·</span>
                         <span>
                           {active
-                            ? `${daysLeft(challenge)}d left`
+                            ? daysLeft(challenge) === null
+                              ? "Ongoing"
+                              : `${daysLeft(challenge)}d left`
                             : "Ended"}
                         </span>
                       </p>
