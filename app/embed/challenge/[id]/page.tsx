@@ -498,17 +498,25 @@ export default function ChallengeDetailPage() {
         .update({ total_points: newGlobal, streak: newStreak })
         .eq("id", userId);
 
-      const { data: uProfile } = await supabase
-        .from("users").select("name").eq("id", userId).maybeSingle();
-
-      await supabase.from("activity_feed").insert({
-        user_name: uProfile?.name ?? "Member",
-        type:      streakBonus > 0 ? "streak_milestone" : "streak",
-        text:      streakBonus > 0
-          ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts`
-          : "checked in!",
-        meta: { challenge_id: challengeId, days: newStreak, points: totalNewPoints, bonus: streakBonus },
-      });
+      
+        const { data: uProfile } = await supabase
+          .from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
+        await supabase.from("activity_feed").insert({
+          user_id:      userId,
+          user_name:    uProfile?.name ?? "Member",
+          emoji_avatar: uProfile?.emoji_avatar ?? null,
+          type:         "streak",
+          text:         streakBonus > 0
+            ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts`
+            : "checked in!",
+          meta: {
+            challenge_id:   challengeId,
+            challenge_name: challenge?.name ?? null,
+            days:           newStreak,
+            points:         totalNewPoints,
+            bonus:          streakBonus,
+          },
+        });
 
       setCheckedInToday(true);
       setTodayPoints(points);
@@ -567,15 +575,22 @@ export default function ChallengeDetailPage() {
         .eq("id", userId);
 
       const { data: uProfile } = await supabase
-        .from("users").select("name").eq("id", userId).maybeSingle();
-
+        .from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
       await supabase.from("activity_feed").insert({
-        user_name: uProfile?.name ?? "Member",
-        type:      streakBonus > 0 ? "streak_milestone" : "streak",
-        text:      streakBonus > 0
+        user_id:      userId,
+        user_name:    uProfile?.name ?? "Member",
+        emoji_avatar: uProfile?.emoji_avatar ?? null,
+        type:         "streak",
+        text:         streakBonus > 0
           ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts`
           : "checked in!",
-        meta: { challenge_id: challengeId, days: newStreak, points: totalNewPoints, bonus: streakBonus },
+        meta: {
+          challenge_id:   challengeId,
+          challenge_name: challenge?.name ?? null,
+          days:           newStreak,
+          points:         totalNewPoints,
+          bonus:          streakBonus,
+        },
       });
 
       setCheckedInToday(true);
