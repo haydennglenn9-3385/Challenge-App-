@@ -45,9 +45,25 @@ function formatValue(value: number, unit: string) {
     const secs = Math.round((value - mins) * 60);
     return `${mins}:${String(secs).padStart(2, "0")}`;
   }
+  if (unit === "sec") {
+    const mins = Math.floor(value / 60);
+    const secs = Math.round(value % 60);
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
   return `${value}`;
 }
 
+// Parses "1:01", "0:45", or "61" → total seconds (or minutes as decimal for "min" unit)
+function parseTimeInput(raw: string, unit: string): number {
+  const trimmed = raw.trim();
+  if (trimmed.includes(":")) {
+    const [left, right] = trimmed.split(":").map((s) => parseInt(s, 10));
+    const mins = isNaN(left) ? 0 : left;
+    const secs = isNaN(right) ? 0 : right;
+    return unit === "min" ? mins + secs / 60 : mins * 60 + secs;
+  }
+  return parseFloat(trimmed) || 0;
+}
 function formatDate(d: string) {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -117,7 +133,8 @@ export default function PRPage() {
     const label     = isCustom ? customLabel || "Custom" : selectedPreset.label;
     const unit      = isCustom ? customUnit : selectedPreset.unit;
     const type      = isCustom ? `custom_${label.toLowerCase().replace(/\s+/g, "_")}` : selectedPreset.type;
-    const value     = parseFloat(valueInput);
+    const isTimedUnit = unit === "min" || unit === "sec";
+    const value = isTimedUnit ? parseTimeInput(valueInput, unit) : parseFloat(valueInput);  
 
     // Find the current best for this type so we can store previous_value
     const existing  = prs.filter(p => p.type === type);
@@ -373,12 +390,22 @@ export default function PRPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div>
                 <span className="pr-label">
-                  {selectedPreset.unit === "min" ? "Time (e.g. 8.5 = 8:30)" : `Value (${selectedPreset.type === "custom" ? customUnit || "unit" : selectedPreset.unit})`}
+                  {selectedPreset.unit === "min" || selectedPreset.unit === "sec"
+                    ? "Time (e.g. 1:01 or 45)"
+                    : `Value (${selectedPreset.type === "custom" ? customUnit || "unit" : selectedPreset.unit})`}
                 </span>
                 <input
-                  className="pr-input" type="number" min={0} step="0.1"
-                  placeholder={selectedPreset.unit === "min" ? "8.5" : "225"}
-                  value={valueInput} onChange={(e) => setValueInput(e.target.value)}
+                  className="pr-input"
+                  type={selectedPreset.unit === "min" || selectedPreset.unit === "sec" ? "text" : "number"}
+                  min={0}
+                  step="0.1"
+                  placeholder={
+                    selectedPreset.unit === "min" || selectedPreset.unit === "sec"
+                      ? "1:01"
+                      : "225"
+                  }
+                  value={valueInput}
+                  onChange={(e) => setValueInput(e.target.value)}
                 />
               </div>
               <div>

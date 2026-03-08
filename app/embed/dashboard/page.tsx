@@ -538,7 +538,7 @@ export default function DashboardPage() {
           <div style={{ background: "#0e0e0e", borderRadius: 22, padding: "24px 22px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
-              ⚡ 'Welcome back${userName ? `, ${userName}` : ""}`
+              {authed ? `⚡ Welcome back${userName ? `, ${userName}` : ""}` : "⚡ Welcome!"}
               {streakContext && <span style={{ marginLeft: 8, color: "#ff8c42" }}>· {streakContext}</span>}
             </div>
             <a href="https://queersandalliesfitness.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
