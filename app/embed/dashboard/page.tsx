@@ -147,46 +147,6 @@ async function handleAppCheckin(userId: string): Promise<{ appStreak: number }> 
   return { appStreak: newStreak };
 }
 
-// ─── Spotlight Banner ─────────────────────────────────────────────────────────
-// Finds the highest streak item in the feed and surfaces it at the top.
-// Only renders if at least one streak-type item has meta.days populated.
-function SpotlightBanner({ feed }: { feed: FeedItem[] }) {
-  const top = feed
-    .filter((i) => i.type === "streak" && typeof i.meta?.days === "number")
-    .sort((a, b) => (b.meta.days as number) - (a.meta.days as number))[0];
-
-  if (!top) return null;
-  const days = top.meta.days as number;
-
-  return (
-    <div style={{
-      background: "linear-gradient(135deg, #0e0e0e 60%, #1a1a2e 100%)",
-      borderRadius: 18,
-      padding: "16px 18px",
-      display: "flex",
-      alignItems: "center",
-      gap: 14,
-      marginBottom: 14,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
-      position: "relative",
-      overflow: "hidden",
-    }}>
-      <div style={{ position: "absolute", right: -10, top: -10, width: 90, height: 90, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,140,66,0.25) 0%, transparent 70%)" }} />
-      <div style={{ fontSize: 40, flexShrink: 0 }}>🔥</div>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#ff8c42", marginBottom: 4 }}>
-          Crew on fire right now
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}>
-          {top.user_name}&apos;s on a {days}-day streak!
-        </div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>
-          Longest active streak in the community
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Challenge sub-card ───────────────────────────────────────────────────────
 // Renders inside a feed card when meta.challenge_name is present.
@@ -336,13 +296,6 @@ function ReactionsRow({
           )}
         </div>
       )}
-
-      <button style={{
-        marginLeft: "auto", background: "none", border: "none",
-        cursor: "pointer", fontSize: 13, color: "#aaa", fontWeight: 600, padding: "4px 0",
-      }}>
-        Comment
-      </button>
     </div>
   );
 }
@@ -734,9 +687,6 @@ export default function DashboardPage() {
           <div style={{ padding: "16px 0 4px" }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999" }}>Latest Activity</div>
           </div>
-
-          {/* Spotlight — only renders when a streak item with meta.days exists */}
-          <SpotlightBanner feed={feed} />
 
           {/* Post input */}
           {authed && (

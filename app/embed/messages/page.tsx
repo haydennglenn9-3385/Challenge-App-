@@ -209,7 +209,7 @@ export default function MessagesPage() {
               value={postText}
               onChange={(e) => setPostText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handlePost()}
-              placeholder="Post a shoutout to the community…"
+              placeholder="Post a shoutout"
               className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
             />
             <button
