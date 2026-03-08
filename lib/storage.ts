@@ -439,7 +439,7 @@ export async function recordCheckIn(
   // ── Challenge config ─────────────────────────────────────────────────────────
   const { data: challenge } = await supabase
     .from("challenges")
-    .select("local_points_per_checkin, scoring_type")
+    .select("local_points_per_checkin, scoring_type, name")
     .eq("id", challengeId)
     .single();
 
@@ -467,7 +467,7 @@ export async function recordCheckIn(
   // ── Current user state ───────────────────────────────────────────────────────
   const { data: currentUser } = await supabase
     .from("users")
-    .select("streak, total_points, global_points, name")
+    .select("streak, total_points, global_points, name, emoji_avatar")
     .eq("id", userId)
     .single();
 
@@ -515,29 +515,33 @@ export async function recordCheckIn(
 
   // Standard check-in post
   await supabase.from("activity_feed").insert({
-    user_id:   userId,
-    user_name: userName,
-    type:      "streak",
-    text:      "checked in!",
+    user_id:      userId,
+    user_name:    userName,
+    emoji_avatar: currentUser?.emoji_avatar ?? null,
+    type:         "streak",
+    text:         "checked in!",
     meta: {
-      challenge_id: challengeId,
-      days:         newStreak,
-      points:       globalPointsEarned,
+      challenge_id:   challengeId,
+      challenge_name: challenge?.name ?? null,
+      days:           newStreak,
+      points:         globalPointsEarned,
     },
   });
 
-  // Bonus milestone post — only on streak milestone days
+  // Bonus milestone post
   if (streakBonus > 0) {
     await supabase.from("activity_feed").insert({
-      user_id:   userId,
-      user_name: userName,
-      type:      "streak",
-      text:      `hit a ${newStreak}-day streak! 🔥`,
+      user_id:      userId,
+      user_name:    userName,
+      emoji_avatar: currentUser?.emoji_avatar ?? null,
+      type:         "streak",
+      text:         `hit a ${newStreak}-day streak! 🔥`,
       meta: {
-        challenge_id:  challengeId,
-        days:          newStreak,
-        bonus_points:  streakBonus,
-        is_milestone:  true,
+        challenge_id:   challengeId,
+        challenge_name: challenge?.name ?? null,
+        days:           newStreak,
+        bonus_points:   streakBonus,
+        is_milestone:   true,
       },
     });
   }

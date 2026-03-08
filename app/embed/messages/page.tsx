@@ -21,8 +21,6 @@ type DMConversation = {
 };
 
 // ─── Slow-load notice ─────────────────────────────────────────────────────────
-// Appears after 6s if still loading. Gives user something to do instead of
-// wondering if the app is broken.
 function SlowLoadNotice({ onRetry }: { onRetry: () => void }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
@@ -33,10 +31,7 @@ function SlowLoadNotice({ onRetry }: { onRetry: () => void }) {
   return (
     <p className="text-xs text-slate-400 text-center mt-3">
       Taking longer than usual…{" "}
-      <button
-        onClick={onRetry}
-        className="underline text-purple-500 font-semibold"
-      >
+      <button onClick={onRetry} className="underline text-purple-500 font-semibold">
         tap to refresh
       </button>
     </p>
@@ -53,18 +48,9 @@ export default function MessagesPage() {
   const [dmConversations, setDmConversations] = useState<DMConversation[]>([]);
   const [openChallenge, setOpenChallenge]     = useState<Challenge | null>(null);
   const [openDmUser, setOpenDmUser]           = useState<{ id: string; name: string } | null>(null);
-  const [communityOpen, setCommunityOpen]     = useState(false);
+  const [openCommunity, setOpenCommunity]     = useState(false);
   const [loading, setLoading]                 = useState(true);
   const [loadKey, setLoadKey]                 = useState(0);
-
-  // Auto-open community chat when community tab is selected
-  useEffect(() => {
-    if (tab === "community" && user) {
-      setCommunityOpen(true);
-    } else {
-      setCommunityOpen(false);
-    }
-  }, [tab, user]);
 
   // Handle ?dm=userId deep-link from profile page
   useEffect(() => {
@@ -154,8 +140,7 @@ export default function MessagesPage() {
     { id: "dms",       label: "DMs",       icon: "💬" },
   ];
 
-  // Any open chat takes over the full screen — hides header + tabs
-  const isInChat = !!openChallenge || !!openDmUser || communityOpen;
+  const isInChat = !!openChallenge || !!openDmUser || openCommunity;
 
   const AVATAR_GRADIENTS = [
     "linear-gradient(135deg,#ff6b9d,#ff9f43)",
@@ -167,7 +152,7 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen pt-6 pb-28 flex flex-col">
 
-      {/* ── Header — hidden when any chat is open ── */}
+      {/* ── Header ── */}
       {!isInChat && (
         <div className="px-5 mb-4">
           <p
@@ -186,7 +171,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── Tabs — hidden when any chat is open ── */}
+      {/* ── Tabs ── */}
       {!isInChat && (
         <div className="px-5 mb-4">
           <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
@@ -206,19 +191,46 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── COMMUNITY TAB — list entry point ── */}
-      {!isInChat && tab === "community" && !user && (
-        <div className="px-5">
-          <div className="neon-card rounded-2xl p-10 text-center">
-            <p className="text-2xl mb-2">🌈</p>
-            <p className="font-bold text-slate-800">Log in to join the conversation</p>
+      {/* ── COMMUNITY TAB — single entry card ── */}
+      {!isInChat && tab === "community" && (
+        <div className="px-5 flex flex-col gap-3">
+          {!user ? (
+            <div className="neon-card rounded-2xl p-10 text-center">
+              <p className="text-2xl mb-2">🌈</p>
+              <p className="font-bold text-slate-800">Log in to join the conversation</p>
+              <button
+                onClick={() => nav.push("/auth")}
+                className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm mt-4"
+              >
+                Log In / Sign Up
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={() => nav.push("/auth")}
-              className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm mt-4"
+              onClick={() => setOpenCommunity(true)}
+              className="w-full neon-card rounded-2xl overflow-hidden text-left hover:-translate-y-0.5 transition-all duration-200"
             >
-              Log In / Sign Up
+              {/* Rainbow accent strip — matches group chat cards */}
+              <div className="h-1 w-full rainbow-cta" />
+              <div className="px-5 py-4 flex items-center gap-4">
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(255,107,157,0.13), rgba(102,126,234,0.13))",
+                  }}
+                >
+                  🌈
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900">Community Chat</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                    Everyone · Open conversation
+                  </p>
+                </div>
+                <span className="text-slate-400 text-sm">→</span>
+              </div>
             </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -235,7 +247,9 @@ export default function MessagesPage() {
             <div className="neon-card rounded-2xl p-10 text-center">
               <p className="text-2xl mb-2">⚡</p>
               <p className="font-bold text-slate-800">No challenge chats yet</p>
-              <p className="text-sm text-slate-500 mt-2 mb-4">Join a challenge to unlock its group chat</p>
+              <p className="text-sm text-slate-500 mt-2 mb-4">
+                Join a challenge to unlock its group chat
+              </p>
               <button
                 onClick={() => nav.push("/embed/challenges")}
                 className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm"
@@ -317,7 +331,10 @@ export default function MessagesPage() {
                   </div>
                   {conv.lastAt && (
                     <p className="text-[10px] text-slate-400 flex-shrink-0">
-                      {new Date(conv.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(conv.lastAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   )}
                 </div>
@@ -327,18 +344,15 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── Community chat — full screen, same pattern as challenge + DM ── */}
-      {communityOpen && user && (
+      {/* ── Community chat — full screen ── */}
+      {openCommunity && user && (
         <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "community" }}
             currentUserId={user.id}
             currentUserName={user.name}
-            title="Community"
-            onBack={() => {
-              setCommunityOpen(false);
-              setTab("groups");
-            }}
+            title="Community Chat"
+            onBack={() => setOpenCommunity(false)}
           />
         </div>
       )}

@@ -54,7 +54,6 @@ const AVATAR_BG: Record<FeedType, string> = {
   join:    "#d4f5e2",
 };
 
-// CTA label + color shown inside the challenge sub-card
 const TYPE_CTA: Record<FeedType, string | null> = {
   streak:  "✓ Done",
   score:   "View",
@@ -81,12 +80,12 @@ const ACTIONS = [
 ];
 
 const CARD_COLORS = [
-  { glow: "#ff3c5f", prog1: "#ff3c5f", prog2: "#ffd166", valColor: "#ffd166" },
-  { glow: "#06d6a0", prog1: "#06d6a0", prog2: "#118ab2", valColor: "#06d6a0" },
+  { glow: "#ff3c5f", prog1: "#ff3c5f", prog2: "#ffd166", valColor: "#ffd166", labelColor: "rgba(255,209,102,0.7)" },
+  { glow: "#06d6a0", prog1: "#06d6a0", prog2: "#118ab2", valColor: "#06d6a0", labelColor: "rgba(6,214,160,0.7)"   },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function daysLeft(endDate?: string) {
+function daysLeft(endDate?: string): number | null {
   if (!endDate) return null;
   const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000);
   return diff > 0 ? diff : 0;
@@ -147,56 +146,27 @@ async function handleAppCheckin(userId: string): Promise<{ appStreak: number }> 
   return { appStreak: newStreak };
 }
 
-
 // ─── Challenge sub-card ───────────────────────────────────────────────────────
-// Renders inside a feed card when meta.challenge_name is present.
-// To trigger this from any activity_feed insert, include in meta:
-//   { challenge_name: string, challenge_subtitle?: string, challenge_emoji?: string }
 function ChallengeSubCard({ meta, type }: { meta: Record<string, unknown>; type: FeedType }) {
   const name     = meta.challenge_name     as string | undefined;
   const subtitle = meta.challenge_subtitle as string | undefined;
   const emoji    = meta.challenge_emoji    as string | undefined;
   const cta      = TYPE_CTA[type];
   const ctaColor = TYPE_CTA_COLOR[type];
-
   if (!name) return null;
-
   return (
-    <div style={{
-      background: "#f5f5f7",
-      borderRadius: 12,
-      padding: "10px 12px",
-      marginTop: 10,
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-    }}>
+    <div style={{ background: "#f5f5f7", borderRadius: 12, padding: "10px 12px", marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
       {emoji && (
-        <div style={{
-          width: 38, height: 38, borderRadius: 10,
-          background: "#ececec",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, flexShrink: 0,
-        }}>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: "#ececec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
           {emoji}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {name}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{subtitle}</div>
-        )}
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+        {subtitle && <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{subtitle}</div>}
       </div>
       {cta && (
-        <button style={{
-          background: ctaColor, color: "#fff",
-          fontSize: 12, fontWeight: 700,
-          padding: "7px 16px", borderRadius: 20,
-          border: "none", cursor: "pointer",
-          flexShrink: 0, whiteSpace: "nowrap",
-        }}>
+        <button style={{ background: ctaColor, color: "#fff", fontSize: 12, fontWeight: 700, padding: "7px 16px", borderRadius: 20, border: "none", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
           {cta}
         </button>
       )}
@@ -205,14 +175,9 @@ function ChallengeSubCard({ meta, type }: { meta: Record<string, unknown>; type:
 }
 
 // ─── Community label ──────────────────────────────────────────────────────────
-// Only shown on message-type posts with no challenge context in meta
 function CommunityLabel() {
   return (
-    <div style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      marginTop: 8, background: "rgba(17,138,178,0.08)",
-      borderRadius: 20, padding: "3px 10px",
-    }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, background: "rgba(17,138,178,0.08)", borderRadius: 20, padding: "3px 10px" }}>
       <span style={{ fontSize: 10 }}>🌈</span>
       <span style={{ fontSize: 10, fontWeight: 700, color: "#118ab2" }}>Community</span>
     </div>
@@ -220,75 +185,34 @@ function CommunityLabel() {
 }
 
 // ─── Reactions row ────────────────────────────────────────────────────────────
-function ReactionsRow({
-  item,
-  currentUserId,
-  onReact,
-}: {
-  item: FeedItem;
-  currentUserId: string | null;
-  onReact: (itemId: string, emoji: string) => void;
-}) {
+function ReactionsRow({ item, currentUserId, onReact }: { item: FeedItem; currentUserId: string | null; onReact: (itemId: string, emoji: string) => void }) {
   const [showPicker, setShowPicker] = useState(false);
   const reactions = item.reactions || {};
   const hasAny = Object.keys(reactions).some((e) => reactions[e]?.length > 0);
-
   return (
-    <div style={{
-      marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0",
-      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-    }}>
+    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
       {Object.entries(reactions).map(([emoji, users]) =>
         users.length > 0 ? (
-          <button
-            key={emoji}
-            onClick={() => currentUserId && onReact(item.id, emoji)}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "5px 12px", borderRadius: 20,
-              border: currentUserId && users.includes(currentUserId)
-                ? "1.5px solid #7b2d8b"
-                : "1.5px solid #e5e7eb",
-              background: currentUserId && users.includes(currentUserId)
-                ? "rgba(123,45,139,0.07)" : "#fff",
-              cursor: currentUserId ? "pointer" : "default",
-              fontSize: 14, fontWeight: 700, color: "#444",
-            }}
-          >
+          <button key={emoji} onClick={() => currentUserId && onReact(item.id, emoji)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, border: currentUserId && users.includes(currentUserId) ? "1.5px solid #7b2d8b" : "1.5px solid #e5e7eb", background: currentUserId && users.includes(currentUserId) ? "rgba(123,45,139,0.07)" : "#fff", cursor: currentUserId ? "pointer" : "default", fontSize: 14, fontWeight: 700, color: "#444" }}>
             <span>{emoji}</span>
             <span style={{ fontSize: 12, color: "#777" }}>{users.length}</span>
           </button>
         ) : null
       )}
-
       {currentUserId && (
         <div style={{ position: "relative" }}>
-          <button
-            onClick={() => setShowPicker((v) => !v)}
-            style={{
-              padding: "5px 12px", borderRadius: 20,
-              border: "1.5px dashed #ddd", background: "transparent",
-              cursor: "pointer", fontSize: 13, color: "#aaa",
-            }}
-          >
+          <button onClick={() => setShowPicker((v) => !v)}
+            style={{ padding: "5px 12px", borderRadius: 20, border: "1.5px dashed #ddd", background: "transparent", cursor: "pointer", fontSize: 13, color: "#aaa" }}>
             {hasAny ? "+" : "React"}
           </button>
           {showPicker && (
-            <div style={{
-              position: "absolute", bottom: "calc(100% + 6px)", left: 0,
-              background: "#fff", borderRadius: 16,
-              boxShadow: "0 4px 24px rgba(0,0,0,0.13)",
-              padding: "8px 10px", display: "flex", gap: 6,
-              zIndex: 50, border: "1px solid #f0f0f0",
-            }}>
+            <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#fff", borderRadius: 16, boxShadow: "0 4px 24px rgba(0,0,0,0.13)", padding: "8px 10px", display: "flex", gap: 6, zIndex: 50, border: "1px solid #f0f0f0" }}>
               {QUICK_REACTIONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => { onReact(item.id, emoji); setShowPicker(false); }}
+                <button key={emoji} onClick={() => { onReact(item.id, emoji); setShowPicker(false); }}
                   style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", borderRadius: 8, padding: 4, transition: "transform 0.1s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.25)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                >
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}>
                   {emoji}
                 </button>
               ))}
@@ -301,89 +225,42 @@ function ReactionsRow({
 }
 
 // ─── Feed Card ────────────────────────────────────────────────────────────────
-// Differentiation:
-//   meta.challenge_name present  → challenge post → inset sub-card with CTA
-//   type === "message", no meta  → community post → 🌈 Community label
-//   streak / score / team / join → activity post  → sub-card if challenge context present
-function FeedCard({
-  item,
-  currentUserId,
-  onReact,
-  onProfileClick,
-}: {
-  item: FeedItem;
-  currentUserId: string | null;
-  onReact: (itemId: string, emoji: string) => void;
-  onProfileClick: (userId: string) => void;
-}) {
+function FeedCard({ item, currentUserId, onReact, onProfileClick }: { item: FeedItem; currentUserId: string | null; onReact: (itemId: string, emoji: string) => void; onProfileClick: (userId: string) => void }) {
   const accent       = TYPE_ACCENT[item.type];
   const avatarEmoji  = item.emoji_avatar || TYPE_FALLBACK_EMOJI[item.type];
   const avatarBg     = AVATAR_BG[item.type];
   const hasChallenge = !!(item.meta?.challenge_name);
   const isCommunity  = item.type === "message" && !hasChallenge;
-
   return (
-    <div style={{
-      background: "#fff",
-      borderRadius: 18,
-      overflow: "hidden",
-      boxShadow: "0 2px 14px rgba(0,0,0,0.07)",
-      border: "1px solid rgba(0,0,0,0.05)",
-    }}>
-      {/* Top accent strip — color identifies post type at a glance */}
+    <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 14px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.05)" }}>
       <div style={{ height: 4, background: accent }} />
-
       <div style={{ padding: "14px 14px 12px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-
-          {/* Emoji avatar — no initials */}
           <button
             onClick={() => item.user_id && onProfileClick(item.user_id)}
             disabled={!item.user_id}
-            style={{
-              width: 48, height: 48, borderRadius: "50%",
-              background: avatarBg,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 24, flexShrink: 0, border: "none",
-              cursor: item.user_id ? "pointer" : "default",
-              transition: "transform 0.15s",
-            }}
+            style={{ width: 48, height: 48, borderRadius: "50%", background: avatarBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0, border: "none", cursor: item.user_id ? "pointer" : "default", transition: "transform 0.15s" }}
             onMouseEnter={(e) => item.user_id && ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")}
           >
             {avatarEmoji}
           </button>
-
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <button
                 onClick={() => item.user_id && onProfileClick(item.user_id)}
                 disabled={!item.user_id}
-                style={{
-                  background: "none", border: "none", padding: 0,
-                  cursor: item.user_id ? "pointer" : "default",
-                  fontSize: 15, fontWeight: 700, color: "#111", textAlign: "left",
-                }}
+                style={{ background: "none", border: "none", padding: 0, cursor: item.user_id ? "pointer" : "default", fontSize: 15, fontWeight: 700, color: "#111", textAlign: "left" }}
               >
                 {item.user_name}
               </button>
-              <span style={{ fontSize: 12, color: "#bbb", flexShrink: 0, marginTop: 2 }}>
-                {timeAgo(item.created_at)}
-              </span>
+              <span style={{ fontSize: 12, color: "#bbb", flexShrink: 0, marginTop: 2 }}>{timeAgo(item.created_at)}</span>
             </div>
-
-            <div style={{ fontSize: 13, color: "#555", marginTop: 3, lineHeight: 1.5 }}>
-              {item.text}
-            </div>
-
-            {/* Community label — pure community posts only */}
+            <div style={{ fontSize: 13, color: "#555", marginTop: 3, lineHeight: 1.5 }}>{item.text}</div>
             {isCommunity && <CommunityLabel />}
           </div>
         </div>
-
-        {/* Challenge sub-card — only when meta.challenge_name exists */}
         {hasChallenge && <ChallengeSubCard meta={item.meta} type={item.type} />}
-
         <ReactionsRow item={item} currentUserId={currentUserId} onReact={onReact} />
       </div>
     </div>
@@ -395,24 +272,20 @@ function DateSectionHeader({ label }: { label: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0 6px" }}>
       <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)", borderRadius: 2 }} />
-      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#bbb", flexShrink: 0 }}>
-        {label}
-      </span>
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#bbb", flexShrink: 0 }}>{label}</span>
       <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)", borderRadius: 2 }} />
     </div>
   );
 }
 
-// ─── Challenge card ───────────────────────────────────────────────────────────
-function ChallengeCard({
-  challenge, colorIndex, onClick,
-}: {
-  challenge: Challenge; colorIndex: number; onClick: () => void;
-}) {
-  const c = CARD_COLORS[colorIndex % CARD_COLORS.length];
-  const pct = challenge.capacity > 0
-    ? Math.round((challenge.member_count / challenge.capacity) * 100) : 0;
+// ─── Challenge Card ───────────────────────────────────────────────────────────
+// Days left is the headline number. Member count is supporting context.
+function ChallengeCard({ challenge, colorIndex, onClick }: { challenge: Challenge; colorIndex: number; onClick: () => void }) {
+  const c    = CARD_COLORS[colorIndex % CARD_COLORS.length];
   const days = daysLeft(challenge.end_date);
+  const pct  = challenge.capacity > 0
+    ? Math.round((challenge.member_count / challenge.capacity) * 100)
+    : 0;
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -428,7 +301,10 @@ function ChallengeCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Glow orb */}
       <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72, borderRadius: "50%", background: c.glow, opacity: 0.2 }} />
+
+      {/* Top section: emoji + type label + name */}
       <div>
         <div style={{ fontSize: 20, marginBottom: 6 }}>{challenge.emoji || "💪"}</div>
         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
@@ -438,13 +314,30 @@ function ChallengeCard({
           {challenge.name}
         </div>
       </div>
+
+      {/* Bottom section: days left headline + member count + progress bar */}
       <div>
         <div style={{ background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "8px 10px", marginBottom: 8 }}>
-          <div style={{ fontSize: 15, color: c.valColor }}>{challenge.member_count} / {challenge.capacity}</div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>
-            Members{days !== null ? ` · ${days}d left` : ""}
+          {days !== null ? (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span style={{ fontSize: 22, fontWeight: 900, color: c.valColor, lineHeight: 1 }}>
+                {days}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: c.labelColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {days === 1 ? "day left" : "days left"}
+              </span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>
+              Ongoing
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>
+            {challenge.member_count} {challenge.member_count === 1 ? "member" : "members"} joined
           </div>
         </div>
+
+        {/* Progress bar — fills based on capacity */}
         <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: `linear-gradient(90deg, ${c.prog1}, ${c.prog2})` }} />
         </div>
@@ -535,7 +428,7 @@ export default function DashboardPage() {
       user_name: userEmail || "Member",
       type:      "message",
       text:      postText.trim(),
-      meta:      {},  // no challenge_name → renders as community post
+      meta:      {},
     });
     setPostText("");
     setPosting(false);
@@ -605,13 +498,7 @@ export default function DashboardPage() {
         html, body { height: 100%; }
         ::-webkit-scrollbar { display: none; }
         .action-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
-        .action-btn {
-          background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
-          border-radius: 18px; padding: 14px 6px;
-          display: flex; flex-direction: column; align-items: center; gap: 8px;
-          cursor: pointer; box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-          transition: transform 0.15s, box-shadow 0.15s; min-width: 0;
-        }
+        .action-btn { background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border-radius: 18px; padding: 14px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 12px rgba(0,0,0,0.07); transition: transform 0.15s, box-shadow 0.15s; min-width: 0; }
         .action-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
         .action-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
         .action-label { font-size: 10px; font-weight: 700; text-align: center; color: #1a1a1a; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
@@ -683,7 +570,7 @@ export default function DashboardPage() {
           {/* Divider */}
           <div style={{ margin: "20px 0 0", height: 1.5, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)", opacity: 0.2, borderRadius: 2 }} />
 
-          {/* Activity Feed header */}
+          {/* Activity Feed */}
           <div style={{ padding: "16px 0 4px" }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#999" }}>Latest Activity</div>
           </div>
@@ -696,7 +583,7 @@ export default function DashboardPage() {
                 onChange={(e) => setPostText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handlePost()}
                 placeholder="Post a shoutout to the community…"
-                style={{ flex: 1, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
+                style={{ flex: 1, minWidth: 0, fontSize: 13, padding: "10px 16px", borderRadius: 24, border: "none", outline: "none", background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}
               />
               <button
                 onClick={handlePost}
