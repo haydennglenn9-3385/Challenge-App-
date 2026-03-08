@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase/client";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FeedType = "streak" | "score" | "team" | "message" | "join";
 
-// ✅ FIX 1: Challenge interface was missing — ChallengeCard references it at line ~364
 interface Challenge {
   id: string;
   name: string;
@@ -31,14 +30,6 @@ interface FeedItem {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CHIP_STYLES: Record<FeedType, { bg: string; color: string; label: string }> = {
-  streak:  { bg: "#fff3e0", color: "#e65100", label: "🔥 Streak" },
-  score:   { bg: "#e8d9f7", color: "#7b2d8b", label: "⚡ Score"  },
-  team:    { bg: "#fde0ef", color: "#b5003c", label: "🏆 Team"   },
-  message: { bg: "#d4eaf7", color: "#118ab2", label: "💬 Post"   },
-  join:    { bg: "#d4f5e2", color: "#1b7a4e", label: "✅ Joined"  },
-};
-
 const TYPE_FALLBACK_EMOJI: Record<FeedType, string> = {
   streak:  "🔥",
   score:   "⚡",
@@ -55,7 +46,7 @@ const AVATAR_COLORS: Record<FeedType, string> = {
   join:    "#d4f5e2",
 };
 
-const QUICK_REACTIONS = ["🔥", "💜", "💪", "🌈", "🎉", "👏", "👎"];
+const QUICK_REACTIONS = ["🔥", "💜", "💪", "🌈", "🎉", "👏", "👎", "😭", "😂"];
 
 const ACTIONS = [
   { icon: "➕", label: "New Challenge", iconBg: "#fde0ef", route: "/embed/challenges/new" },
@@ -69,10 +60,79 @@ const CARD_COLORS = [
   { glow: "#06d6a0", prog1: "#06d6a0", prog2: "#118ab2", valColor: "#06d6a0" },
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function daysLeft(endDate?: string) {
   if (!endDate) return null;
   const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000);
   return diff > 0 ? diff : 0;
+}
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ─── Date Section Grouping ────────────────────────────────────────────────────
+function getDateLabel(iso: string): "Today" | "Yesterday" | "Earlier" {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterday = today - 86400000;
+  const itemDay = new Date(new Date(iso).toDateString()).getTime();
+  if (itemDay === today) return "Today";
+  if (itemDay === yesterday) return "Yesterday";
+  return "Earlier";
+}
+
+type FeedGroup = { label: string; items: FeedItem[] };
+
+function groupFeedByDate(feed: FeedItem[]): FeedGroup[] {
+  const order: string[] = ["Today", "Yesterday", "Earlier"];
+  const map = new Map<string, FeedItem[]>();
+  for (const item of feed) {
+    const label = getDateLabel(item.created_at);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(item);
+  }
+  return order
+    .filter((label) => map.has(label))
+    .map((label) => ({ label, items: map.get(label)! }));
+}
+
+// ─── App Check-in Streak ──────────────────────────────────────────────────────
+// Reads/writes app_streak + app_last_checkin on the users table.
+// Call once on load after confirming the user is authenticated.
+async function handleAppCheckin(
+  userId: string
+): Promise<{ appStreak: number; isNewStreak: boolean }> {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const { data } = await supabase
+    .from("users")
+    .select("app_streak, app_last_checkin")
+    .eq("id", userId)
+    .single();
+
+  const lastCheckin: string | null = data?.app_last_checkin ?? null;
+  const currentStreak: number = data?.app_streak ?? 0;
+
+  // Already checked in today — no change
+  if (lastCheckin === today) {
+    return { appStreak: currentStreak, isNewStreak: false };
+  }
+
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const newStreak = lastCheckin === yesterday ? currentStreak + 1 : 1;
+  const isNewStreak = newStreak > currentStreak;
+
+  await supabase
+    .from("users")
+    .update({ app_streak: newStreak, app_last_checkin: today })
+    .eq("id", userId);
+
+  return { appStreak: newStreak, isNewStreak };
 }
 
 // ─── Feed Reactions ───────────────────────────────────────────────────────────
@@ -120,7 +180,6 @@ function FeedReactions({
           </button>
         ) : null
       )}
-
       {currentUserId && (
         <div style={{ position: "relative" }}>
           <button
@@ -133,12 +192,10 @@ function FeedReactions({
               cursor: "pointer",
               fontSize: 13,
               color: "#aaa",
-              transition: "all 0.15s",
             }}
           >
             {hasAny ? "+" : "React"}
           </button>
-
           {showPicker && (
             <div
               style={{
@@ -158,19 +215,8 @@ function FeedReactions({
               {QUICK_REACTIONS.map((emoji) => (
                 <button
                   key={emoji}
-                  onClick={() => {
-                    onReact(item.id, emoji);
-                    setShowPicker(false);
-                  }}
-                  style={{
-                    fontSize: 20,
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    borderRadius: 8,
-                    padding: 4,
-                    transition: "transform 0.1s",
-                  }}
+                  onClick={() => { onReact(item.id, emoji); setShowPicker(false); }}
+                  style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer", borderRadius: 8, padding: 4, transition: "transform 0.1s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.25)")}
                   onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 >
@@ -185,43 +231,197 @@ function FeedReactions({
   );
 }
 
-// ─── Feed Card ────────────────────────────────────────────────────────────────
-function FeedCard({
-  item,
-  currentUserId,
-  onReact,
-  onProfileClick,
-}: {
+// ─── Differentiated Feed Card Components ─────────────────────────────────────
+type FeedCardProps = {
   item: FeedItem;
   currentUserId: string | null;
   onReact: (itemId: string, emoji: string) => void;
   onProfileClick: (userId: string) => void;
+};
+
+function AvatarButton({
+  item,
+  bg,
+  onProfileClick,
+}: {
+  item: FeedItem;
+  bg: string;
+  onProfileClick: (id: string) => void;
 }) {
-  const chip = CHIP_STYLES[item.type];
-  const avatarEmoji = item.emoji_avatar || TYPE_FALLBACK_EMOJI[item.type];
-  const avatarBg = AVATAR_COLORS[item.type];
+  const emoji = item.emoji_avatar || TYPE_FALLBACK_EMOJI[item.type];
+  return (
+    <button
+      onClick={() => item.user_id && onProfileClick(item.user_id)}
+      disabled={!item.user_id}
+      style={{
+        width: 42, height: 42, borderRadius: "50%", background: bg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 20, flexShrink: 0, border: "none",
+        cursor: item.user_id ? "pointer" : "default",
+        transition: "transform 0.15s", marginTop: 1,
+      }}
+      onMouseEnter={(e) => item.user_id && ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)")}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")}
+    >
+      {emoji}
+    </button>
+  );
+}
 
-  const meta = item.meta;
-  const subValue =
-    item.type === "streak" ? `${meta.days}d`
-    : item.type === "score" || item.type === "team" ? `#${meta.rank}`
-    : null;
+function NameButton({ item, onProfileClick }: { item: FeedItem; onProfileClick: (id: string) => void }) {
+  return (
+    <button
+      onClick={() => item.user_id && onProfileClick(item.user_id)}
+      disabled={!item.user_id}
+      style={{ background: "none", border: "none", padding: 0, cursor: item.user_id ? "pointer" : "default", fontSize: 13, fontWeight: 700, color: "#0e0e0e", textAlign: "left" }}
+    >
+      {item.user_name}
+    </button>
+  );
+}
 
-  const timeAgo = (iso: string) => {
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  };
-
+// 🔥 Streak Card — bold fire, streak counter badge
+function StreakCard({ item, currentUserId, onReact, onProfileClick }: FeedCardProps) {
+  const days = (item.meta?.days as number) || 0;
   return (
     <div
       style={{
-        background: "#fff",
-        borderRadius: 18,
+        background: "linear-gradient(135deg, rgba(255,147,0,0.07) 0%, rgba(255,60,95,0.04) 100%)",
+        borderRadius: 18, padding: "14px", border: "1px solid rgba(255,147,0,0.15)",
+        boxShadow: "0 2px 10px rgba(255,100,0,0.06)", transition: "transform 0.15s",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)"; }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+        <AvatarButton item={item} bg="#fff3e0" onProfileClick={onProfileClick} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <NameButton item={item} onProfileClick={onProfileClick} />
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2, lineHeight: 1.4 }}>{item.text}</div>
+          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>{timeAgo(item.created_at)}</div>
+          <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
+        </div>
+        {days > 0 && (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            background: "#fff3e0", borderRadius: 14, padding: "8px 12px", flexShrink: 0,
+            border: "1px solid rgba(255,147,0,0.2)",
+          }}>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>🔥</span>
+            <span style={{ fontFamily: "var(--font-bebas, 'Bebas Neue', sans-serif)", fontSize: 24, color: "#e65100", lineHeight: 1.1 }}>{days}</span>
+            <span style={{ fontSize: 9, color: "#e65100", fontWeight: 700, letterSpacing: 0.5 }}>DAYS</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ⚡ Score Card — metric-forward, purple accent
+function ScoreCard({ item, currentUserId, onReact, onProfileClick }: FeedCardProps) {
+  const rank = item.meta?.rank as number | undefined;
+  return (
+    <div
+      style={{
+        background: "rgba(123,45,139,0.04)", borderRadius: 18, padding: "14px",
+        border: "1px solid rgba(123,45,139,0.12)", boxShadow: "0 2px 10px rgba(123,45,139,0.06)",
+        transition: "transform 0.15s",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)"; }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+        <AvatarButton item={item} bg="#e8d9f7" onProfileClick={onProfileClick} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <NameButton item={item} onProfileClick={onProfileClick} />
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2, lineHeight: 1.4 }}>{item.text}</div>
+          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>{timeAgo(item.created_at)}</div>
+          <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          <span style={{ background: "#e8d9f7", color: "#7b2d8b", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, whiteSpace: "nowrap" }}>⚡ Score</span>
+          {rank && <span style={{ fontFamily: "var(--font-bebas, 'Bebas Neue', sans-serif)", fontSize: 15, color: "#7b2d8b" }}>#{rank}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ✅ Join Card — celebratory, green, welcoming
+function JoinCard({ item, currentUserId, onReact, onProfileClick }: FeedCardProps) {
+  const challengeName = item.meta?.challenge_name as string | undefined;
+  return (
+    <div
+      style={{
+        background: "rgba(27,122,78,0.04)", borderRadius: 18, padding: "14px",
+        border: "1px solid rgba(6,214,160,0.2)", boxShadow: "0 2px 10px rgba(6,214,160,0.07)",
+        transition: "transform 0.15s",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)"; }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+        <AvatarButton item={item} bg="#d4f5e2" onProfileClick={onProfileClick} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <NameButton item={item} onProfileClick={onProfileClick} />
+            <span style={{ background: "#d4f5e2", color: "#1b7a4e", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>✅ Joined</span>
+          </div>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 3, lineHeight: 1.4 }}>{item.text}</div>
+          {challengeName && (
+            <div style={{ fontSize: 11, color: "#06d6a0", fontWeight: 600, marginTop: 2 }}>
+              {challengeName}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>{timeAgo(item.created_at)}</div>
+          <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 🏆 Team Card — bold, ranking-forward, pink-red accent
+function TeamCard({ item, currentUserId, onReact, onProfileClick }: FeedCardProps) {
+  const rank = item.meta?.rank as number | undefined;
+  return (
+    <div
+      style={{
+        background: "rgba(181,0,60,0.03)", borderRadius: 18, padding: "14px",
+        border: "1px solid rgba(255,60,95,0.14)", boxShadow: "0 2px 10px rgba(255,60,95,0.06)",
+        transition: "transform 0.15s",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)"; }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+        <AvatarButton item={item} bg="#fde0ef" onProfileClick={onProfileClick} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <NameButton item={item} onProfileClick={onProfileClick} />
+          <div style={{ fontSize: 12, color: "#555", marginTop: 2, lineHeight: 1.4 }}>{item.text}</div>
+          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>{timeAgo(item.created_at)}</div>
+          <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          <span style={{ background: "#fde0ef", color: "#b5003c", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, whiteSpace: "nowrap" }}>🏆 Team</span>
+          {rank && <span style={{ fontFamily: "var(--font-bebas, 'Bebas Neue', sans-serif)", fontSize: 15, color: "#b5003c" }}>#{rank}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 💬 Message Card — speech-bubble shape, clean white, conversational
+function MessageCard({ item, currentUserId, onReact, onProfileClick }: FeedCardProps) {
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        // Speech bubble: flat bottom-left corner
+        borderRadius: "18px 18px 18px 4px",
         padding: "13px 14px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        border: "1px solid rgba(17,138,178,0.1)",
         transition: "transform 0.15s, box-shadow 0.15s",
       }}
       onMouseEnter={(e) => {
@@ -234,90 +434,48 @@ function FeedCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-        {/* Avatar — clickable if user_id exists */}
-        <button
-          onClick={() => item.user_id && onProfileClick(item.user_id)}
-          disabled={!item.user_id}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: "50%",
-            background: avatarBg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 20,
-            flexShrink: 0,
-            border: "none",
-            cursor: item.user_id ? "pointer" : "default",
-            transition: "transform 0.15s",
-            marginTop: 1,
-          }}
-          onMouseEnter={(e) =>
-            item.user_id &&
-            ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")
-          }
-          title={item.user_id ? `View ${item.user_name}'s profile` : undefined}
-        >
-          {avatarEmoji}
-        </button>
-
-        {/* Body */}
+        <AvatarButton item={item} bg="#d4eaf7" onProfileClick={onProfileClick} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Name — clickable */}
-          <button
-            onClick={() => item.user_id && onProfileClick(item.user_id)}
-            disabled={!item.user_id}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: item.user_id ? "pointer" : "default",
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#0e0e0e",
-              textAlign: "left",
-            }}
-          >
-            {item.user_name}
-          </button>
-          <div style={{ fontSize: 12, color: "#666", fontWeight: 500, marginTop: 2, lineHeight: 1.4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <NameButton item={item} onProfileClick={onProfileClick} />
+            <span style={{ fontSize: 10, color: "#bbb" }}>{timeAgo(item.created_at)}</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#333", marginTop: 4, lineHeight: 1.5, fontStyle: "italic" }}>
             {item.text}
           </div>
-          <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>
-            {timeAgo(item.created_at)}
-          </div>
-
           <FeedReactions item={item} currentUserId={currentUserId} onReact={onReact} />
         </div>
-
-        {/* Right — chip + sub value */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-          <span style={{
-            background: chip.bg,
-            color: chip.color,
-            fontSize: 10,
-            fontWeight: 700,
-            padding: "3px 9px",
-            borderRadius: 20,
-            whiteSpace: "nowrap",
-          }}>
-            {chip.label}
-          </span>
-          {subValue && (
-            <span style={{
-              fontFamily: "var(--font-bebas, 'Bebas Neue', sans-serif)",
-              fontSize: 15,
-              color: "#7b2d8b",
-            }}>
-              {subValue}
-            </span>
-          )}
-        </div>
       </div>
+    </div>
+  );
+}
+
+// ─── FeedCard Dispatcher ──────────────────────────────────────────────────────
+function FeedCard(props: FeedCardProps) {
+  switch (props.item.type) {
+    case "streak":  return <StreakCard  {...props} />;
+    case "score":   return <ScoreCard   {...props} />;
+    case "join":    return <JoinCard    {...props} />;
+    case "team":    return <TeamCard    {...props} />;
+    case "message": return <MessageCard {...props} />;
+    default:        return <MessageCard {...props} />;
+  }
+}
+
+// ─── Date Section Header ──────────────────────────────────────────────────────
+function DateSectionHeader({ label }: { label: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10, padding: "8px 0 4px",
+    }}>
+      <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)", borderRadius: 2 }} />
+      <span style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+        textTransform: "uppercase", color: "#aaa", flexShrink: 0,
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.06)", borderRadius: 2 }} />
     </div>
   );
 }
@@ -343,18 +501,11 @@ function ChallengeCard({
     <div
       onClick={onClick}
       style={{
-        background: "#1a1a1a",
-        borderRadius: 18,
-        padding: "16px 14px",
-        position: "relative",
-        overflow: "hidden",
-        cursor: "pointer",
+        background: "#1a1a1a", borderRadius: 18, padding: "16px 14px",
+        position: "relative", overflow: "hidden", cursor: "pointer",
         transform: hovered ? "scale(1.02)" : "scale(1)",
-        transition: "transform 0.15s",
-        height: 190,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
+        transition: "transform 0.15s", height: 190,
+        display: "flex", flexDirection: "column", justifyContent: "space-between",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -389,19 +540,18 @@ function ChallengeCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
-  const [challenges, setChallenges]     = useState<Challenge[]>([]);
-  const [feed, setFeed]                 = useState<FeedItem[]>([]);
-  const [userEmail, setUserEmail]       = useState<string>("");
-  const [userStreak, setUserStreak]     = useState<number>(0);
-  const [loading, setLoading]           = useState(true);
-  const [postText, setPostText]         = useState("");
-  const [posting, setPosting]           = useState(false);
-  const [authed, setAuthed]             = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [challenges, setChallenges]         = useState<Challenge[]>([]);
+  const [feed, setFeed]                     = useState<FeedItem[]>([]);
+  const [userEmail, setUserEmail]           = useState<string>("");
+  const [userStreak, setUserStreak]         = useState<number>(0);
+  const [appStreak, setAppStreak]           = useState<number>(0);
+  const [loading, setLoading]               = useState(true);
+  const [postText, setPostText]             = useState("");
+  const [posting, setPosting]               = useState(false);
+  const [authed, setAuthed]                 = useState(false);
+  const [currentUserId, setCurrentUserId]   = useState<string | null>(null);
 
   useEffect(() => {
-    // ✅ FIX 2: load() was never called — data never fetched, page stuck on spinner
-    // ✅ FIX 3: setLoading(false) was missing — spinner never dismissed
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -409,13 +559,38 @@ export default function DashboardPage() {
         setAuthed(true);
         setCurrentUserId(user.id);
         if (user?.email) setUserEmail(user.email.split("@")[0]);
+
+        // Challenge streak
         const { data: sData } = await supabase
           .from("users")
           .select("streak")
           .eq("id", user.id)
           .single();
         if (sData) setUserStreak(sData.streak || 0);
+
+        // App check-in streak (separate from challenge streak)
+        const { appStreak: streak } = await handleAppCheckin(user.id);
+        setAppStreak(streak);
       }
+
+      // ─── BUG FIX ──────────────────────────────────────────────────────────
+      // Previously: select("*, users(emoji_avatar)") — the relational join on
+      // the users table was blocked by RLS, silently returning null for the
+      // entire query. emoji_avatar is already a column on activity_feed itself.
+      const { data: fData } = await supabase
+        .from("activity_feed")
+        .select("*")                          // ← fixed: no join needed
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      setFeed(
+        (fData || []).map((row: any) => ({
+          ...row,
+          emoji_avatar: row.emoji_avatar ?? null,  // ← fixed: read from row directly
+          reactions: row.reactions ?? {},
+        })) as FeedItem[]
+      );
+      // ──────────────────────────────────────────────────────────────────────
 
       const { data: cData } = await supabase
         .from("challenges")
@@ -430,31 +605,17 @@ export default function DashboardPage() {
         })) as Challenge[]
       );
 
-      const { data: fData } = await supabase
-        .from("activity_feed")
-        .select("*, users(emoji_avatar)")
-        .order("created_at", { ascending: false })
-        .limit(15);
-
-      setFeed(
-        (fData || []).map((row: any) => ({
-          ...row,
-          emoji_avatar: row.users?.emoji_avatar ?? null,
-          reactions: row.reactions ?? {},
-        })) as FeedItem[]
-      );
-
-      setLoading(false); // ✅ FIX 3
+      setLoading(false);
     }
 
-    load(); // ✅ FIX 2
+    load();
 
     const sub = supabase
       .channel("activity_feed")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_feed" },
-        (payload) => setFeed((prev) => [payload.new as FeedItem, ...prev.slice(0, 14)])
+        (payload) => setFeed((prev) => [payload.new as FeedItem, ...prev.slice(0, 29)])
       )
       .subscribe();
 
@@ -477,7 +638,6 @@ export default function DashboardPage() {
 
   async function handleReact(itemId: string, emoji: string) {
     if (!currentUserId) return;
-
     // Optimistic update
     setFeed((prev) =>
       prev.map((item) => {
@@ -495,33 +655,33 @@ export default function DashboardPage() {
         };
       })
     );
-
-    // Persist to DB
+    // Persist
     const { data } = await supabase
       .from("activity_feed")
       .select("reactions")
       .eq("id", itemId)
       .single();
-
     const current: Record<string, string[]> = data?.reactions ?? {};
     const existing = current[emoji] ?? [];
     const hasReacted = existing.includes(currentUserId);
-    const updated = {
-      ...current,
-      [emoji]: hasReacted
-        ? existing.filter((id) => id !== currentUserId)
-        : [...existing, currentUserId],
-    };
-
     await supabase
       .from("activity_feed")
-      .update({ reactions: updated })
+      .update({
+        reactions: {
+          ...current,
+          [emoji]: hasReacted
+            ? existing.filter((id) => id !== currentUserId)
+            : [...existing, currentUserId],
+        },
+      })
       .eq("id", itemId);
   }
 
   function handleProfileClick(userId: string) {
     router.push(`/embed/profile/${userId}`);
   }
+
+  const feedGroups = groupFeedByDate(feed);
 
   const pageStyle: CSSProperties = {
     minHeight: "100dvh",
@@ -543,6 +703,13 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+
+  // App streak context string for the hero
+  const streakContext = appStreak >= 3
+    ? `🔥 ${appStreak}-day streak`
+    : appStreak === 2
+    ? "🔥 2 days in a row"
+    : null;
 
   return (
     <>
@@ -589,55 +756,34 @@ export default function DashboardPage() {
           .page-padding { padding-left: 24px; padding-right: 24px; }
         }
         .feed-blur-overlay {
-          position: absolute;
-          inset: 0;
-          z-index: 10;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          padding: 24px;
+          position: absolute; inset: 0; z-index: 10;
+          display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 12px; padding: 24px;
         }
         .feed-auth-card {
-          background: rgba(255,255,255,0.92);
-          backdrop-filter: blur(16px);
-          border-radius: 20px;
-          padding: 24px 20px;
-          text-align: center;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-          width: 100%;
-          max-width: 280px;
+          background: rgba(255,255,255,0.92); backdrop-filter: blur(16px);
+          border-radius: 20px; padding: 24px 20px; text-align: center;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12); width: 100%; max-width: 280px;
         }
         .login-btn {
-          display: inline-block;
-          margin-top: 14px;
-          padding: 12px 28px;
-          border-radius: 14px;
-          border: none;
+          display: inline-block; margin-top: 14px; padding: 12px 28px;
+          border-radius: 14px; border: none;
           background: linear-gradient(135deg, #7b2d8b, #ff3c5f);
-          color: #fff;
-          font-size: 14px;
-          font-weight: 700;
+          color: #fff; font-size: 14px; font-weight: 700;
           font-family: var(--font-inter), system-ui, sans-serif;
-          cursor: pointer;
-          width: 100%;
+          cursor: pointer; width: 100%;
         }
       `}</style>
 
       <div style={pageStyle}>
         {/* Rainbow strip */}
         <div style={{
-          height: 12,
-          width: "100%",
+          height: 12, width: "100%",
           background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
-          backgroundSize: "200% 100%",
-          animation: "rainbowShift 4s linear infinite",
-          flexShrink: 0,
+          backgroundSize: "200% 100%", animation: "rainbowShift 4s linear infinite", flexShrink: 0,
         }} />
 
         <div className="page-padding" style={{ width: "100%", flex: 1, overflowY: "auto", paddingBottom: 112 }}>
-
           {/* Wordmark */}
           <div style={{ padding: "16px 0 8px" }}>
             <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 13, letterSpacing: 2.5, color: "#7b2d8b", opacity: 0.8 }}>
@@ -650,6 +796,9 @@ export default function DashboardPage() {
             <div style={{ position: "absolute", bottom: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "linear-gradient(135deg,#7b2d8b,#ff3c5f)", opacity: 0.2 }} />
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#ffd166", marginBottom: 10 }}>
               ⚡ Welcome back{userEmail ? `, ${userEmail}` : ""}
+              {streakContext && (
+                <span style={{ marginLeft: 8, color: "#ff8c42" }}>· {streakContext}</span>
+              )}
             </div>
             <a
               href="https://queersandalliesfitness.com"
@@ -716,7 +865,7 @@ export default function DashboardPage() {
             <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1 }}>Activity Feed</div>
           </div>
 
-          {/* Post input — only shown when logged in */}
+          {/* Post input */}
           {authed && (
             <div style={{ padding: "10px 0 12px", display: "flex", gap: 8 }}>
               <input
@@ -736,7 +885,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Feed — blurred with login prompt if not authed */}
+          {/* Feed */}
           <div style={{ position: "relative", paddingBottom: 16 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, filter: authed ? "none" : "blur(4px)", pointerEvents: authed ? "auto" : "none", userSelect: authed ? "auto" : "none" }}>
               {feed.length === 0 ? (
@@ -744,14 +893,21 @@ export default function DashboardPage() {
                   No activity yet — be the first to post! 🌈
                 </div>
               ) : (
-                feed.map((item) => (
-                  <FeedCard
-                    key={item.id}
-                    item={item}
-                    currentUserId={currentUserId}
-                    onReact={handleReact}
-                    onProfileClick={handleProfileClick}
-                  />
+                feedGroups.map((group) => (
+                  <div key={group.label}>
+                    <DateSectionHeader label={group.label} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                      {group.items.map((item) => (
+                        <FeedCard
+                          key={item.id}
+                          item={item}
+                          currentUserId={currentUserId}
+                          onReact={handleReact}
+                          onProfileClick={handleProfileClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -774,7 +930,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </>
