@@ -21,7 +21,8 @@ type DMConversation = {
 };
 
 // ─── Slow-load notice ─────────────────────────────────────────────────────────
-// Appears after 6s if still loading. Non-alarming, gives user something to do.
+// Appears after 6s if still loading. Gives user something to do instead of
+// wondering if the app is broken.
 function SlowLoadNotice({ onRetry }: { onRetry: () => void }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
@@ -52,8 +53,18 @@ export default function MessagesPage() {
   const [dmConversations, setDmConversations] = useState<DMConversation[]>([]);
   const [openChallenge, setOpenChallenge]     = useState<Challenge | null>(null);
   const [openDmUser, setOpenDmUser]           = useState<{ id: string; name: string } | null>(null);
+  const [communityOpen, setCommunityOpen]     = useState(false);
   const [loading, setLoading]                 = useState(true);
-  const [loadKey, setLoadKey]                 = useState(0); // increment to retry
+  const [loadKey, setLoadKey]                 = useState(0);
+
+  // Auto-open community chat when community tab is selected
+  useEffect(() => {
+    if (tab === "community" && user) {
+      setCommunityOpen(true);
+    } else {
+      setCommunityOpen(false);
+    }
+  }, [tab, user]);
 
   // Handle ?dm=userId deep-link from profile page
   useEffect(() => {
@@ -74,7 +85,6 @@ export default function MessagesPage() {
     async function load() {
       setLoading(true);
 
-      // ── Parallel: challenge memberships (community tab now uses ChatPanel, no feed query needed)
       const [joinedResult] = await Promise.all([
         user
           ? supabase
@@ -90,7 +100,6 @@ export default function MessagesPage() {
         );
       }
 
-      // ── DM conversations — parallel sent + received
       if (user) {
         const [sentResult, receivedResult] = await Promise.all([
           supabase
@@ -145,7 +154,8 @@ export default function MessagesPage() {
     { id: "dms",       label: "DMs",       icon: "💬" },
   ];
 
-  const isInChat = !!openChallenge || !!openDmUser;
+  // Any open chat takes over the full screen — hides header + tabs
+  const isInChat = !!openChallenge || !!openDmUser || communityOpen;
 
   const AVATAR_GRADIENTS = [
     "linear-gradient(135deg,#ff6b9d,#ff9f43)",
@@ -157,7 +167,7 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen pt-6 pb-28 flex flex-col">
 
-      {/* Header */}
+      {/* ── Header — hidden when any chat is open ── */}
       {!isInChat && (
         <div className="px-5 mb-4">
           <p
@@ -176,7 +186,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* ── Tabs — hidden when any chat is open ── */}
       {!isInChat && (
         <div className="px-5 mb-4">
           <div className="flex p-1 rounded-full bg-white shadow-sm" style={{ border: "1px solid #E5E5EA" }}>
@@ -196,52 +206,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── COMMUNITY TAB — now a full ChatPanel ─────────────────────────────── */}
-      {!isInChat && tab === "community" && user && (
-        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
-          {/* Replicate the page header inside the fixed container */}
-          <div className="px-5 pt-6 pb-0 flex-shrink-0">
-            <p
-              className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
-              style={{
-                background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Queers & Allies Fitness
-            </p>
-            <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight mb-3">
-              Messages
-            </h1>
-            {/* Tabs */}
-            <div className="flex p-1 rounded-full bg-white shadow-sm mb-3" style={{ border: "1px solid #E5E5EA" }}>
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex-1 py-2 rounded-full text-[11px] font-bold transition-all flex items-center justify-center gap-1 min-w-0 ${
-                    t.id === "community" ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
-                  }`}
-                >
-                  <span className="flex-shrink-0">{t.icon}</span>
-                  <span className="truncate">{t.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* ChatPanel fills remaining space */}
-          <div className="flex-1 min-h-0 px-5 pb-3">
-            <ChatPanel
-              context={{ type: "community" }}
-              currentUserId={user.id}
-              currentUserName={user.name}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Not logged in — community tab */}
+      {/* ── COMMUNITY TAB — list entry point ── */}
       {!isInChat && tab === "community" && !user && (
         <div className="px-5">
           <div className="neon-card rounded-2xl p-10 text-center">
@@ -257,7 +222,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── GROUPS TAB ────────────────────────────────────────────────────────── */}
+      {/* ── GROUPS TAB ── */}
       {!isInChat && tab === "groups" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
@@ -307,7 +272,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── DMs TAB ───────────────────────────────────────────────────────────── */}
+      {/* ── DMs TAB ── */}
       {!isInChat && tab === "dms" && (
         <div className="px-5 flex flex-col gap-3">
           {loading ? (
@@ -362,7 +327,23 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── Challenge chat ─────────────────────────────────────────────────────── */}
+      {/* ── Community chat — full screen, same pattern as challenge + DM ── */}
+      {communityOpen && user && (
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
+          <ChatPanel
+            context={{ type: "community" }}
+            currentUserId={user.id}
+            currentUserName={user.name}
+            title="Community"
+            onBack={() => {
+              setCommunityOpen(false);
+              setTab("groups");
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── Challenge chat ── */}
       {openChallenge && user && (
         <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
@@ -375,7 +356,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── DM chat ───────────────────────────────────────────────────────────── */}
+      {/* ── DM chat ── */}
       {openDmUser && user && (
         <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
