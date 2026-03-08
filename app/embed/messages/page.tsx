@@ -20,52 +20,62 @@ type DMConversation = {
   lastAt?: string;
 };
 
+// ─── Slow-load notice ─────────────────────────────────────────────────────────
+// Appears after 6s if still loading. Non-alarming, gives user something to do.
+function SlowLoadNotice({ onRetry }: { onRetry: () => void }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!show) return null;
+  return (
+    <p className="text-xs text-slate-400 text-center mt-3">
+      Taking longer than usual…{" "}
+      <button
+        onClick={onRetry}
+        className="underline text-purple-500 font-semibold"
+      >
+        tap to refresh
+      </button>
+    </p>
+  );
+}
+
 export default function MessagesPage() {
   const nav          = useRouter();
   const searchParams = useSearchParams();
   const { user }     = useUser();
 
   const [tab, setTab]                         = useState<MsgTab>("community");
-  const [feed, setFeed]                       = useState<any[]>([]);
   const [challenges, setChallenges]           = useState<Challenge[]>([]);
   const [dmConversations, setDmConversations] = useState<DMConversation[]>([]);
   const [openChallenge, setOpenChallenge]     = useState<Challenge | null>(null);
   const [openDmUser, setOpenDmUser]           = useState<{ id: string; name: string } | null>(null);
-  const [postText, setPostText]               = useState("");
-  const [posting, setPosting]                 = useState(false);
   const [loading, setLoading]                 = useState(true);
+  const [loadKey, setLoadKey]                 = useState(0); // increment to retry
 
   // Handle ?dm=userId deep-link from profile page
   useEffect(() => {
     const dmUserId = searchParams.get("dm");
     if (!dmUserId || !user) return;
-
     async function openDmFromParam() {
       const { data } = await supabase
-        .from("users")
-        .select("id, name")
-        .eq("id", dmUserId)
-        .single();
+        .from("users").select("id, name").eq("id", dmUserId).single();
       if (data) {
         setTab("dms");
         setOpenDmUser({ id: data.id, name: data.name });
       }
     }
-
     openDmFromParam();
   }, [searchParams, user]);
 
   useEffect(() => {
     async function load() {
-      // ── Parallel fetch: community feed + challenge memberships ──────────────
-      const [fResult, joinedResult] = await Promise.all([
-        supabase
-          .from("activity_feed")
-          .select("*")
-          .eq("type", "message")
-          .order("created_at", { ascending: false })
-          .limit(20),
+      setLoading(true);
 
+      // ── Parallel: challenge memberships (community tab now uses ChatPanel, no feed query needed)
+      const [joinedResult] = await Promise.all([
         user
           ? supabase
               .from("challenge_members")
@@ -74,15 +84,13 @@ export default function MessagesPage() {
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-      setFeed(fResult.data || []);
-
       if (joinedResult.data) {
         setChallenges(
           (joinedResult.data as any[]).map((j) => j.challenges).filter(Boolean)
         );
       }
 
-      // ── DM conversations — only if logged in ────────────────────────────────
+      // ── DM conversations — parallel sent + received
       if (user) {
         const [sentResult, receivedResult] = await Promise.all([
           supabase
@@ -129,36 +137,7 @@ export default function MessagesPage() {
     }
 
     load();
-
-    const sub = supabase
-      .channel("messages_feed")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "activity_feed" },
-        (payload) => {
-          if (payload.new.type === "message") {
-            setFeed((prev) => [payload.new, ...prev.slice(0, 19)]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(sub); };
-  }, [user]);
-
-  async function handlePost() {
-    if (!postText.trim()) return;
-    setPosting(true);
-    await supabase.from("activity_feed").insert({
-      user_id:   user?.id,           // required for RLS
-      user_name: user?.name || "Member",
-      type:      "message",
-      text:      postText.trim(),
-      meta:      {},
-    });
-    setPostText("");
-    setPosting(false);
-  }
+  }, [user, loadKey]);
 
   const TABS: { id: MsgTab; label: string; icon: string }[] = [
     { id: "community", label: "Community", icon: "🌈" },
@@ -217,72 +196,64 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* ── COMMUNITY TAB ─────────────────────────────────────────────────────── */}
-      {!isInChat && tab === "community" && (
-        <div className="px-5 flex flex-col gap-4 flex-1">
-
-          {/* Post input */}
-          <div className="neon-card rounded-2xl p-4 flex gap-3 items-center">
-            <div
-              className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
+      {/* ── COMMUNITY TAB — now a full ChatPanel ─────────────────────────────── */}
+      {!isInChat && tab === "community" && user && (
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
+          {/* Replicate the page header inside the fixed container */}
+          <div className="px-5 pt-6 pb-0 flex-shrink-0">
+            <p
+              className="text-xs font-bold tracking-[0.2em] uppercase mb-1"
+              style={{
+                background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
             >
-              {user?.name?.[0]?.toUpperCase() || "?"}
-            </div>
-            <input
-              value={postText}
-              onChange={(e) => setPostText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handlePost()}
-              placeholder="Post a shoutout to the community…"
-              className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
-            />
-            <button
-              onClick={handlePost}
-              disabled={posting || !postText.trim()}
-              className="text-xs font-bold px-4 py-2 rounded-full transition-all flex-shrink-0"
-              style={
-                postText.trim() && !posting
-                  ? { background: "linear-gradient(90deg,#ff6b9d,#667eea)", color: "white" }
-                  : { background: "#f1f1f1", color: "#aaa" }
-              }
-            >
-              {posting ? "…" : "Post"}
-            </button>
-          </div>
-
-          {/* Feed */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <div className="text-5xl">🏳️‍🌈</div>
-              <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
-            </div>
-          ) : feed.length === 0 ? (
-            <div className="neon-card rounded-2xl p-10 text-center">
-              <p className="text-2xl mb-2">🌈</p>
-              <p className="font-bold text-slate-800">No posts yet</p>
-              <p className="text-sm text-slate-500 mt-1">Be the first to say something!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {feed.map((item, i) => (
-                <div key={item.id || i} className="neon-card rounded-2xl px-4 py-4 flex gap-3 items-start">
-                  <div
-                    className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white"
-                    style={{ background: AVATAR_GRADIENTS[i % 4] }}
-                  >
-                    {item.emoji_avatar || item.user_name?.[0]?.toUpperCase() || "?"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-slate-900">{item.user_name}</p>
-                    <p className="text-sm text-slate-600 mt-0.5 leading-relaxed">{item.text}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                </div>
+              Queers & Allies Fitness
+            </p>
+            <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight mb-3">
+              Messages
+            </h1>
+            {/* Tabs */}
+            <div className="flex p-1 rounded-full bg-white shadow-sm mb-3" style={{ border: "1px solid #E5E5EA" }}>
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex-1 py-2 rounded-full text-[11px] font-bold transition-all flex items-center justify-center gap-1 min-w-0 ${
+                    t.id === "community" ? "rainbow-cta text-[#1a1a1a]" : "text-[#8E8E93]"
+                  }`}
+                >
+                  <span className="flex-shrink-0">{t.icon}</span>
+                  <span className="truncate">{t.label}</span>
+                </button>
               ))}
             </div>
-          )}
+          </div>
+          {/* ChatPanel fills remaining space */}
+          <div className="flex-1 min-h-0 px-5 pb-3">
+            <ChatPanel
+              context={{ type: "community" }}
+              currentUserId={user.id}
+              currentUserName={user.name}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Not logged in — community tab */}
+      {!isInChat && tab === "community" && !user && (
+        <div className="px-5">
+          <div className="neon-card rounded-2xl p-10 text-center">
+            <p className="text-2xl mb-2">🌈</p>
+            <p className="font-bold text-slate-800">Log in to join the conversation</p>
+            <button
+              onClick={() => nav.push("/auth")}
+              className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm mt-4"
+            >
+              Log In / Sign Up
+            </button>
+          </div>
         </div>
       )}
 
@@ -293,6 +264,7 @@ export default function MessagesPage() {
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="text-5xl">🏳️‍🌈</div>
               <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
+              <SlowLoadNotice onRetry={() => setLoadKey((k) => k + 1)} />
             </div>
           ) : challenges.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -342,6 +314,7 @@ export default function MessagesPage() {
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <div className="text-5xl">🏳️‍🌈</div>
               <p className="text-sm font-bold tracking-widest uppercase text-purple-600">Loading...</p>
+              <SlowLoadNotice onRetry={() => setLoadKey((k) => k + 1)} />
             </div>
           ) : dmConversations.length === 0 ? (
             <div className="neon-card rounded-2xl p-10 text-center">
@@ -391,7 +364,7 @@ export default function MessagesPage() {
 
       {/* ── Challenge chat ─────────────────────────────────────────────────────── */}
       {openChallenge && user && (
-        <div style={{ position: "fixed", inset: "0 0 94px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "challenge", id: openChallenge.id }}
             currentUserId={user.id}
@@ -404,7 +377,7 @@ export default function MessagesPage() {
 
       {/* ── DM chat ───────────────────────────────────────────────────────────── */}
       {openDmUser && user && (
-        <div style={{ position: "fixed", inset: "0 0 94px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "dm", id: openDmUser.id }}
             currentUserId={user.id}

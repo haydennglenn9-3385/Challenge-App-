@@ -1,15 +1,14 @@
 "use client";
-
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 type ChatContext =
   | { type: "challenge"; id: string }
   | { type: "dm"; id: string }
-  | { type: "team"; id: string };
+  | { type: "team"; id: string }
+  | { type: "community" };          // ← new: global community chat
 
 interface Message {
   id: string;
@@ -31,7 +30,6 @@ interface Props {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const EMOJI_OPTIONS = [
   "🌈", "👏", "❤️", "😂", "😍", "🙌",
   "💯", "😆", "💀", "👎", "🫶", "😄",
@@ -42,9 +40,7 @@ const SELECT_FIELDS =
   "id, author_id, text, created_at, edited_at, reactions, users!messages_author_id_fkey(name, avatar_url)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatTime(iso: string): string {
-  // Supabase returns timestamps without timezone — append Z to parse as UTC
   const normalized = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
   return new Date(normalized).toLocaleTimeString([], {
     hour: "numeric",
@@ -60,11 +56,7 @@ function formatDateSeparator(iso: string): string {
   yesterday.setDate(today.getDate() - 1);
   if (date.toDateString() === today.toDateString()) return "Today";
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
+  return date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
 function needsDateSeparator(msgs: Message[], i: number): boolean {
@@ -101,17 +93,13 @@ function normalize(row: any): Message {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
 function Avatar({ name, url }: { name: string; url: string | null }) {
   if (url) {
     return (
       <img
         src={url}
         alt={name}
-        style={{
-          width: 28, height: 28, borderRadius: "50%",
-          objectFit: "cover", flexShrink: 0,
-        }}
+        style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
       />
     );
   }
@@ -147,22 +135,18 @@ function EmojiPickerPortal({
 }) {
   const PICKER_WIDTH = 208;
   const PICKER_HEIGHT = 148;
-
-  // Clamp horizontally so picker never goes off screen
   const vw = typeof window !== "undefined" ? window.innerWidth : 400;
   let left = anchor.alignRight
-    ? anchor.left - PICKER_WIDTH + 60   // align right edge near bubble right
-    : anchor.left;                       // align left edge near bubble left
+    ? anchor.left - PICKER_WIDTH + 60
+    : anchor.left;
   left = Math.max(8, Math.min(left, vw - PICKER_WIDTH - 8));
-
-  // Open above bubble; if not enough room, open below
-  const top = anchor.top - PICKER_HEIGHT - 8 > 60
-    ? anchor.top - PICKER_HEIGHT - 8
-    : anchor.top + 48;
+  const top =
+    anchor.top - PICKER_HEIGHT - 8 > 60
+      ? anchor.top - PICKER_HEIGHT - 8
+      : anchor.top + 48;
 
   return createPortal(
     <>
-      {/* Invisible backdrop to close on outside tap */}
       <div
         style={{ position: "fixed", inset: 0, zIndex: 998 }}
         onMouseDown={onClose}
@@ -170,16 +154,10 @@ function EmojiPickerPortal({
       />
       <div
         style={{
-          position: "fixed",
-          top,
-          left,
-          width: PICKER_WIDTH,
-          zIndex: 999,
-          background: "#fff",
-          borderRadius: 16,
+          position: "fixed", top, left, width: PICKER_WIDTH, zIndex: 999,
+          background: "#fff", borderRadius: 16,
           boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-          border: "1px solid rgba(0,0,0,0.06)",
-          padding: 8,
+          border: "1px solid rgba(0,0,0,0.06)", padding: 8,
         }}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchEnd={(e) => e.stopPropagation()}
@@ -216,7 +194,6 @@ function ReactionBar({
 }) {
   const entries = Object.entries(reactions).filter(([, u]) => u.length > 0);
   if (!entries.length) return null;
-
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
       {entries.map(([emoji, users]) => {
@@ -236,9 +213,7 @@ function ReactionBar({
             }}
           >
             <span>{emoji}</span>
-            {users.length > 1 && (
-              <span style={{ fontWeight: 600 }}>{users.length}</span>
-            )}
+            {users.length > 1 && <span style={{ fontWeight: 600 }}>{users.length}</span>}
           </button>
         );
       })}
@@ -247,7 +222,6 @@ function ReactionBar({
 }
 
 // ─── ChatPanel ────────────────────────────────────────────────────────────────
-
 export default function ChatPanel({
   context,
   currentUserId,
@@ -255,22 +229,19 @@ export default function ChatPanel({
   title,
   onBack,
 }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  const [messages, setMessages]       = useState<Message[]>([]);
+  const [input, setInput]             = useState("");
+  const [loading, setLoading]         = useState(true);
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [editText, setEditText]       = useState("");
   const [emojiTargetId, setEmojiTargetId] = useState<string | null>(null);
-  const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
-  const [sending, setSending] = useState(false);
-  // Debug: log currentUserId to verify it matches author_id
-  // console.log("[ChatPanel] currentUserId:", currentUserId);
+  const [pickerAnchor, setPickerAnchor]   = useState<PickerAnchor | null>(null);
+  const [sending, setSending]         = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
 
-  // ── Query builders ────────────────────────────────────────────────────────
-
+  // ── Query builders ──────────────────────────────────────────────────────────
   function buildSelectQuery() {
     let q = supabase
       .from("messages")
@@ -281,7 +252,14 @@ export default function ChatPanel({
       q = (q as any).eq("challenge_id", context.id).is("is_dm", false);
     } else if (context.type === "team") {
       q = (q as any).eq("team_id", context.id).is("is_dm", false);
+    } else if (context.type === "community") {
+      // Community: no challenge_id, no team_id, not a DM
+      q = (q as any)
+        .is("challenge_id", null)
+        .is("team_id", null)
+        .eq("is_dm", false);
     } else {
+      // DM
       q = (q as any)
         .eq("is_dm", true)
         .or(
@@ -298,31 +276,38 @@ export default function ChatPanel({
       return { ...base, challenge_id: context.id, is_dm: false };
     if (context.type === "team")
       return { ...base, team_id: context.id, is_dm: false };
+    if (context.type === "community")
+      return { ...base, is_dm: false };   // challenge_id + team_id stay null
     return { ...base, is_dm: true, recipient_id: context.id };
   }
 
   function buildRealtimeFilter(): string {
     if (context.type === "challenge") return `challenge_id=eq.${context.id}`;
-    if (context.type === "team") return `team_id=eq.${context.id}`;
+    if (context.type === "team")      return `team_id=eq.${context.id}`;
+    if (context.type === "community") return `is_dm=eq.false`;
     return `is_dm=eq.true`;
   }
 
-  function isDMRelevant(row: any): boolean {
-    if (context.type !== "dm") return true;
-    return (
-      (row.author_id === currentUserId && row.recipient_id === context.id) ||
-      (row.author_id === context.id && row.recipient_id === currentUserId)
-    );
+  function isMessageRelevant(row: any): boolean {
+    if (context.type === "dm") {
+      return (
+        (row.author_id === currentUserId && row.recipient_id === context.id) ||
+        (row.author_id === context.id    && row.recipient_id === currentUserId)
+      );
+    }
+    if (context.type === "community") {
+      // Exclude challenge and team messages that also have is_dm=false
+      return row.challenge_id == null && row.team_id == null;
+    }
+    return true;
   }
 
-  // ── Scroll ────────────────────────────────────────────────────────────────
-
+  // ── Scroll ──────────────────────────────────────────────────────────────────
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     bottomRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // ── Load ──────────────────────────────────────────────────────────────────
-
+  // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
     setMessages([]);
@@ -333,7 +318,7 @@ export default function ChatPanel({
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [context.type, context.id, currentUserId]);
+  }, [context.type, (context as any).id, currentUserId]);
 
   useEffect(() => {
     if (!loading) scrollToBottom("instant");
@@ -343,17 +328,20 @@ export default function ChatPanel({
     scrollToBottom();
   }, [messages.length, scrollToBottom]);
 
-  // ── Realtime ──────────────────────────────────────────────────────────────
-
+  // ── Realtime ────────────────────────────────────────────────────────────────
   useEffect(() => {
+    const channelKey = context.type === "community"
+      ? "chat-community"
+      : `chat-${context.type}-${(context as any).id}`;
+
     const channel = supabase
-      .channel(`chat-${context.type}-${context.id}`)
+      .channel(channelKey)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "messages", filter: buildRealtimeFilter() },
         async (payload) => {
           if (payload.eventType === "INSERT") {
-            if (!isDMRelevant(payload.new)) return;
+            if (!isMessageRelevant(payload.new)) return;
             const { data } = await supabase
               .from("messages").select(SELECT_FIELDS).eq("id", payload.new.id).single();
             if (data) setMessages((prev) => {
@@ -361,7 +349,7 @@ export default function ChatPanel({
               return [...prev, normalize(data)];
             });
           } else if (payload.eventType === "UPDATE") {
-            if (!isDMRelevant(payload.new)) return;
+            if (!isMessageRelevant(payload.new)) return;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === payload.new.id
@@ -378,10 +366,9 @@ export default function ChatPanel({
 
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [context.type, context.id, currentUserId]);
+  }, [context.type, (context as any).id, currentUserId]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-
+  // ── Actions ──────────────────────────────────────────────────────────────────
   async function handleSend() {
     const text = input.trim();
     if (!text || sending) return;
@@ -427,22 +414,12 @@ export default function ChatPanel({
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
-    /*
-     * CRITICAL: This outer div must be position:relative + display:flex + flexDirection:column
-     * with an explicit height so the message list can scroll and the input stays pinned.
-     * The parent in challenge_id/page.tsx wraps this with height:480 — that's enough.
-     */
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-        minHeight: 0,           // ← prevents flex children from overflowing
-        overflow: "hidden",
-        borderRadius: 16,
+        display: "flex", flexDirection: "column",
+        width: "100%", height: "100%", minHeight: 0,
+        overflow: "hidden", borderRadius: 16,
         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
       }}
       onClick={() => { setEmojiTargetId(null); setPickerAnchor(null); }}
@@ -452,52 +429,34 @@ export default function ChatPanel({
         <div
           style={{
             flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            position: "relative",
-            padding: "10px 16px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "relative", padding: "10px 16px",
             borderBottom: "1px solid rgba(0,0,0,0.06)",
-            background:
-              "linear-gradient(135deg, #d9f99d 0%, #bbf7d0 25%, #a5f3fc 50%, #e9d5ff 75%, #fecdd3 100%)",
+            background: "linear-gradient(135deg, #d9f99d 0%, #bbf7d0 25%, #a5f3fc 50%, #e9d5ff 75%, #fecdd3 100%)",
           }}
         >
           {onBack && (
             <button
               onClick={onBack}
               style={{
-                position: "absolute",
-                left: 12,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#4f46e5",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
+                position: "absolute", left: 12, fontSize: 13, fontWeight: 600,
+                color: "#4f46e5", background: "none", border: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 2,
               }}
             >
               ← Back
             </button>
           )}
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#1f2937" }}>
-            {title}
-          </span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1f2937" }}>{title}</span>
         </div>
       )}
 
-      {/* ── Message list — this is the ONLY scrollable region ── */}
+      {/* ── Message list ── */}
       <div
         style={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          minHeight: 0,         // ← critical: allows flex child to shrink & scroll
-          padding: "12px 16px",
-          background: "#f9fafb",
-          WebkitOverflowScrolling: "touch",
+          flex: 1, overflowY: "auto", overflowX: "hidden",
+          minHeight: 0, padding: "12px 16px",
+          background: "#f9fafb", WebkitOverflowScrolling: "touch" as any,
         }}
       >
         {loading ? (
@@ -505,8 +464,7 @@ export default function ChatPanel({
             <div
               style={{
                 width: 20, height: 20, borderRadius: "50%",
-                border: "2px solid #a78bfa",
-                borderTopColor: "transparent",
+                border: "2px solid #a78bfa", borderTopColor: "transparent",
                 animation: "spin 0.7s linear infinite",
               }}
             />
@@ -519,12 +477,11 @@ export default function ChatPanel({
         ) : (
           <>
             {messages.map((msg, i) => {
-              const isOwn = msg.author_id === currentUserId;
-              const showSep = needsDateSeparator(messages, i);
+              const isOwn      = msg.author_id === currentUserId;
+              const showSep    = needsDateSeparator(messages, i);
               const firstGroup = isNewGroup(messages, i);
-              const lastGroup = isLastInGroup(messages, i);
-              const isEditing = editingId === msg.id;
-
+              const lastGroup  = isLastInGroup(messages, i);
+              const isEditing  = editingId === msg.id;
               const bubbleRadius = isOwn
                 ? `18px 18px ${lastGroup ? "4px" : "18px"} 18px`
                 : `18px 18px 18px ${lastGroup ? "4px" : "18px"}`;
@@ -543,21 +500,16 @@ export default function ChatPanel({
                     </div>
                   )}
 
-                  {/* Sender name — others, first in group */}
+                  {/* Sender name */}
                   {!isOwn && firstGroup && (
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", marginLeft: 38, marginBottom: 2, marginTop: 6 }}>
                       {msg.author_name}
                     </div>
                   )}
 
-                  {/* Row: reverse for own messages */}
-                  <div style={{
-                    display: "flex",
-                    flexDirection: isOwn ? "row-reverse" : "row",
-                    alignItems: "flex-end",
-                    gap: 6,
-                  }}>
-                    {/* Avatar — others only, anchored to last in group */}
+                  {/* Row */}
+                  <div style={{ display: "flex", flexDirection: isOwn ? "row-reverse" : "row", alignItems: "flex-end", gap: 6 }}>
+                    {/* Avatar */}
                     {!isOwn && (
                       <div style={{ flexShrink: 0, alignSelf: "flex-end", marginBottom: 2 }}>
                         {lastGroup
@@ -568,13 +520,7 @@ export default function ChatPanel({
                     )}
 
                     {/* Bubble column */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: isOwn ? "flex-end" : "flex-start",
-                      maxWidth: "72%",
-                    }}>
-                      {/* Edit mode */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: isOwn ? "flex-end" : "flex-start", maxWidth: "72%" }}>
                       {isEditing ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 180 }}>
                           <input
@@ -585,10 +531,7 @@ export default function ChatPanel({
                               if (e.key === "Enter") handleSaveEdit(msg.id);
                               if (e.key === "Escape") { setEditingId(null); setEditText(""); }
                             }}
-                            style={{
-                              flex: 1, fontSize: 14, padding: "8px 12px", borderRadius: 20,
-                              border: "1.5px solid #7c3aed", outline: "none", background: "#fff",
-                            }}
+                            style={{ flex: 1, fontSize: 14, padding: "8px 12px", borderRadius: 20, border: "1.5px solid #7c3aed", outline: "none", background: "#fff" }}
                           />
                           <button onClick={() => handleSaveEdit(msg.id)}
                             style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", background: "none", border: "none", cursor: "pointer" }}>
@@ -600,43 +543,25 @@ export default function ChatPanel({
                           </button>
                         </div>
                       ) : (
-                        /* Bubble */
                         <div style={{ position: "relative" }}>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               if (emojiTargetId === msg.id) {
-                                setEmojiTargetId(null);
-                                setPickerAnchor(null);
+                                setEmojiTargetId(null); setPickerAnchor(null);
                               } else {
                                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                 setEmojiTargetId(msg.id);
-                                setPickerAnchor({
-                                  msgId: msg.id,
-                                  top: rect.top,
-                                  left: rect.left,
-                                  alignRight: isOwn,
-                                });
+                                setPickerAnchor({ msgId: msg.id, top: rect.top, left: rect.left, alignRight: isOwn });
                               }
                               setEditingId(null);
                             }}
-                            style={{
-                              display: "block",
-                              textAlign: "left",
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
-                            }}
+                            style={{ display: "block", textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer" }}
                           >
                             <div style={{
-                              padding: "9px 14px",
-                              borderRadius: bubbleRadius,
-                              fontSize: 14,
-                              lineHeight: 1.45,
-                              background: isOwn
-                                ? "linear-gradient(135deg, #7c3aed, #6366f1)"
-                                : "#ffffff",
+                              padding: "9px 14px", borderRadius: bubbleRadius,
+                              fontSize: 14, lineHeight: 1.45,
+                              background: isOwn ? "linear-gradient(135deg, #7c3aed, #6366f1)" : "#ffffff",
                               color: isOwn ? "#ffffff" : "#111827",
                               boxShadow: isOwn ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
                               wordBreak: "break-word",
@@ -656,16 +581,13 @@ export default function ChatPanel({
                         />
                       )}
 
-                      {/* Timestamp + actions — last in group only */}
+                      {/* Timestamp + actions */}
                       {lastGroup && !isEditing && (
                         <div style={{
                           display: "flex",
                           flexDirection: isOwn ? "row-reverse" : "row",
-                          alignItems: "center",
-                          gap: 8,
-                          marginTop: 2,
-                          paddingLeft: isOwn ? 0 : 2,
-                          paddingRight: isOwn ? 2 : 0,
+                          alignItems: "center", gap: 8, marginTop: 2,
+                          paddingLeft: isOwn ? 0 : 2, paddingRight: isOwn ? 2 : 0,
                         }}>
                           <span style={{ fontSize: 10, color: "#9ca3af" }}>
                             {formatTime(msg.created_at)}
@@ -676,9 +598,7 @@ export default function ChatPanel({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setEditingId(msg.id);
-                                  setEditText(msg.text);
-                                  setEmojiTargetId(null);
+                                  setEditingId(msg.id); setEditText(msg.text); setEmojiTargetId(null);
                                 }}
                                 style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "none", border: "none", cursor: "pointer" }}
                               >
@@ -704,68 +624,35 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* ── Input bar — pinned to bottom ── */}
+      {/* ── Input bar ── */}
       <div
         style={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "8px 12px",
-          borderTop: "1px solid rgba(0,0,0,0.06)",
+          flexShrink: 0, display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 12px", borderTop: "1px solid rgba(0,0,0,0.06)",
           background: "rgba(255,255,255,0.97)",
         }}
       >
-        {/* Pill input */}
-        <div style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          background: "#f1f5f9",
-          borderRadius: 99,
-          padding: "8px 16px",
-        }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", background: "#f1f5f9", borderRadius: 99, padding: "8px 16px" }}>
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
             }}
             placeholder="Message..."
-            style={{
-              flex: 1,
-              fontSize: 14,
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              color: "#111827",
-            }}
+            style={{ flex: 1, fontSize: 14, background: "transparent", border: "none", outline: "none", color: "#111827" }}
           />
         </div>
-
-        {/* Send button */}
         <button
           onClick={handleSend}
           disabled={!input.trim() || sending}
           style={{
-            width: 34,
-            height: 34,
-            flexShrink: 0,
-            borderRadius: "50%",
-            border: "none",
-            cursor: input.trim() ? "pointer" : "default",
-            background: input.trim()
-              ? "linear-gradient(135deg, #7c3aed, #6366f1)"
-              : "#e5e7eb",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: sending ? 0.5 : 1,
-            transition: "opacity 0.15s, transform 0.1s",
+            width: 34, height: 34, flexShrink: 0, borderRadius: "50%",
+            border: "none", cursor: input.trim() ? "pointer" : "default",
+            background: input.trim() ? "linear-gradient(135deg, #7c3aed, #6366f1)" : "#e5e7eb",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            opacity: sending ? 0.5 : 1, transition: "opacity 0.15s, transform 0.1s",
           }}
         >
           <svg width="14" height="14" fill="white" viewBox="0 0 24 24">
@@ -774,10 +661,8 @@ export default function ChatPanel({
         </button>
       </div>
 
-      {/* Spin keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Emoji picker portal — renders outside overflow:hidden containers ── */}
       {pickerAnchor && (
         <EmojiPickerPortal
           anchor={pickerAnchor}
