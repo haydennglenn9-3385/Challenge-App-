@@ -210,7 +210,7 @@ export default function MessagesPage() {
               onChange={(e) => setPostText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handlePost()}
               placeholder="Post a shoutout to the community…"
-              className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
+              className="flex-1 min-w-0 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
             />
             <button
               onClick={handlePost}
@@ -356,7 +356,7 @@ export default function MessagesPage() {
 
       {/* ── Challenge chat open ── */}
       {openChallenge && user && (
-        <div style={{ position: "fixed", inset: "0 0 64px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "challenge", id: openChallenge.id }}
             currentUserId={user.id}
@@ -369,7 +369,7 @@ export default function MessagesPage() {
 
       {/* ── DM chat open ── */}
       {openDmUser && user && (
-        <div style={{ position: "fixed", inset: "0 0 94px 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: "0 0 98px 0", display: "flex", flexDirection: "column" }}>
           <ChatPanel
             context={{ type: "dm", id: openDmUser.id }}
             currentUserId={user.id}
