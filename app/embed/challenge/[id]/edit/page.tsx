@@ -2,24 +2,26 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { secondsToDisplay, displayToSeconds, formatTimeInput } from "@/lib/utils/time";
 
 export default function EditCheckInPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const challengeId = typeof params?.id === "string" ? params.id : "";
 
-  const [userId, setUserId]         = useState("");
-  const [challenge, setChallenge]   = useState<any>(null);
-  const [logs, setLogs]             = useState<any[]>([]);
+  const [userId, setUserId]           = useState("");
+  const [challenge, setChallenge]     = useState<any>(null);
+  const [logs, setLogs]               = useState<any[]>([]);
   const [selectedLog, setSelectedLog] = useState<any>(null);
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
+  const [timeInput, setTimeInput]     = useState("");
+  const [loading, setLoading]         = useState(true);
+  const [saving, setSaving]           = useState(false);
+
+  const isTimed = challenge?.scoring_type === "time" || challenge?.scoring_type === "timed";
 
   useEffect(() => {
     async function loadData() {
       if (!challengeId) return;
-
-      // Use Supabase auth directly — no Wix
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
       setUserId(user.id);
@@ -35,26 +37,54 @@ export default function EditCheckInPage() {
         .eq("user_id", user.id)
         .order("date", { ascending: false });
       setLogs(logsData || []);
-
       setLoading(false);
     }
     loadData();
   }, [challengeId]);
 
+  // When a log is selected, pre-fill the time input if timed
+  function selectLog(log: any) {
+    setSelectedLog(log);
+    if (isTimed && log.duration_seconds) {
+      setTimeInput(secondsToDisplay(log.duration_seconds));
+    } else {
+      setTimeInput("");
+    }
+  }
+
+  function formatLogLabel(log: any) {
+    if (isTimed) {
+      const display = log.duration_seconds
+        ? secondsToDisplay(log.duration_seconds)
+        : "No time logged";
+      return `${log.date} — ${display}`;
+    }
+    return `${log.date} — ${log.reps_completed}/${log.reps_target} reps`;
+  }
+
   const handleSave = async () => {
     if (!selectedLog) return;
     setSaving(true);
+
+    const payload: any = {
+      date: selectedLog.date,
+      edited_by: userId,
+      edited_at: new Date().toISOString(),
+    };
+
+    if (isTimed) {
+      const secs = displayToSeconds(timeInput);
+      payload.duration_seconds = secs ?? selectedLog.duration_seconds;
+    } else {
+      payload.reps_completed   = selectedLog.reps_completed;
+      payload.reps_target      = selectedLog.reps_target;
+      payload.completion_level = selectedLog.completion_level;
+      payload.exercise         = selectedLog.exercise;
+    }
+
     const { error } = await supabase
       .from("daily_logs")
-      .update({
-        reps_completed: selectedLog.reps_completed,
-        reps_target: selectedLog.reps_target,
-        completion_level: selectedLog.completion_level,
-        exercise: selectedLog.exercise,
-        date: selectedLog.date,
-        edited_by: userId,
-        edited_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq("id", selectedLog.id);
 
     if (error) alert("Error saving: " + error.message);
@@ -70,10 +100,10 @@ export default function EditCheckInPage() {
   };
 
   if (loading) return (
-  <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg, #d4f5e2 0%, #fde0ef 30%, #fdf6d3 60%, #d4eaf7 100%)" }}>
-    <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-    <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
-  </div>
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg,#d4f5e2 0%,#fde0ef 30%,#fdf6d3 60%,#d4eaf7 100%)" }}>
+      <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
+      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+    </div>
   );
 
   return (
@@ -108,7 +138,7 @@ export default function EditCheckInPage() {
               {logs.map((log) => (
                 <button
                   key={log.id}
-                  onClick={() => setSelectedLog(log)}
+                  onClick={() => selectLog(log)}
                   className="w-full text-left px-4 py-3 rounded-xl border transition text-sm font-semibold"
                   style={selectedLog?.id === log.id ? {
                     borderColor: "#667eea",
@@ -116,7 +146,7 @@ export default function EditCheckInPage() {
                     color: "#1a1a1a",
                   } : { borderColor: "#e5e7eb", background: "white", color: "#374151" }}
                 >
-                  {log.date} — {log.reps_completed}/{log.reps_target} reps
+                  {formatLogLabel(log)}
                 </button>
               ))}
             </div>
@@ -130,38 +160,61 @@ export default function EditCheckInPage() {
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
             <p className="font-extrabold text-slate-900">Edit Log</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Date</label>
-                <input type="date" value={selectedLog.date}
-                  onChange={(e) => setSelectedLog({ ...selectedLog, date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Exercise</label>
-                <input type="text" value={selectedLog.exercise || ""}
-                  onChange={(e) => setSelectedLog({ ...selectedLog, exercise: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Reps Completed</label>
-                <input type="number" value={selectedLog.reps_completed}
-                  onChange={(e) => setSelectedLog({ ...selectedLog, reps_completed: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Reps Target</label>
-                <input type="number" value={selectedLog.reps_target}
-                  onChange={(e) => setSelectedLog({ ...selectedLog, reps_target: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
-              </div>
-              <div className="col-span-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Completion Level</label>
-                <input type="text" value={selectedLog.completion_level || ""}
-                  onChange={(e) => setSelectedLog({ ...selectedLog, completion_level: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
-              </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Date</label>
+              <input type="date" value={selectedLog.date}
+                onChange={(e) => setSelectedLog({ ...selectedLog, date: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
             </div>
+
+            {isTimed ? (
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
+                  Time (m:ss)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="1:01"
+                  value={timeInput}
+                  onChange={(e) => setTimeInput(formatTimeInput(e.target.value))}
+                  style={{
+                    width: "100%", padding: "12px 16px", borderRadius: 14,
+                    border: "1.5px solid #e5e7eb", fontSize: 24, fontWeight: 700,
+                    outline: "none", textAlign: "center", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Reps Completed</label>
+                  <input type="number" value={selectedLog.reps_completed}
+                    onChange={(e) => setSelectedLog({ ...selectedLog, reps_completed: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Reps Target</label>
+                  <input type="number" value={selectedLog.reps_target}
+                    onChange={(e) => setSelectedLog({ ...selectedLog, reps_target: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Exercise</label>
+                  <input type="text" value={selectedLog.exercise || ""}
+                    onChange={(e) => setSelectedLog({ ...selectedLog, exercise: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Completion Level</label>
+                  <input type="text" value={selectedLog.completion_level || ""}
+                    onChange={(e) => setSelectedLog({ ...selectedLog, completion_level: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 rainbow-cta rounded-xl py-3 font-bold text-sm disabled:opacity-50">

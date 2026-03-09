@@ -1035,7 +1035,9 @@ export default function ChallengeDetailPage() {
                   </button>
                 </div>
 
-              ) : /* ══ STANDARD CHECK-IN ══ */ (
+              ) : 
+              
+              /* ══ STANDARD CHECK-IN ══ */ (
                 <>
                   {checkedInToday ? (
                     <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
