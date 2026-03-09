@@ -1105,7 +1105,10 @@ export default function ChallengeDetailPage() {
                 </>
               )}
               <button
-                onClick={() => router.push(`/embed/challenge/${challengeId}/edit`)}
+                onClick={() => isTimed
+                  ? router.push(`/embed/challenge/${challengeId}/edit`)
+                  : setShowCalendar(true)
+                }
                 style={{ width: "100%", marginTop: 12, padding: "10px 0", fontSize: 13,
                   fontWeight: 700, color: "#7b2d8b", background: "transparent",
                   border: "none", cursor: "pointer" }}
