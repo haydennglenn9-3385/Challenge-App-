@@ -839,17 +839,6 @@ export default function ChallengeDetailPage() {
           </div>
         )}
 
-        {isEnded && isMember && (
-          <div style={{ textAlign: "center", marginTop: -8 }}>
-            <button
-              onClick={() => setShowCalendar(true)}
-              style={{ fontSize: 13, fontWeight: 700, color: "#7b2d8b",
-                background: "transparent", border: "none", cursor: "pointer" }}
-            >
-              ✏️ Edit Past Entries
-            </button>
-          </div>
-        )}
         {/* ── Challenge rules ─────────────────────────────────────────────── */}
         <details className="neon-card rounded-2xl px-5 py-4 cursor-pointer">
           <summary className="font-semibold text-slate-800 text-sm list-none flex items-center gap-2">
@@ -1027,12 +1016,7 @@ export default function ChallengeDetailPage() {
                     )}
                   </div>
 
-                  <button
-                    onClick={() => setShowCalendar(true)}
-                    style={{ width: "100%", padding: "10px 0", fontSize: 13, fontWeight: 700, color: "#7b2d8b", background: "transparent", border: "none", cursor: "pointer" }}
-                  >
-                    + Edit Past Days
-                  </button>
+              
                 </div>
 
               ) : 
@@ -1115,12 +1099,7 @@ export default function ChallengeDetailPage() {
                       >
                         {checkingIn ? "Saving…" : "Log Check-in"}
                       </button>
-                      <button
-                        onClick={() => setShowCalendar(true)}
-                        style={{ width: "100%", marginTop: 10, padding: "10px 0", fontSize: 13, fontWeight: 700, color: "#7b2d8b", background: "transparent", border: "none", cursor: "pointer" }}
-                      >
-                        + Edit Past Days
-                      </button>
+                      
                     </>
                   )}
                 </>
