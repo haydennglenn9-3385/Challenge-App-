@@ -1106,12 +1106,13 @@ export default function ChallengeDetailPage() {
               )}
               <button
                 onClick={() => {
+                  console.log("clicked", { isTimed });
                   if (isTimed) {
                     router.push(`/embed/challenge/${challengeId}/edit`);
                   } else {
                     setShowCalendar(true);
                   }
-                }}
+}}
                 style={{ width: "100%", marginTop: 12, padding: "10px 0", fontSize: 13,
                   fontWeight: 700, color: "#7b2d8b", background: "transparent",
                   border: "none", cursor: "pointer" }}
