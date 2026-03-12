@@ -516,8 +516,10 @@ export default function ChallengeDetailPage() {
         if (!seenWeeks.has(weekStart)) {
           seenWeeks.add(weekStart);
           const cardioLog = cardioLogsByWeek[weekStart];
+          const weekNum = getWeekNum(weekStart, startDate);
+          const pastWeekCardioTarget = 5 * weekNum;
           cards.push({
-            date: weekStart, target: weeklyCardioTarget,
+            date: weekStart, target: pastWeekCardioTarget,
             completed: cardioLog?.reps_completed ?? 0,
             duration_seconds: cardioLog?.duration_seconds ?? null,
             log_id: cardioLog?.id,
