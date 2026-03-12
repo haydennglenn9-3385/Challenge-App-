@@ -106,6 +106,9 @@ interface EditCard {
   completed: number;
   duration_seconds: number | null;
   log_id?: string;
+  exercise?: string;
+  isCardio?: boolean;
+  weekStart?: string;
 }
 interface DeltaResult { delta: string; improved: boolean; }
 interface TeamStanding {
@@ -233,6 +236,17 @@ export default function ChallengeDetailPage() {
     const map: Record<string, any> = {};
     for (const log of challengeLogs) {
       if (!log.log_type || log.log_type === "daily") map[log.date] = log;
+    }
+    return map;
+  }, [challengeLogs]);
+
+  const cardioLogsByWeek = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const log of challengeLogs) {
+      if (log.log_type === "cardio") {
+        const weekStart = getSundayOfWeek(new Date(log.date));
+        map[weekStart] = log;
+      }
     }
     return map;
   }, [challengeLogs]);
@@ -404,8 +418,9 @@ export default function ChallengeDetailPage() {
       reps_target: isTimed ? 0 : target,
       duration_seconds: durationSecs,
       points_earned: points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+      global_points_earned: GLOBAL_POINTS_PER_CHECKIN, // base 5 pts stored here
     });
+
 
     if (!error) {
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
@@ -540,16 +555,43 @@ export default function ChallengeDetailPage() {
 
   function openEditPanel() {
     if (!challenge) return;
-    const cards: EditCard[] = Array.from(selectedDays).sort().map(dateStr => {
+    const seenWeeks = new Set<string>();
+    const cards: EditCard[] = [];
+
+    Array.from(selectedDays).sort().forEach(dateStr => {
       const existing = logsByDate[dateStr];
-      const target   = getEffectiveTarget(dateStr, startDate, dailyTarget, scoringType, progressionType) || 1;
-      return {
-        date: dateStr, target,
+      const target = getEffectiveTarget(dateStr, startDate, dailyTarget, scoringType, progressionType) || 1;
+      const exercise = NYE_EXERCISES[new Date(dateStr).getDay()];
+
+      // Daily exercise card
+      cards.push({
+        date: dateStr,
+        target,
         completed: existing?.reps_completed ?? 0,
         duration_seconds: existing?.duration_seconds ?? null,
         log_id: existing?.id,
-      };
+        exercise,
+      });
+
+      // For progressive challenges, also add one cardio card per week
+      if (isProgressive) {
+        const weekStart = getSundayOfWeek(new Date(dateStr));
+        if (!seenWeeks.has(weekStart)) {
+          seenWeeks.add(weekStart);
+          const cardioLog = cardioLogsByWeek[weekStart];
+          cards.push({
+            date: weekStart,
+            target: weeklyCardioTarget,
+            completed: cardioLog?.reps_completed ?? 0,
+            duration_seconds: cardioLog?.duration_seconds ?? null,
+            log_id: cardioLog?.id,
+            isCardio: true,
+            weekStart,
+          });
+        }
+      }
     });
+
     setEditCards(cards);
     setShowEditPanel(true);
   }
