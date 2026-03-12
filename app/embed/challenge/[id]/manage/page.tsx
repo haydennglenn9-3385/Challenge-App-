@@ -72,6 +72,8 @@ function TeamCard({
   const [expanded,         setExpanded]         = useState(true);
   const [addingId,         setAddingId]         = useState<string | null>(null);
   const [showAddDropdown,  setShowAddDropdown]  = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
 
   const unassigned = allMembers.filter(m => m.team_id !== team.id);
   const stripColor  = team.color || PRIDE_GRADIENTS[0].gradient;
@@ -138,23 +140,25 @@ function TeamCard({
                   Add to {team.name}
                 </p>
                 {unassigned.length === 0 ? (
-                  <p className="text-xs text-slate-400">All members are already assigned.</p>
+                  <p className="text-xs text-slate-400">All members are already on this team.</p>
                 ) : (
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {unassigned.map(m => (
                       <button
                         key={m.id}
-                        disabled={addingId === m.id}
-                        onClick={async () => {
-                          setAddingId(m.id);
-                          await onAddMember(team.id, m.id);
-                          setAddingId(null);
-                          setShowAddDropdown(false);
+                        onClick={() => setPendingUserId(m.id)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm font-semibold text-slate-800 transition"
+                        style={{
+                          background: pendingUserId === m.id
+                            ? "linear-gradient(135deg,rgba(255,107,157,0.1),rgba(102,126,234,0.1))"
+                            : undefined,
+                          border: pendingUserId === m.id
+                            ? "1.5px solid rgba(102,126,234,0.3)"
+                            : "1.5px solid transparent",
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-100 transition text-sm font-semibold text-slate-800 disabled:opacity-50"
                       >
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-bold"
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-bold flex-shrink-0"
                           style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
                         >
                           {m.name?.charAt(0)?.toUpperCase()}
@@ -169,12 +173,29 @@ function TeamCard({
                     ))}
                   </div>
                 )}
-                <button
-                  onClick={() => setShowAddDropdown(false)}
-                  className="text-xs text-slate-400 hover:text-slate-600 transition"
-                >
-                  Cancel
-                </button>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => { setShowAddDropdown(false); setPendingUserId(null); }}
+                    className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!pendingUserId || addingId !== null}
+                    onClick={async () => {
+                      if (!pendingUserId) return;
+                      setAddingId(pendingUserId);
+                      await onAddMember(team.id, pendingUserId);
+                      setAddingId(null);
+                      setPendingUserId(null);
+                      setShowAddDropdown(false);
+                    }}
+                    className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition disabled:opacity-40"
+                    style={{ background: "linear-gradient(90deg,#ff6b9d,#667eea)" }}
+                  >
+                    {addingId ? "Saving…" : "Save"}
+                  </button>
+                </div>
               </div>
             ) : (
               <button
@@ -412,22 +433,28 @@ export default function ManageChallengePage() {
   }
 
   async function handleAddMemberToTeam(teamId: string, userId: string) {
-    const { error } = await supabase
-      .from("challenge_members")
-      .update({ team_id: teamId })
-      .eq("challenge_id", challengeId)
-      .eq("user_id", userId);
+  // Update challenge_members
+  const { error } = await supabase
+    .from("challenge_members")
+    .update({ team_id: teamId })
+    .eq("challenge_id", challengeId)
+    .eq("user_id", userId);
 
-    if (!error) {
-      const team = teams.find(t => t.id === teamId);
-      setMembers(p =>
-        p.map(m => m.id === userId
-          ? { ...m, team_id: teamId, team_name: team?.name }
-          : m
-        )
-      );
-    }
+  if (!error) {
+    // Also upsert into team_members so the challenge page sees it
+    await supabase
+      .from("team_members")
+      .upsert({ team_id: teamId, user_id: userId }, { onConflict: "user_id" });
+
+    const team = teams.find(t => t.id === teamId);
+    setMembers(p =>
+      p.map(m => m.id === userId
+        ? { ...m, team_id: teamId, team_name: team?.name }
+        : m
+      )
+    );
   }
+}
 
   async function handleSaveMember(data: {
     memberId: string;
