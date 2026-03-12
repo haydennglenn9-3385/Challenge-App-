@@ -240,6 +240,7 @@ export default function ChatPanel({
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
+  const scrollRef   = useRef<HTMLDivElement>(null);
 
   // ── Query builders ──────────────────────────────────────────────────────────
   function buildSelectQuery() {
@@ -303,9 +304,15 @@ export default function ChatPanel({
   }
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    bottomRef.current?.scrollIntoView({ behavior });
-  }, []);
+const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+  const el = scrollRef.current;
+  if (!el) return;
+  if (behavior === "instant") {
+    el.scrollTop = el.scrollHeight;
+  } else {
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }
+}, []);
 
   // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -453,6 +460,7 @@ export default function ChatPanel({
 
       {/* ── Message list ── */}
       <div
+        ref={scrollRef}
         style={{
           flex: 1, overflowY: "auto", overflowX: "hidden",
           minHeight: 0, padding: "12px 16px",
@@ -619,7 +627,7 @@ export default function ChatPanel({
                 </div>
               );
             })}
-            <div ref={bottomRef} />
+          
           </>
         )}
       </div>

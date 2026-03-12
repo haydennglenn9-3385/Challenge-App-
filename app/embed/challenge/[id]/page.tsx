@@ -1121,7 +1121,7 @@ export default function ChallengeDetailPage() {
                             {card.isCardio ? "🚴 Weekly Cardio" : `💪 ${card.exercise ?? "Exercise"}`}
                           </p>
                           <p style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>
-                            {formatDate(card.date)} · Target: {card.target} {card.isCardio ? "min" : "reps"}
+                            {card.isCardio ? `Week of ${formatDate(card.date)}` : formatDate(card.date)} · Target: {card.target} {card.isCardio ? "min" : "reps"}
                           </p>
                           <div style={{ display: "flex", gap: 8 }}>
                             {(["50%+", "100%"] as CompletionLevel[]).map(lvl => {
