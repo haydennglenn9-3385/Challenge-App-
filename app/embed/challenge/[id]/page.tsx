@@ -9,9 +9,7 @@ import {
   timeDelta,
 } from "@/lib/utils/time";
 import ChatPanel from "@/components/chat/ChatPanel";
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const GLOBAL_POINTS_PER_CHECKIN = 5;
 const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -21,9 +19,7 @@ const NYE_EXERCISES: Record<number, string> = {
   0: "Jumping Jacks", 1: "Lunges", 2: "Push-ups",
   3: "Glute Bridges", 4: "Crunches", 5: "Squats", 6: "Bird Dogs",
 };
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function toDateStr(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
@@ -94,12 +90,9 @@ function frequencyLabel(progressionType: string, everyX?: number | null): string
     default:               return "Check in daily";
   }
 }
-
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 type CompletionLevel = "50%+" | "100%";
 type LeaderboardView = "individual" | "team";
-
 interface EditCard {
   date: string;
   target: number;
@@ -115,9 +108,7 @@ interface TeamStanding {
   id: string; name: string; color?: string;
   total_points: number; member_count: number; avg_points: number;
 }
-
 // ─── Shared sheet styles ──────────────────────────────────────────────────────
-
 const backdropStyle: React.CSSProperties = {
   position: "fixed", inset: 0, zIndex: 100,
   background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
@@ -132,25 +123,20 @@ const handleStyle: React.CSSProperties = {
   width: 40, height: 4, borderRadius: 99,
   background: "#e2e8f0", margin: "0 auto 20px",
 };
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function ChallengeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const challengeId = typeof params?.id === "string" ? params.id : "";
-
   // ── Core state
   const [challenge, setChallenge]   = useState<any>(null);
   const [members, setMembers]       = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
   const [notFound, setNotFound]     = useState(false);
-
   // ── Teams
   const [teams, setTeams]                       = useState<any[]>([]);
   const [teamMemberships, setTeamMemberships]   = useState<{ team_id: string; user_id: string }[]>([]);
   const [leaderboardView, setLeaderboardView]   = useState<LeaderboardView>("individual");
-
   // ── User state
   const [userId, setUserId]                 = useState("");
   const [userName, setUserName]             = useState("");
@@ -160,7 +146,6 @@ export default function ChallengeDetailPage() {
   const [challengeLogs, setChallengeLogs]   = useState<any[]>([]);
   const [challengeStreak, setChallengeStreak] = useState(0);
   const [challengePoints, setChallengePoints] = useState(0);
-
   // ── Check-in state
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [todayPoints, setTodayPoints]       = useState(0);
@@ -168,14 +153,12 @@ export default function ChallengeDetailPage() {
   const [inputValue, setInputValue]         = useState(0);
   const [timeInput, setTimeInput]           = useState("");
   const [deltaResult, setDeltaResult]       = useState<DeltaResult | null>(null);
-
   // ── Progressive state
   const [selectedDaily, setSelectedDaily]         = useState<CompletionLevel | null>(null);
   const [selectedCardio, setSelectedCardio]       = useState<CompletionLevel | null>(null);
   const [cardioLoggedThisWeek, setCardioLoggedThisWeek] = useState(false);
   const [cardioPoints, setCardioPoints]           = useState(0);
   const [savingCardio, setSavingCardio]           = useState(false);
-
   // ── Edit past days
   const [showCalendar, setShowCalendar]   = useState(false);
   const [calMonth, setCalMonth]           = useState(() => {
@@ -187,14 +170,11 @@ export default function ChallengeDetailPage() {
   const [editCards, setEditCards]         = useState<EditCard[]>([]);
   const [saving, setSaving]               = useState(false);
   const [saveSuccess, setSaveSuccess]     = useState(false);
-
   // ─── Derived values ───────────────────────────────────────────────────────
-
   const today      = new Date();
   const todayStr   = today.toISOString().split("T")[0];
   const sundayStr  = getSundayOfWeek(today);
   const todayDow   = today.getDay();
-
   const scoringType    = challenge?.scoring_type ?? "task_completion";
   const isTimed        = scoringType === "time" || scoringType === "timed";
   const isProgressive  = scoringType === "progressive";
@@ -208,12 +188,10 @@ export default function ChallengeDetailPage() {
   const hasTeams       = challenge?.has_teams ?? false;
   const startDate      = challenge?.start_date ?? todayStr;
   const endDate        = challenge?.end_date ?? null;
-
   const isEnded  = endDate ? endDate < todayStr : false;
   const daysLeft = endDate
     ? Math.max(0, Math.ceil((new Date(endDate).getTime() - today.getTime()) / 86400000))
     : null;
-
   const currentWeek      = getWeekNum(todayStr, startDate);
   const weeklyRepTarget  = isProgressive ? dailyTarget * currentWeek : 0;
   const weeklyCardioTarget = isProgressive ? 5 * currentWeek : 0;
@@ -221,7 +199,6 @@ export default function ChallengeDetailPage() {
   const effectiveTarget  = challenge
     ? getEffectiveTarget(todayStr, startDate, dailyTarget, scoringType, progressionType)
     : dailyTarget;
-
   const previousBestSeconds = useMemo(() => {
     if (!isTimed) return null;
     const times = challengeLogs
@@ -231,7 +208,6 @@ export default function ChallengeDetailPage() {
     if (!times.length) return null;
     return lowerIsBetter ? Math.min(...times) : Math.max(...times);
   }, [challengeLogs, isTimed, lowerIsBetter]);
-
   const logsByDate = useMemo(() => {
     const map: Record<string, any> = {};
     for (const log of challengeLogs) {
@@ -239,7 +215,6 @@ export default function ChallengeDetailPage() {
     }
     return map;
   }, [challengeLogs]);
-
   const cardioLogsByWeek = useMemo(() => {
     const map: Record<string, any> = {};
     for (const log of challengeLogs) {
@@ -250,12 +225,10 @@ export default function ChallengeDetailPage() {
     }
     return map;
   }, [challengeLogs]);
-
   const sortedMembers = useMemo(
     () => [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0)),
     [members]
   );
-
   const teamStandings = useMemo((): TeamStanding[] => {
     if (!teams.length) return [];
     return teams.map(team => {
@@ -269,12 +242,9 @@ export default function ChallengeDetailPage() {
       };
     }).sort((a, b) => b.total_points - a.total_points);
   }, [teams, teamMemberships, members]);
-
   const parsedSeconds  = isTimed ? displayToSeconds(timeInput) : null;
   const timeInputValid = isTimed ? parsedSeconds !== null && parsedSeconds > 0 : true;
-
   // ─── loadLogs ────────────────────────────────────────────────────────────
-
   async function loadLogs(uid: string): Promise<any[]> {
     const { data: logs } = await supabase
       .from("daily_logs").select("*")
@@ -284,7 +254,6 @@ export default function ChallengeDetailPage() {
     setChallengeLogs(rows);
     setChallengeStreak(computeStreak(rows));
     setChallengePoints(rows.reduce((s, l) => s + (l.points_earned ?? 0), 0));
-
     const todayLogged = rows.some(l => l.date === todayStr && (!l.log_type || l.log_type === "daily"));
     setCheckedInToday(todayLogged);
     if (todayLogged) {
@@ -296,16 +265,13 @@ export default function ChallengeDetailPage() {
     setCardioPoints(cardioThisWeek.reduce((s, l) => s + (l.points_earned ?? 0), 0));
     return rows;
   }
-
   // ─── useEffect ───────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (!challengeId) return;
     async function load() {
       const { data: ch } = await supabase.from("challenges").select("*").eq("id", challengeId).single();
       if (!ch) { setNotFound(true); setLoading(false); return; }
       setChallenge(ch);
-
       const { data: membersData } = await supabase
         .from("challenge_members")
         .select("user_id, users(id, name, total_points, streak, avatar_emoji)")
@@ -313,7 +279,6 @@ export default function ChallengeDetailPage() {
       if (membersData) {
         setMembers(membersData.map((m: any) => ({ ...m.users })).filter(Boolean));
       }
-
       if (ch.has_teams) {
         const { data: teamsData } = await supabase
           .from("teams").select("id, name, color").eq("challenge_id", challengeId).order("name");
@@ -327,25 +292,21 @@ export default function ChallengeDetailPage() {
           }
         }
       }
-
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
         const { data: profile } = await supabase.from("users").select("name").eq("id", user.id).single();
         if (profile?.name) setUserName(profile.name);
-
         const { data: memberCheck } = await supabase
           .from("challenge_members").select("id")
           .eq("challenge_id", challengeId).eq("user_id", user.id).maybeSingle();
         const member = !!memberCheck;
         setIsMember(member);
-
         if (member) {
           const logs = await loadLogs(user.id);
           const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
           setUserTotalPoints(computed);
           await supabase.from("users").update({ total_points: computed }).eq("id", user.id);
-
           const { data: teamRow } = await supabase
             .from("team_members").select("team_id, teams(name)").eq("user_id", user.id).maybeSingle();
           if (teamRow?.teams) setUserTeam((teamRow.teams as any).name);
@@ -355,9 +316,7 @@ export default function ChallengeDetailPage() {
     }
     load();
   }, [challengeId]);
-
   // ─── Join ─────────────────────────────────────────────────────────────────
-
   async function handleJoin() {
     if (!userId || !challenge) return;
     let assignedTeamId: string | null = null;
@@ -388,9 +347,7 @@ export default function ChallengeDetailPage() {
       if (teamRow) setUserTeam(teamRow.name);
     }
   }
-
   // ─── Leave ────────────────────────────────────────────────────────────────
-
   async function handleLeave() {
     if (!confirm("Leave this challenge?")) return;
     await supabase.from("challenge_members").delete().eq("challenge_id", challengeId).eq("user_id", userId);
@@ -399,29 +356,23 @@ export default function ChallengeDetailPage() {
     setChallengeStreak(0);
     setCheckedInToday(false);
   }
-
   // ─── Standard check-in ───────────────────────────────────────────────────
-
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
     if (isTimed && !timeInputValid) return;
     setCheckingIn(true);
-
     const durationSecs = isTimed ? parsedSeconds : null;
     const completed    = hasTarget ? inputValue : 1;
     const target       = hasTarget ? effectiveTarget : 1;
     const points       = isTimed ? pointsMax : calcPoints(completed, target, pointsMax);
-
     const { error } = await supabase.from("daily_logs").insert({
       user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "daily",
       reps_completed: isTimed ? 0 : completed,
       reps_target: isTimed ? 0 : target,
       duration_seconds: durationSecs,
       points_earned: points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN, // base 5 pts stored here
+      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
     });
-
-
     if (!error) {
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
         setDeltaResult(timeDelta(durationSecs, previousBestSeconds, lowerIsBetter));
@@ -436,9 +387,7 @@ export default function ChallengeDetailPage() {
       const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
       const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
       const newGlobal    = userTotalPoints + totalNewPoints;
-
       await supabase.from("users").update({ total_points: newGlobal, streak: newStreak }).eq("id", userId);
-
       const { data: uProfile } = await supabase.from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
       await supabase.from("activity_feed").insert({
         user_id: userId, user_name: uProfile?.name ?? "Member",
@@ -448,7 +397,6 @@ export default function ChallengeDetailPage() {
           : "checked in!",
         meta: { challenge_id: challengeId, challenge_name: challenge?.name ?? null, days: newStreak, points: totalNewPoints, bonus: streakBonus },
       });
-
       setCheckedInToday(true);
       setTodayPoints(points);
       setUserTotalPoints(newGlobal);
@@ -465,22 +413,18 @@ export default function ChallengeDetailPage() {
     }
     setCheckingIn(false);
   }
-
   // ─── Progressive check-in ────────────────────────────────────────────────
-
   async function handleProgressiveCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn || !selectedDaily) return;
     setCheckingIn(true);
     const points    = selectedDaily === "100%" ? 2 : 1;
     const completed = selectedDaily === "100%" ? weeklyRepTarget : Math.ceil(weeklyRepTarget * 0.5);
-
     const { error } = await supabase.from("daily_logs").insert({
       user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "daily",
       reps_completed: completed, reps_target: weeklyRepTarget,
       points_earned: points, global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
       exercise: todayExercise, completion_level: selectedDaily,
     });
-
     if (!error) {
       const yesterday    = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
@@ -491,7 +435,6 @@ export default function ChallengeDetailPage() {
       const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
       const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
       const newGlobal    = userTotalPoints + totalNewPoints;
-
       await supabase.from("users").update({ total_points: newGlobal, streak: newStreak }).eq("id", userId);
       const { data: uProfile } = await supabase.from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
       await supabase.from("activity_feed").insert({
@@ -500,7 +443,6 @@ export default function ChallengeDetailPage() {
         text: streakBonus > 0 ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts` : "checked in!",
         meta: { challenge_id: challengeId, challenge_name: challenge?.name ?? null, days: newStreak, points: totalNewPoints, bonus: streakBonus },
       });
-
       setCheckedInToday(true);
       setTodayPoints(points);
       setUserTotalPoints(newGlobal);
@@ -513,29 +455,30 @@ export default function ChallengeDetailPage() {
     }
     setCheckingIn(false);
   }
-
   async function handleProgressiveCardio() {
     if (!userId || !challengeId || cardioLoggedThisWeek || savingCardio || !selectedCardio) return;
     setSavingCardio(true);
     const points   = selectedCardio === "100%" ? 2 : 1;
     const duration = selectedCardio === "100%" ? weeklyCardioTarget * 60 : Math.ceil(weeklyCardioTarget * 60 * 0.5);
-
     const { error } = await supabase.from("daily_logs").insert({
       user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "cardio",
       reps_completed: 0, reps_target: weeklyCardioTarget,
       duration_seconds: duration, points_earned: points,
       global_points_earned: 0, completion_level: selectedCardio,
     });
-
     if (!error) {
       setCardioLoggedThisWeek(true);
       setCardioPoints(points);
+      setChallengeLogs(prev => [...prev, {
+        date: todayStr, log_type: "cardio",
+        reps_completed: 0, reps_target: weeklyCardioTarget,
+        duration_seconds: duration, points_earned: points,
+        global_points_earned: 0,
+      }]);
     }
     setSavingCardio(false);
   }
-
   // ─── Calendar helpers ────────────────────────────────────────────────────
-
   function buildCalendarDays(): (number | null)[] {
     const firstDow    = new Date(calMonth.y, calMonth.m, 1).getDay();
     const daysInMonth = new Date(calMonth.y, calMonth.m + 1, 0).getDate();
@@ -543,7 +486,6 @@ export default function ChallengeDetailPage() {
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
     return cells;
   }
-
   function toggleDay(dateStr: string) {
     if (dateStr > todayStr) return;
     setSelectedDays(prev => {
@@ -552,27 +494,22 @@ export default function ChallengeDetailPage() {
       return next;
     });
   }
-
   function openEditPanel() {
     if (!challenge) return;
     const seenWeeks = new Set<string>();
     const cards: EditCard[] = [];
-
     Array.from(selectedDays).sort().forEach(dateStr => {
       const existing = logsByDate[dateStr];
       const target = getEffectiveTarget(dateStr, startDate, dailyTarget, scoringType, progressionType) || 1;
       const exercise = NYE_EXERCISES[new Date(dateStr).getDay()];
-
       // Daily exercise card
       cards.push({
-        date: dateStr,
-        target,
+        date: dateStr, target,
         completed: existing?.reps_completed ?? 0,
         duration_seconds: existing?.duration_seconds ?? null,
         log_id: existing?.id,
         exercise,
       });
-
       // For progressive challenges, also add one cardio card per week
       if (isProgressive) {
         const weekStart = getSundayOfWeek(new Date(dateStr));
@@ -580,33 +517,43 @@ export default function ChallengeDetailPage() {
           seenWeeks.add(weekStart);
           const cardioLog = cardioLogsByWeek[weekStart];
           cards.push({
-            date: weekStart,
-            target: weeklyCardioTarget,
+            date: weekStart, target: weeklyCardioTarget,
             completed: cardioLog?.reps_completed ?? 0,
             duration_seconds: cardioLog?.duration_seconds ?? null,
             log_id: cardioLog?.id,
-            isCardio: true,
-            weekStart,
+            isCardio: true, weekStart,
           });
         }
       }
     });
-
     setEditCards(cards);
     setShowEditPanel(true);
   }
-
+  // ─── FIXED: handleSaveEdits handles cardio vs daily cards correctly ───────
   async function handleSaveEdits() {
     if (!userId || !challenge) return;
     setSaving(true);
     for (const card of editCards) {
-      const points  = isTimed ? pointsMax : calcPoints(card.completed, card.target, pointsMax);
+      const isCardioCard = card.isCardio === true;
+      const points = isCardioCard
+        ? calcPoints(card.completed, card.target, 2)
+        : isTimed
+          ? pointsMax
+          : calcPoints(card.completed, card.target, pointsMax);
       const payload = {
-        user_id: userId, challenge_id: challengeId, date: card.date, log_type: "daily",
-        reps_completed: isTimed ? 0 : card.completed,
-        reps_target: isTimed ? 0 : card.target,
-        duration_seconds: isTimed ? card.duration_seconds : null,
-        points_earned: points, global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+        user_id: userId,
+        challenge_id: challengeId,
+        date: card.date,
+        log_type: isCardioCard ? "cardio" : "daily",
+        reps_completed: isTimed && !isCardioCard ? 0 : card.completed,
+        reps_target: isCardioCard ? card.target : isTimed ? 0 : card.target,
+        duration_seconds: isCardioCard
+          ? card.duration_seconds
+          : isTimed
+            ? card.duration_seconds
+            : null,
+        points_earned: points,
+        global_points_earned: isCardioCard ? 0 : GLOBAL_POINTS_PER_CHECKIN,
       };
       if (card.log_id) {
         await supabase.from("daily_logs").update(payload).eq("id", card.log_id);
@@ -627,16 +574,13 @@ export default function ChallengeDetailPage() {
       setSelectedDays(new Set());
     }, 2000);
   }
-
   // ─── Loading / not found ──────────────────────────────────────────────────
-
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
       <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
     </div>
   );
-
   if (notFound || !challenge) return (
     <div className="min-h-screen flex items-center justify-center px-5">
       <div className="neon-card rounded-2xl p-12 text-center max-w-sm w-full">
@@ -648,12 +592,9 @@ export default function ChallengeDetailPage() {
       </div>
     </div>
   );
-
   // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
     <div className="min-h-screen pb-28">
-
       {/* ── Nav ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 0" }}>
         <button onClick={() => router.back()} className="neon-card rounded-full px-4 py-2 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
@@ -670,9 +611,7 @@ export default function ChallengeDetailPage() {
           </button>
         </div>
       </div>
-
       <div style={{ padding: "16px 20px", maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-
         {/* ── Challenge header ── */}
         <div className="neon-card rounded-3xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
@@ -704,7 +643,6 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
         </div>
-
         {/* ── End state banner ── */}
         {isEnded && (
           <div style={{ borderRadius: 20, overflow: "hidden", border: "1.5px solid rgba(102,126,234,0.2)", background: "linear-gradient(135deg,rgba(255,107,157,0.06),rgba(102,126,234,0.06))" }}>
@@ -722,7 +660,6 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
         )}
-
         {/* ── Challenge rules ── */}
         <details className="neon-card rounded-2xl px-5 py-4 cursor-pointer">
           <summary className="font-semibold text-slate-800 text-sm list-none flex items-center gap-2">▶ 📋 Challenge Rules</summary>
@@ -746,7 +683,6 @@ export default function ChallengeDetailPage() {
             )}
           </div>
         </details>
-
         {/* ── Your stats ── */}
         {isMember && (
           <div className="neon-card rounded-2xl overflow-hidden">
@@ -775,13 +711,11 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
         )}
-
         {/* ── Check-in card ── */}
         {isMember && !isEnded && (
           <div className="neon-card rounded-2xl overflow-hidden">
             <div className="h-1 w-full rainbow-cta" />
             <div style={{ padding: "20px" }}>
-
               {/* ══ PROGRESSIVE CHECK-IN ══ */}
               {isProgressive ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -823,7 +757,6 @@ export default function ChallengeDetailPage() {
                       </>
                     )}
                   </div>
-
                   {/* Cardio */}
                   <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 20 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -835,9 +768,16 @@ export default function ChallengeDetailPage() {
                       )}
                     </div>
                     <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>Week {currentWeek} target: {weeklyCardioTarget} min</p>
+                    {/* FIXED: Added edit button on cardio confirmed state */}
                     {cardioLoggedThisWeek ? (
                       <div style={{ background: "rgba(72,207,173,0.08)", borderRadius: 14, padding: "12px 16px", textAlign: "center" }}>
                         <p style={{ fontSize: 13, fontWeight: 700, color: "#48cfad" }}>✅ Cardio logged this week!</p>
+                        <button
+                          onClick={() => setShowCalendar(true)}
+                          style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#7b2d8b", background: "transparent", border: "none", cursor: "pointer" }}
+                        >
+                          ✏️ Edit
+                        </button>
                       </div>
                     ) : (
                       <>
@@ -865,7 +805,6 @@ export default function ChallengeDetailPage() {
                     )}
                   </div>
                 </div>
-
               ) : /* ══ STANDARD CHECK-IN ══ */ (
                 <>
                   {checkedInToday ? (
@@ -928,7 +867,6 @@ export default function ChallengeDetailPage() {
                   )}
                 </>
               )}
-
               {/* ── Edit Past Entries — always visible for members ── */}
               <button
                 onClick={() => {
@@ -942,11 +880,9 @@ export default function ChallengeDetailPage() {
               >
                 ✏️ Edit Past Entries
               </button>
-
             </div>
           </div>
         )}
-
         {/* ── Leaderboard ── */}
         {members.length > 0 && (
           <div className="neon-card rounded-2xl overflow-hidden">
@@ -971,7 +907,6 @@ export default function ChallengeDetailPage() {
                   </div>
                 )}
               </div>
-
               {leaderboardView === "individual" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {sortedMembers.map((member, i) => {
@@ -993,7 +928,6 @@ export default function ChallengeDetailPage() {
                   })}
                 </div>
               )}
-
               {leaderboardView === "team" && teamStandings.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {teamStandings.map((team, i) => {
@@ -1024,7 +958,6 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
         )}
-
         {/* ── Chat ── */}
         {userId && isMember && (
           <div className="neon-card rounded-2xl overflow-hidden" style={{ height: 480 }}>
@@ -1045,7 +978,6 @@ export default function ChallengeDetailPage() {
             </div>
           </div>
         )}
-
         {/* ── Join / Leave ── */}
         {!userId && (
           <div className="neon-card rounded-2xl p-6 text-center">
@@ -1071,15 +1003,12 @@ export default function ChallengeDetailPage() {
             </button>
           </div>
         )}
-
       </div>
-
       {/* ══ SHEET 1 — Month Calendar ══════════════════════════════════════════ */}
       {showCalendar && (
         <div style={backdropStyle} onClick={e => { if (e.target === e.currentTarget) { setShowCalendar(false); setSelectedDays(new Set()); } }}>
           <div style={panelStyle}>
             <div style={handleStyle} />
-
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <button className="stepper-btn"
                 onClick={() => setCalMonth(p => { const d = new Date(p.y, p.m - 1); return { y: d.getFullYear(), m: d.getMonth() }; })}
@@ -1095,14 +1024,12 @@ export default function ChallengeDetailPage() {
                 →
               </button>
             </div>
-
             {/* Day headers */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
               {["S","M","T","W","T","F","S"].map((d, i) => (
                 <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "#94a3b8", padding: "4px 0" }}>{d}</div>
               ))}
             </div>
-
             {/* Calendar days */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 20 }}>
               {buildCalendarDays().map((day, i) => {
@@ -1125,11 +1052,9 @@ export default function ChallengeDetailPage() {
                 );
               })}
             </div>
-
             <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginBottom: 12 }}>
               {selectedDays.size === 0 ? "Tap days to select them" : `${selectedDays.size} day${selectedDays.size > 1 ? "s" : ""} selected`}
             </p>
-
             <button
               onClick={openEditPanel}
               disabled={selectedDays.size === 0}
@@ -1146,18 +1071,15 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
       )}
-
       {/* ══ SHEET 2 — Edit Panel ══════════════════════════════════════════════ */}
       {showEditPanel && (
         <div style={backdropStyle} onClick={e => { if (e.target === e.currentTarget && !saving) setShowEditPanel(false); }}>
           <div style={panelStyle}>
             <div style={handleStyle} />
-
             <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>Edit Check-ins</p>
             <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
               {isTimed ? "Adjust your logged time for each selected day." : "Adjust your completed reps for each selected day."}
             </p>
-
             {saveSuccess ? (
               <div style={{ textAlign: "center", padding: "24px 0" }}>
                 <p style={{ fontSize: 36, marginBottom: 8 }}>✅</p>
@@ -1185,17 +1107,20 @@ export default function ChallengeDetailPage() {
                         </div>
                       );
                     }
-
-                    // Progressive: show completion level buttons
+                    // FIXED: Progressive — show exercise name for daily, "Weekly Cardio" for cardio cards
                     if (isProgressive) {
                       const currentLevel: CompletionLevel | null =
                         card.completed >= card.target ? "100%" :
                         card.completed >= Math.ceil(card.target * 0.5) ? "50%+" : null;
-
                       return (
-                        <div key={card.date} style={{ background: "rgba(0,0,0,0.03)", borderRadius: 16, padding: 16 }}>
-                          <p style={{ fontSize: 13, fontWeight: 900, color: "#0e0e0e", marginBottom: 4 }}>{card.date}</p>
-                          <p style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>Target: {card.target} reps</p>
+                        <div key={`${card.date}-${card.isCardio ? "cardio" : "daily"}`} style={{ background: card.isCardio ? "rgba(255,107,157,0.05)" : "rgba(0,0,0,0.03)", borderRadius: 16, padding: 16, border: card.isCardio ? "1px solid rgba(255,107,157,0.15)" : "none" }}>
+                          {/* FIXED: Exercise name / cardio label */}
+                          <p style={{ fontSize: 13, fontWeight: 900, color: "#0e0e0e", marginBottom: 2 }}>
+                            {card.isCardio ? "🚴 Weekly Cardio" : `💪 ${card.exercise ?? "Exercise"}`}
+                          </p>
+                          <p style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>
+                            {formatDate(card.date)} · Target: {card.target} {card.isCardio ? "min" : "reps"}
+                          </p>
                           <div style={{ display: "flex", gap: 8 }}>
                             {(["50%+", "100%"] as CompletionLevel[]).map(lvl => {
                               const isSelected = currentLevel === lvl;
@@ -1208,10 +1133,16 @@ export default function ChallengeDetailPage() {
                                   style={{
                                     flex: 1, padding: "10px 0", borderRadius: 12, fontWeight: 700, fontSize: 13,
                                     border: isSelected ? "none" : "1.5px solid #e5e7eb",
-                                    background: isSelected ? "linear-gradient(90deg,#48cfad,#667eea)" : "#fff",
+                                    background: isSelected
+                                      ? card.isCardio
+                                        ? "linear-gradient(90deg,#ff6b9d,#ff9f43)"
+                                        : "linear-gradient(90deg,#48cfad,#667eea)"
+                                      : "#fff",
                                     color: isSelected ? "#fff" : "#64748b", cursor: "pointer",
                                   }}>
-                                  {lvl === "100%" ? `✓ ${card.target} reps` : `${Math.ceil(card.target * 0.5)}+ reps`}
+                                  {lvl === "100%"
+                                    ? `✓ ${card.target} ${card.isCardio ? "min" : "reps"}`
+                                    : `${Math.ceil(card.target * 0.5)}+ ${card.isCardio ? "min" : "reps"}`}
                                 </button>
                               );
                             })}
@@ -1219,7 +1150,6 @@ export default function ChallengeDetailPage() {
                         </div>
                       );
                     }
-
                     // Standard reps
                     const pct = card.target > 0 ? Math.min(100, Math.round((card.completed / card.target) * 100)) : 0;
                     return (
@@ -1251,7 +1181,6 @@ export default function ChallengeDetailPage() {
                     );
                   })}
                 </div>
-
                 <button onClick={handleSaveEdits} disabled={saving} style={{
                   width: "100%", padding: "14px 0", borderRadius: 16, fontWeight: 700, fontSize: 15,
                   background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)",
@@ -1265,7 +1194,6 @@ export default function ChallengeDetailPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
