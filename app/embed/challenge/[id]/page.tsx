@@ -216,15 +216,15 @@ export default function ChallengeDetailPage() {
     return map;
   }, [challengeLogs]);
   const cardioLogsByWeek = useMemo(() => {
-    const map: Record<string, any> = {};
-    for (const log of challengeLogs) {
-      if (log.log_type === "cardio") {
-        const weekStart = getSundayOfWeek(new Date(log.date));
-        map[weekStart] = log;
-      }
+  const map: Record<number, any> = {};
+  for (const log of challengeLogs) {
+    if (log.log_type === "cardio") {
+      const weekNum = getWeekNum(log.date, startDate);
+      map[weekNum] = log;
     }
-    return map;
-  }, [challengeLogs]);
+  }
+  return map;
+}, [challengeLogs, startDate]);
   const sortedMembers = useMemo(
     () => [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0)),
     [members]
@@ -512,18 +512,17 @@ export default function ChallengeDetailPage() {
       });
       // For progressive challenges, also add one cardio card per week
       if (isProgressive) {
-        const weekStart = getSundayOfWeek(new Date(dateStr));
-        if (!seenWeeks.has(weekStart)) {
-          seenWeeks.add(weekStart);
-          const cardioLog = cardioLogsByWeek[weekStart];
-          const weekNum = getWeekNum(dateStr, startDate);
+        const weekNum = getWeekNum(dateStr, startDate);
+        if (!seenWeeks.has(String(weekNum))) {
+          seenWeeks.add(String(weekNum));
+          const cardioLog = cardioLogsByWeek[weekNum];
           const pastWeekCardioTarget = 5 * weekNum;
           cards.push({
-            date: weekStart, target: pastWeekCardioTarget,
+            date: dateStr, target: pastWeekCardioTarget,
             completed: cardioLog?.reps_completed ?? 0,
             duration_seconds: cardioLog?.duration_seconds ?? null,
             log_id: cardioLog?.id,
-            isCardio: true, weekStart,
+            isCardio: true,
           });
         }
       }
