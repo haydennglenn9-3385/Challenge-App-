@@ -73,7 +73,7 @@ function TeamCard({
   const [addingId,         setAddingId]         = useState<string | null>(null);
   const [showAddDropdown,  setShowAddDropdown]  = useState(false);
 
-  const unassigned  = allMembers.filter(m => !m.team_id || m.team_id !== team.id);
+  const unassigned = allMembers.filter(m => m.team_id !== team.id);
   const stripColor  = team.color || PRIDE_GRADIENTS[0].gradient;
 
   return (
@@ -312,18 +312,21 @@ export default function ManageChallengePage() {
           .select(`
             user_id,
             team_id,
-            users ( id, name, email, streak, total_points ),
-            teams ( name )
+            users ( id, name, email, streak, total_points )
           `)
           .eq("challenge_id", challengeId);
-
         if (membersData) {
           setMembers(
-            membersData.map((m: any) => ({
-              ...m.users,
-              team_id:   m.team_id    ?? undefined,
-              team_name: m.teams?.name ?? undefined,
-            }))
+            membersData
+              .filter((m: any) => m.users)
+              .map((m: any) => {
+                const team = teamsData?.find((t: any) => t.id === m.team_id);
+                return {
+                  ...m.users,
+                  team_id:   m.team_id   ?? undefined,
+                  team_name: team?.name  ?? undefined,
+                };
+              })
           );
         }
       }
