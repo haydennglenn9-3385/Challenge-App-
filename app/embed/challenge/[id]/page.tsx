@@ -285,9 +285,12 @@ export default function ChallengeDetailPage() {
         if (teamsData) {
           setTeams(teamsData);
           if (teamsData.length > 0) {
+            // Load team memberships from challenge_members.team_id instead of team_members table
             const { data: tmData } = await supabase
-              .from("team_members").select("team_id, user_id")
-              .in("team_id", teamsData.map((t: any) => t.id));
+              .from("challenge_members")
+              .select("team_id, user_id")
+              .eq("challenge_id", challengeId)
+              .not("team_id", "is", null);
             if (tmData) setTeamMemberships(tmData);
           }
         }

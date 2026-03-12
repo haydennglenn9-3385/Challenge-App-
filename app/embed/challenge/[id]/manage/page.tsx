@@ -455,9 +455,7 @@ export default function ManageChallengePage() {
       alert("Error assigning member: " + error.message);
       return;
     }
-    // Remove any existing team_members row for this user, then insert fresh
-    await supabase.from("team_members").delete().eq("user_id", userId);
-    await supabase.from("team_members").insert({ team_id: teamId, user_id: userId });
+    
     const team = teams.find(t => t.id === teamId);
     setMembers(p =>
       p.map(m => m.id === userId
@@ -481,10 +479,7 @@ export default function ManageChallengePage() {
       .update({ team_id: data.teamId ?? null })
       .eq("challenge_id", challengeId)
       .eq("user_id", data.memberId);
-    if (data.teamId) {
-      await supabase.from("team_members").delete().eq("user_id", data.memberId);
-      await supabase.from("team_members").insert({ team_id: data.teamId, user_id: data.memberId });
-    }
+    
     const team = data.teamId ? teams.find(t => t.id === data.teamId) : null;
     setMembers(p =>
       p.map(m =>
