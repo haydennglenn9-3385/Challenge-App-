@@ -516,7 +516,7 @@ export default function ChallengeDetailPage() {
         if (!seenWeeks.has(weekStart)) {
           seenWeeks.add(weekStart);
           const cardioLog = cardioLogsByWeek[weekStart];
-          const weekNum = getWeekNum(weekStart, startDate);
+          const weekNum = getWeekNum(dateStr, startDate);
           const pastWeekCardioTarget = 5 * weekNum;
           cards.push({
             date: weekStart, target: pastWeekCardioTarget,
@@ -962,7 +962,7 @@ export default function ChallengeDetailPage() {
         )}
         {/* ── Chat ── */}
         {userId && isMember && (
-          <div className="neon-card rounded-2xl overflow-hidden" style={{ height: 480 }}>
+          <div className="neon-card rounded-2xl overflow-hidden" style={{ height: 480, overflowAnchor: "none" }}>
             <ChatPanel
               context={{ type: "challenge", id: challengeId }}
               currentUserId={userId}
