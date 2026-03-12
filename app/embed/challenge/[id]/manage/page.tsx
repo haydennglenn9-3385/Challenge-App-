@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -7,9 +6,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import MemberEditModal from "@/components/manage/MemberEditModal";
 import TeamColorSelector, { PRIDE_GRADIENTS } from "@/components/manage/TeamColorSelector";
 import DirectAddMember from "@/components/manage/DirectAddMember";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 interface Challenge {
   id:                 string;
   name:               string;
@@ -22,7 +19,6 @@ interface Challenge {
   auto_assign_teams:  boolean;
   creator_id:         string;
 }
-
 interface Member {
   id:           string;
   name:         string;
@@ -32,16 +28,13 @@ interface Member {
   team_id?:     string;
   team_name?:   string;
 }
-
 interface Team {
   id:           string;
   name:         string;
   color?:       string;
   challenge_id?: string;
 }
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const SCORING_OPTIONS = [
   { value: "average_points",       label: "Average Points",       desc: "Fair for mixed team sizes" },
   { value: "total_points",         label: "Total Points",         desc: "Sum of all member points" },
@@ -53,9 +46,7 @@ const SCORING_OPTIONS = [
   { value: "distance",             label: "Distance",             desc: "Track distance covered" },
   { value: "weight",               label: "Weight",               desc: "Track weight lifted" },
 ];
-
 // ─── TeamCard ─────────────────────────────────────────────────────────────────
-
 function TeamCard({
   team,
   members,
@@ -69,28 +60,23 @@ function TeamCard({
   onEditMember: (m: Member) => void;
   onAddMember:  (teamId: string, userId: string) => Promise<void>;
 }) {
-  const [expanded,         setExpanded]         = useState(true);
-  const [addingId,         setAddingId]         = useState<string | null>(null);
-  const [showAddDropdown,  setShowAddDropdown]  = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
+  const [expanded,        setExpanded]        = useState(true);
+  const [addingId,        setAddingId]        = useState<string | null>(null);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
+  const [pendingUserId,   setPendingUserId]   = useState<string | null>(null);
 
   const unassigned = allMembers.filter(m => m.team_id !== team.id);
-  const stripColor  = team.color || PRIDE_GRADIENTS[0].gradient;
+  const stripColor = team.color || PRIDE_GRADIENTS[0].gradient;
 
   return (
     <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
       <div className="h-1" style={{ background: stripColor }} />
-
       {/* Header */}
       <button
         onClick={() => setExpanded(p => !p)}
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition"
       >
-        <div
-          className="w-8 h-8 rounded-full flex-shrink-0"
-          style={{ background: stripColor }}
-        />
+        <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: stripColor }} />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-slate-900 text-sm">{team.name}</p>
           <p className="text-xs text-slate-400">
@@ -99,17 +85,13 @@ function TeamCard({
         </div>
         <span className="text-slate-400 text-sm">{expanded ? "▲" : "▼"}</span>
       </button>
-
       {expanded && (
         <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
           {members.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-3">No members yet</p>
           ) : (
             members.map(m => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-slate-50"
-              >
+              <div key={m.id} className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-slate-50">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
                   style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
@@ -118,9 +100,7 @@ function TeamCard({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{m.name}</p>
-                  <p className="text-xs text-slate-400">
-                    {m.total_points} pts · {m.streak}🔥
-                  </p>
+                  <p className="text-xs text-slate-400">{m.total_points} pts · {m.streak}🔥</p>
                 </div>
                 <button
                   onClick={() => onEditMember(m)}
@@ -131,7 +111,6 @@ function TeamCard({
               </div>
             ))
           )}
-
           {/* Add member */}
           <div className="pt-1">
             {showAddDropdown ? (
@@ -211,9 +190,7 @@ function TeamCard({
     </div>
   );
 }
-
 // ─── Toggle ───────────────────────────────────────────────────────────────────
-
 function Toggle({
   value,
   onChange,
@@ -239,75 +216,124 @@ function Toggle({
     </button>
   );
 }
+// ─── UnassignedRow ────────────────────────────────────────────────────────────
+function UnassignedRow({
+  member,
+  teams,
+  onAssign,
+  onEdit,
+}: {
+  member:   Member;
+  teams:    Team[];
+  onAssign: (teamId: string, userId: string) => Promise<void>;
+  onEdit:   (m: Member) => void;
+}) {
+  const [pendingTeamId, setPendingTeamId] = useState("");
+  const [saving,        setSaving]        = useState(false);
 
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50">
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+        style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
+      >
+        {member.name?.charAt(0)?.toUpperCase() || "?"}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
+        <p className="text-xs text-slate-400">
+          {member.total_points ?? 0} pts · {member.streak ?? 0}🔥
+        </p>
+      </div>
+      {teams.length > 0 ? (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            value={pendingTeamId}
+            onChange={e => setPendingTeamId(e.target.value)}
+            className="text-xs rounded-lg border border-slate-200 px-2 py-1.5 bg-white font-semibold text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          >
+            <option value="">Assign →</option>
+            {teams.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <button
+            disabled={!pendingTeamId || saving}
+            onClick={async () => {
+              if (!pendingTeamId) return;
+              setSaving(true);
+              await onAssign(pendingTeamId, member.id);
+              setSaving(false);
+            }}
+            className="text-xs font-bold px-3 py-1.5 rounded-full text-white disabled:opacity-40 transition"
+            style={{ background: pendingTeamId ? "linear-gradient(90deg,#ff6b9d,#667eea)" : undefined, backgroundColor: !pendingTeamId ? "#e2e8f0" : undefined }}
+          >
+            {saving ? "…" : "Save"}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => onEdit(member)}
+          className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-white transition"
+        >
+          Edit
+        </button>
+      )}
+    </div>
+  );
+}
 // ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function ManageChallengePage() {
   const params      = useParams<{ id: string }>();
   const router      = useRouter();
   const challengeId = typeof params?.id === "string" ? params.id : "";
-
   // ── Data ──────────────────────────────────────────────────────────────────
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [members,   setMembers]   = useState<Member[]>([]);
   const [teams,     setTeams]     = useState<Team[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
-
   // ── Detail fields ─────────────────────────────────────────────────────────
-  const [name,        setName]        = useState(""); 
+  const [name,        setName]        = useState("");
   const [description, setDescription] = useState("");
   const [rules,       setRules]       = useState("");
   const [saving,      setSaving]      = useState(false);
-
   // ── Dates ─────────────────────────────────────────────────────────────────
   const [startDate,   setStartDate]   = useState("");
   const [endDate,     setEndDate]     = useState("");
   const [savingDates, setSavingDates] = useState(false);
-
   // ── Scoring ───────────────────────────────────────────────────────────────
   const [scoringType,   setScoringType]   = useState("average_points");
   const [savingScoring, setSavingScoring] = useState(false);
-
   // ── Mode ──────────────────────────────────────────────────────────────────
-  const [hasTeams,          setHasTeams]          = useState(false);
-  const [savingMode,        setSavingMode]        = useState(false);
-  const [autoAssign,        setAutoAssign]        = useState(false);
-  const [savingAutoAssign,  setSavingAutoAssign]  = useState(false);
-
+  const [hasTeams,         setHasTeams]         = useState(false);
+  const [savingMode,       setSavingMode]       = useState(false);
+  const [autoAssign,       setAutoAssign]       = useState(false);
+  const [savingAutoAssign, setSavingAutoAssign] = useState(false);
   // ── Team form ─────────────────────────────────────────────────────────────
   const [newTeamName,  setNewTeamName]  = useState("");
   const [newTeamColor, setNewTeamColor] = useState(PRIDE_GRADIENTS[0].gradient);
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [showTeamForm, setShowTeamForm] = useState(false);
-
   // ── Member edit modal ─────────────────────────────────────────────────────
   const [editingMember, setEditingMember] = useState<Member | null>(null);
-
   // ── Load ──────────────────────────────────────────────────────────────────
-
   useEffect(() => {
     async function loadData() {
       if (!challengeId) return;
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
-
       const { data: profile } = await supabase
         .from("users").select("role").eq("id", user.id).single();
-
       const { data: ch } = await supabase
         .from("challenges").select("*").eq("id", challengeId).single();
-
       if (!ch) { setLoading(false); return; }
-
       const isCreator = ch.creator_id === user.id;
       const isAdmin   = profile?.role === "admin";
       const access    = isCreator || isAdmin;
-
-      setChallenge(ch)
+      setChallenge(ch);
       setHasAccess(access);
-      setName(ch.name || ""); 
+      setName(ch.name || "");
       setDescription(ch.description || "");
       setRules(ch.rules || "");
       setStartDate(ch.start_date || "");
@@ -315,19 +341,13 @@ export default function ManageChallengePage() {
       setScoringType(ch.scoring_type || "average_points");
       setHasTeams(ch.has_teams ?? false);
       setAutoAssign(ch.auto_assign_teams ?? false);
-
       if (access) {
-        
-      // ── Load teams ──────────────────────────────────────────────────────
         const { data: teamsData } = await supabase
           .from("teams")
           .select("id, name, color, challenge_id")
           .eq("challenge_id", challengeId)
           .order("name");
-
         if (teamsData) setTeams(teamsData);
-
-        // ── Load members — team_id lives directly on challenge_members ───────
         const { data: membersData } = await supabase
           .from("challenge_members")
           .select(`
@@ -344,21 +364,18 @@ export default function ManageChallengePage() {
                 const team = teamsData?.find((t: any) => t.id === m.team_id);
                 return {
                   ...m.users,
-                  team_id:   m.team_id   ?? undefined,
-                  team_name: team?.name  ?? undefined,
+                  team_id:   m.team_id  ?? undefined,
+                  team_name: team?.name ?? undefined,
                 };
               })
           );
         }
       }
-
       setLoading(false);
     }
     loadData();
   }, [challengeId]);
-
   // ── Handlers ──────────────────────────────────────────────────────────────
-
   async function handleSaveDetails() {
     if (!name.trim()) return;
     setSaving(true);
@@ -373,7 +390,6 @@ export default function ManageChallengePage() {
     }
     setSaving(false);
   }
-
   async function handleSaveDates() {
     setSavingDates(true);
     const { error } = await supabase
@@ -387,7 +403,6 @@ export default function ManageChallengePage() {
     }
     setSavingDates(false);
   }
-
   async function handleSaveScoring() {
     setSavingScoring(true);
     const { error } = await supabase
@@ -395,7 +410,6 @@ export default function ManageChallengePage() {
     if (error) alert("Error: " + error.message);
     setSavingScoring(false);
   }
-
   async function handleToggleTeams(value: boolean) {
     setSavingMode(true);
     const { error } = await supabase
@@ -404,7 +418,6 @@ export default function ManageChallengePage() {
     else alert("Error: " + error.message);
     setSavingMode(false);
   }
-
   async function handleToggleAutoAssign(value: boolean) {
     setSavingAutoAssign(true);
     const { error } = await supabase
@@ -413,7 +426,6 @@ export default function ManageChallengePage() {
     else alert("Error: " + error.message);
     setSavingAutoAssign(false);
   }
-
   async function handleCreateTeam() {
     if (!newTeamName.trim()) return;
     setCreatingTeam(true);
@@ -431,21 +443,21 @@ export default function ManageChallengePage() {
     }
     setCreatingTeam(false);
   }
-
+  // ── FIXED: delete + insert instead of upsert to avoid conflict key issues ──
   async function handleAddMemberToTeam(teamId: string, userId: string) {
-  // Update challenge_members
-  const { error } = await supabase
-    .from("challenge_members")
-    .update({ team_id: teamId })
-    .eq("challenge_id", challengeId)
-    .eq("user_id", userId);
-
-  if (!error) {
-    // Also upsert into team_members so the challenge page sees it
-    await supabase
-      .from("team_members")
-      .upsert({ team_id: teamId, user_id: userId }, { onConflict: "user_id" });
-
+    // Update challenge_members
+    const { error } = await supabase
+      .from("challenge_members")
+      .update({ team_id: teamId })
+      .eq("challenge_id", challengeId)
+      .eq("user_id", userId);
+    if (error) {
+      alert("Error assigning member: " + error.message);
+      return;
+    }
+    // Remove any existing team_members row for this user, then insert fresh
+    await supabase.from("team_members").delete().eq("user_id", userId);
+    await supabase.from("team_members").insert({ team_id: teamId, user_id: userId });
     const team = teams.find(t => t.id === teamId);
     setMembers(p =>
       p.map(m => m.id === userId
@@ -454,8 +466,6 @@ export default function ManageChallengePage() {
       )
     );
   }
-}
-
   async function handleSaveMember(data: {
     memberId: string;
     points:   number;
@@ -466,14 +476,15 @@ export default function ManageChallengePage() {
       .from("users")
       .update({ total_points: data.points, streak: data.streak })
       .eq("id", data.memberId);
-
-    // Update team assignment on challenge_members
     await supabase
       .from("challenge_members")
       .update({ team_id: data.teamId ?? null })
       .eq("challenge_id", challengeId)
       .eq("user_id", data.memberId);
-
+    if (data.teamId) {
+      await supabase.from("team_members").delete().eq("user_id", data.memberId);
+      await supabase.from("team_members").insert({ team_id: data.teamId, user_id: data.memberId });
+    }
     const team = data.teamId ? teams.find(t => t.id === data.teamId) : null;
     setMembers(p =>
       p.map(m =>
@@ -483,34 +494,26 @@ export default function ManageChallengePage() {
       )
     );
   }
-
   async function handleRemoveMember(memberId: string) {
     await supabase
       .from("challenge_members")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("user_id", memberId);
-
     setMembers(p => p.filter(m => m.id !== memberId));
   }
-
   async function handleDeleteChallenge() {
     if (!confirm("Permanently delete this challenge? This cannot be undone.")) return;
     await supabase.from("challenge_members").delete().eq("challenge_id", challengeId);
     await supabase.from("challenges").delete().eq("id", challengeId);
     router.push("/embed/challenges");
   }
-
   // ── Derived ───────────────────────────────────────────────────────────────
-
-  const getTeamMembers  = (teamId: string) => members.filter(m => m.team_id === teamId);
+  const getTeamMembers    = (teamId: string) => members.filter(m => m.team_id === teamId);
   const unassignedMembers = hasTeams ? members.filter(m => !m.team_id) : [];
-  const sortedMembers   = [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
-
+  const sortedMembers     = [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
   // ── Guards ────────────────────────────────────────────────────────────────
-
   if (loading) return <LoadingScreen />;
-
   if (!hasAccess) return (
     <div className="min-h-screen flex items-center justify-center px-5">
       <div className="neon-card rounded-2xl p-12 text-center max-w-sm w-full">
@@ -528,13 +531,10 @@ export default function ManageChallengePage() {
       </div>
     </div>
   );
-
   // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <>
       <div className="min-h-screen px-5 pt-6 pb-28 space-y-5 max-w-2xl mx-auto">
-
         {/* ── Header ── */}
         <div className="flex items-center gap-3">
           <button
@@ -559,65 +559,45 @@ export default function ManageChallengePage() {
             </h1>
           </div>
         </div>
-
         {/* ── Challenge Details ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
             <p className="font-extrabold text-slate-900">Challenge Details</p>
-
-            {/* ── Name ── */}
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                Name
-              </label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Name</label>
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="Challenge name"
                 className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
               />
             </div>
-
-            {/* ── Description ── */}
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                Description
-              </label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Description</label>
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add a description for your challenge"
                 className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
                 rows={3}
               />
             </div>
-
-            {/* ── Rules ── */}
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                Rules / Notes
-              </label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Rules / Notes</label>
               <textarea
-                value={rules}
-                onChange={(e) => setRules(e.target.value)}
+                value={rules} onChange={(e) => setRules(e.target.value)}
                 placeholder="Add rules, notes, or instructions"
                 className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
                 rows={4}
               />
             </div>
-
             <button
-              onClick={handleSaveDetails}
-              disabled={saving || !name.trim()}
+              onClick={handleSaveDetails} disabled={saving || !name.trim()}
               className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save Details"}
             </button>
           </div>
         </div>
-
         {/* ── Challenge Dates ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
@@ -625,49 +605,30 @@ export default function ManageChallengePage() {
             <p className="font-extrabold text-slate-900">Challenge Dates</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Start Date</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">End Date</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
               </div>
             </div>
-            <button
-              onClick={handleSaveDates}
-              disabled={savingDates}
-              className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50"
-            >
+            <button onClick={handleSaveDates} disabled={savingDates}
+              className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50">
               {savingDates ? "Saving…" : "Save Dates"}
             </button>
           </div>
         </div>
-
         {/* ── Scoring Type ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
           <div className="p-5 space-y-4">
             <p className="font-extrabold text-slate-900">Scoring Type</p>
             <div>
-              <select
-                value={scoringType}
-                onChange={(e) => setScoringType(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-              >
+              <select value={scoringType} onChange={(e) => setScoringType(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 {SCORING_OPTIONS.map(s => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
@@ -676,16 +637,12 @@ export default function ManageChallengePage() {
                 {SCORING_OPTIONS.find(s => s.value === scoringType)?.desc}
               </p>
             </div>
-            <button
-              onClick={handleSaveScoring}
-              disabled={savingScoring}
-              className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50"
-            >
+            <button onClick={handleSaveScoring} disabled={savingScoring}
+              className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50">
               {savingScoring ? "Saving…" : "Save Scoring Type"}
             </button>
           </div>
         </div>
-
         {/* ── Mode ── */}
         <div className="neon-card rounded-2xl overflow-hidden">
           <div className="h-1 w-full rainbow-cta" />
@@ -698,15 +655,11 @@ export default function ManageChallengePage() {
                 </span>
               )}
             </div>
-
-            {/* Individual / Teams toggle */}
             <div className="flex gap-2 p-1 rounded-2xl bg-slate-100">
               <button
                 onClick={() => !savingMode && handleToggleTeams(false)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  !hasTeams
-                    ? "bg-white shadow text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                  !hasTeams ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 👤 Individual
@@ -714,20 +667,13 @@ export default function ManageChallengePage() {
               <button
                 onClick={() => !savingMode && handleToggleTeams(true)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  hasTeams
-                    ? "bg-white shadow text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
+                  hasTeams ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 👥 Teams
               </button>
             </div>
-
-            {savingMode && (
-              <p className="text-xs text-slate-400 text-center">Saving…</p>
-            )}
-
-            {/* Auto-assign toggle — only when Teams mode is active */}
+            {savingMode && <p className="text-xs text-slate-400 text-center">Saving…</p>}
             {hasTeams && (
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50">
                 <div className="pr-4">
@@ -736,39 +682,27 @@ export default function ManageChallengePage() {
                     New members are placed into the smallest team automatically
                   </p>
                 </div>
-                <Toggle
-                  value={autoAssign}
-                  onChange={handleToggleAutoAssign}
-                  disabled={savingAutoAssign}
-                />
+                <Toggle value={autoAssign} onChange={handleToggleAutoAssign} disabled={savingAutoAssign} />
               </div>
             )}
           </div>
         </div>
-
-        {/* ── Teams Section (Teams mode) ── */}
+        {/* ── Teams Section ── */}
         {hasTeams && (
           <div className="neon-card rounded-2xl overflow-hidden">
             <div className="h-1 w-full rainbow-cta" />
             <div className="p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-extrabold text-slate-900">
-                  Teams ({teams.length})
-                </p>
+                <p className="font-extrabold text-slate-900">Teams ({teams.length})</p>
                 {unassignedMembers.length > 0 && (
                   <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
                     {unassignedMembers.length} unassigned
                   </span>
                 )}
               </div>
-
               {teams.length === 0 && !showTeamForm && (
-                <p className="text-sm text-slate-400 text-center py-4">
-                  No teams yet. Create one below.
-                </p>
+                <p className="text-sm text-slate-400 text-center py-4">No teams yet. Create one below.</p>
               )}
-
-              {/* Team cards */}
               <div className="space-y-3">
                 {teams.map(team => (
                   <TeamCard
@@ -781,59 +715,42 @@ export default function ManageChallengePage() {
                   />
                 ))}
               </div>
-
-              {/* Create team form */}
               {showTeamForm ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <p className="text-sm font-bold text-slate-700">New Team</p>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                      Team Name
-                    </label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Team Name</label>
                     <input
-                      type="text"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
+                      type="text" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)}
                       placeholder="e.g. Team Aria"
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                     />
                   </div>
                   <TeamColorSelector value={newTeamColor} onChange={setNewTeamColor} />
                   <div className="flex gap-2 pt-1">
-                    <button
-                      onClick={() => setShowTeamForm(false)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-sm text-slate-600 hover:bg-white transition"
-                    >
+                    <button onClick={() => setShowTeamForm(false)}
+                      className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-sm text-slate-600 hover:bg-white transition">
                       Cancel
                     </button>
-                    <button
-                      onClick={handleCreateTeam}
-                      disabled={creatingTeam || !newTeamName.trim()}
-                      className="flex-1 rainbow-cta py-3 rounded-xl font-bold text-sm disabled:opacity-50"
-                    >
+                    <button onClick={handleCreateTeam} disabled={creatingTeam || !newTeamName.trim()}
+                      className="flex-1 rainbow-cta py-3 rounded-xl font-bold text-sm disabled:opacity-50">
                       {creatingTeam ? "Creating…" : "Create Team"}
                     </button>
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowTeamForm(true)}
-                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-slate-300 text-sm font-bold text-slate-500 hover:border-slate-400 hover:bg-slate-50 transition"
-                >
+                <button onClick={() => setShowTeamForm(true)}
+                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-slate-300 text-sm font-bold text-slate-500 hover:border-slate-400 hover:bg-slate-50 transition">
                   + Create New Team
                 </button>
               )}
             </div>
           </div>
         )}
-
-        {/* ── Unassigned Members (Teams mode) ── */}
+        {/* ── Unassigned Members ── */}
         {hasTeams && unassignedMembers.length > 0 && (
           <div className="neon-card rounded-2xl overflow-hidden">
-            <div
-              className="h-1 w-full"
-              style={{ background: "linear-gradient(90deg,#fbbf24,#f59e0b)" }}
-            />
+            <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#fbbf24,#f59e0b)" }} />
             <div className="p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <p className="font-extrabold text-slate-900">Unassigned Members</p>
@@ -841,80 +758,35 @@ export default function ManageChallengePage() {
                   {unassignedMembers.length}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                These members haven&apos;t been placed on a team yet.
-              </p>
+              <p className="text-xs text-slate-400">These members haven&apos;t been placed on a team yet.</p>
               <div className="space-y-2">
                 {unassignedMembers.map(member => (
-                  <div
+                  <UnassignedRow
                     key={member.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50"
-                  >
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                      style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
-                    >
-                      {member.name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {member.name}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {member.total_points ?? 0} pts · {member.streak ?? 0}🔥
-                      </p>
-                    </div>
-                    {teams.length > 0 ? (
-                      <select
-                        defaultValue=""
-                        onChange={async (e) => {
-                          if (!e.target.value) return;
-                          await handleAddMemberToTeam(e.target.value, member.id);
-                          e.target.value = "";
-                        }}
-                        className="text-xs rounded-lg border border-slate-200 px-2 py-1.5 bg-white font-semibold text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-300"
-                      >
-                        <option value="">Assign →</option>
-                        {teams.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <button
-                        onClick={() => setEditingMember(member)}
-                        className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-white transition"
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </div>
+                    member={member}
+                    teams={teams}
+                    onAssign={handleAddMemberToTeam}
+                    onEdit={setEditingMember}
+                  />
                 ))}
               </div>
               {teams.length === 0 && (
-                <p className="text-xs text-slate-400 text-center pt-1">
-                  Create teams above to assign members.
-                </p>
+                <p className="text-xs text-slate-400 text-center pt-1">Create teams above to assign members.</p>
               )}
             </div>
           </div>
         )}
-
         {/* ── Members List (Individual mode) ── */}
         {!hasTeams && members.length > 0 && (
           <div className="neon-card rounded-2xl overflow-hidden">
             <div className="h-1 w-full rainbow-cta" />
             <div className="p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-extrabold text-slate-900">
-                  Members ({members.length})
-                </p>
+                <p className="font-extrabold text-slate-900">Members ({members.length})</p>
               </div>
               <div className="space-y-2">
                 {sortedMembers.map((member, i) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50"
-                  >
+                  <div key={member.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50">
                     <span className="text-sm font-black w-5 text-center text-slate-400 flex-shrink-0">
                       {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                     </span>
@@ -925,17 +797,11 @@ export default function ManageChallengePage() {
                       {member.name?.charAt(0)?.toUpperCase() || "?"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {member.name}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {member.total_points ?? 0} pts · {member.streak ?? 0}🔥
-                      </p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
+                      <p className="text-xs text-slate-400">{member.total_points ?? 0} pts · {member.streak ?? 0}🔥</p>
                     </div>
-                    <button
-                      onClick={() => setEditingMember(member)}
-                      className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-white transition"
-                    >
+                    <button onClick={() => setEditingMember(member)}
+                      className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-white transition">
                       Edit
                     </button>
                   </div>
@@ -944,29 +810,19 @@ export default function ManageChallengePage() {
             </div>
           </div>
         )}
-
         {/* ── Danger Zone ── */}
         <div className="neon-card rounded-2xl overflow-hidden border border-red-100">
-          <div
-            className="h-1 w-full"
-            style={{ background: "linear-gradient(90deg,#ff3c5f,#ef4444)" }}
-          />
+          <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#ff3c5f,#ef4444)" }} />
           <div className="p-5">
             <p className="font-extrabold text-slate-900 mb-1">Danger Zone</p>
-            <p className="text-xs text-slate-400 mb-4">
-              This action is permanent and cannot be undone.
-            </p>
-            <button
-              onClick={handleDeleteChallenge}
-              className="w-full py-3 rounded-xl border border-red-200 text-sm font-bold text-red-500 hover:bg-red-50 transition"
-            >
+            <p className="text-xs text-slate-400 mb-4">This action is permanent and cannot be undone.</p>
+            <button onClick={handleDeleteChallenge}
+              className="w-full py-3 rounded-xl border border-red-200 text-sm font-bold text-red-500 hover:bg-red-50 transition">
               Delete Challenge
             </button>
           </div>
         </div>
-
       </div>
-
       {/* ── Edit Member Modal ── */}
       {editingMember && (
         <MemberEditModal
