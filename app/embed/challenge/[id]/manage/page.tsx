@@ -462,23 +462,34 @@ export default function ManageChallengePage() {
       setAutoAssign(ch.auto_assign_teams ?? false);
 
       // Load members
-      const { data: mData } = await supabase
+      const { data: mData, error: membersError } = await supabase
         .from("challenge_members")
         .select(`
           user_id,
           team_id,
           total_points,
           streak,
-          users!inner(id, name, email)
+          users (
+            id,
+            name,
+            email
+          )
         `)
         .eq("challenge_id", challengeId);
+
+      console.log("Member query result:", { mData, membersError });
+
+      if (membersError) {
+        console.error("Error loading members:", membersError);
+        alert("Error loading members: " + membersError.message);
+      }
 
       if (mData) {
         console.log("Raw member data:", mData);
         const mapped: Member[] = mData.map((row: any) => ({
-          id: row.users.id,
-          name: row.users.name,
-          email: row.users.email,
+          id: row.users?.id || row.user_id,
+          name: row.users?.name || "Unknown",
+          email: row.users?.email,
           total_points: row.total_points ?? 0,
           streak: row.streak ?? 0,
           team_id: row.team_id,
@@ -616,15 +627,19 @@ export default function ManageChallengePage() {
         team_id,
         total_points,
         streak,
-        users!inner(id, name, email)
+        users (
+          id,
+          name,
+          email
+        )
       `)
       .eq("challenge_id", challengeId);
 
     if (mData) {
       const mapped: Member[] = mData.map((row: any) => ({
-        id: row.users.id,
-        name: row.users.name,
-        email: row.users.email,
+        id: row.users?.id || row.user_id,
+        name: row.users?.name || "Unknown",
+        email: row.users?.email,
         total_points: row.total_points ?? 0,
         streak: row.streak ?? 0,
         team_id: row.team_id,
