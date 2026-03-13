@@ -474,6 +474,7 @@ export default function ManageChallengePage() {
         .eq("challenge_id", challengeId);
 
       if (mData) {
+        console.log("Raw member data:", mData);
         const mapped: Member[] = mData.map((row: any) => ({
           id: row.users.id,
           name: row.users.name,
@@ -482,6 +483,7 @@ export default function ManageChallengePage() {
           streak: row.streak ?? 0,
           team_id: row.team_id,
         }));
+        console.log("Mapped members:", mapped);
         setMembers(mapped);
       }
 
@@ -492,14 +494,17 @@ export default function ManageChallengePage() {
           .select("*")
           .eq("challenge_id", challengeId);
         if (tData) {
+          console.log("Loaded teams:", tData);
           setTeams(tData);
           // Attach team names to members
-          setMembers(prev =>
-            prev.map(m => {
+          setMembers(prev => {
+            const updated = prev.map(m => {
               const team = tData.find(t => t.id === m.team_id);
               return { ...m, team_name: team?.name };
-            })
-          );
+            });
+            console.log("Members with team names:", updated);
+            return updated;
+          });
         }
       }
 
@@ -584,24 +589,50 @@ export default function ManageChallengePage() {
   }
 
   async function handleAddMemberToTeam(teamId: string, userId: string) {
-    const { error } = await supabase
+    const { data: updateData, error } = await supabase
       .from("challenge_members")
       .update({ team_id: teamId })
       .eq("challenge_id", challengeId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select();
+
+    console.log("Team assignment update:", { teamId, userId, updateData, error });
 
     if (error) {
       alert("Error assigning member: " + error.message);
       return;
     }
 
-    const team = teams.find(t => t.id === teamId);
-    setMembers(p =>
-      p.map(m => m.id === userId
-        ? { ...m, team_id: teamId, team_name: team?.name }
-        : m
-      )
-    );
+    if (!updateData || updateData.length === 0) {
+      alert("No member record found to update. Member may not be in this challenge.");
+      return;
+    }
+
+    // Reload members to ensure data is fresh
+    const { data: mData } = await supabase
+      .from("challenge_members")
+      .select(`
+        user_id,
+        team_id,
+        total_points,
+        streak,
+        users!inner(id, name, email)
+      `)
+      .eq("challenge_id", challengeId);
+
+    if (mData) {
+      const mapped: Member[] = mData.map((row: any) => ({
+        id: row.users.id,
+        name: row.users.name,
+        email: row.users.email,
+        total_points: row.total_points ?? 0,
+        streak: row.streak ?? 0,
+        team_id: row.team_id,
+        team_name: teams.find(t => t.id === row.team_id)?.name,
+      }));
+      console.log("Reloaded members after assignment:", mapped);
+      setMembers(mapped);
+    }
   }
 
   async function handleSaveMember(data: {
@@ -665,10 +696,40 @@ export default function ManageChallengePage() {
               <h1 className="font-extrabold text-slate-900 text-lg truncate">Manage Challenge</h1>
               <p className="text-xs text-slate-400 truncate">{challenge.name}</p>
             </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-xs font-bold px-3 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+              title="Refresh data"
+            >
+              🔄 Refresh
+            </button>
           </div>
         </div>
 
         <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
+          {/* DEBUG INFO - Remove this later */}
+          <div className="neon-card rounded-2xl overflow-hidden border-2 border-blue-200">
+            <div className="h-1 w-full bg-blue-500" />
+            <div className="p-4 space-y-2">
+              <p className="text-xs font-bold text-blue-900 uppercase">Debug Info (Open browser console for details)</p>
+              <div className="text-xs text-slate-600 space-y-1">
+                <p>Total members loaded: <strong>{members.length}</strong></p>
+                <p>Members with teams: <strong>{members.filter(m => m.team_id).length}</strong></p>
+                <p>Unassigned members: <strong>{unassignedMembers.length}</strong></p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer font-semibold text-blue-700">View all members</summary>
+                  <pre className="mt-2 p-2 bg-slate-50 rounded overflow-auto text-xs">
+                    {JSON.stringify(members.map(m => ({ 
+                      name: m.name, 
+                      team_id: m.team_id, 
+                      team_name: m.team_name 
+                    })), null, 2)}
+                  </pre>
+                </details>
+              </div>
+            </div>
+          </div>
+
           {/* Direct member add */}
           <DirectAddMember 
             challengeId={challengeId} 
