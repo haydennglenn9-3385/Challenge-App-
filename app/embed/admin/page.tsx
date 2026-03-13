@@ -402,26 +402,6 @@ export default function AdminPage() {
       .update({ total_points: data.points, streak: data.streak })
       .eq("id", data.memberId);
 
-    // Save team assignment if provided
-    if (data.teamId) {
-      const { data: existing } = await supabase
-        .from("team_members")
-        .select("id")
-        .eq("user_id", data.memberId)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase
-          .from("team_members")
-          .update({ team_id: data.teamId })
-          .eq("user_id", data.memberId);
-      } else {
-        await supabase
-          .from("team_members")
-          .insert({ team_id: data.teamId, user_id: data.memberId });
-      }
-    }
-
     setMembers((p) =>
       p.map((m) =>
         m.id === data.memberId
