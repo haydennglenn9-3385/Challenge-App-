@@ -27,8 +27,8 @@ interface Member {
   id: string;
   name: string;
   email?: string;
-  total_points: number;
-  streak: number;
+  total_points: number; // Placeholder - calculated from logs, not stored in DB
+  streak: number; // Placeholder - calculated from logs, not stored in DB
   team_id?: string;
   team_name?: string;
 }
@@ -139,7 +139,7 @@ function TeamCard({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{m.name}</p>
-                  <p className="text-xs text-slate-400">{m.total_points} pts · {m.streak}🔥</p>
+                  <p className="text-xs text-slate-400">{m.email || "Member"}</p>
                 </div>
                 <button
                   onClick={() => onEditMember(m)}
@@ -338,9 +338,7 @@ function UnassignedRow({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
-        <p className="text-xs text-slate-400">
-          {member.total_points ?? 0} pts · {member.streak ?? 0}🔥
-        </p>
+        <p className="text-xs text-slate-400">{member.email || "No email"}</p>
       </div>
 
       {teams.length > 0 ? (
@@ -428,7 +426,7 @@ export default function ManageChallengePage() {
 
   // ── Computed
   const unassignedMembers = members.filter(m => !m.team_id);
-  const sortedMembers = [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
+  const sortedMembers = [...members].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   function getTeamMembers(teamId: string): Member[] {
     return members.filter(m => m.team_id === teamId);
@@ -461,14 +459,12 @@ export default function ManageChallengePage() {
       setHasTeams(ch.has_teams ?? false);
       setAutoAssign(ch.auto_assign_teams ?? false);
 
-      // Load members
+      // Load members - simplified query for columns that actually exist
       const { data: mData, error: membersError } = await supabase
         .from("challenge_members")
         .select(`
           user_id,
           team_id,
-          total_points,
-          streak,
           users (
             id,
             name,
@@ -490,8 +486,8 @@ export default function ManageChallengePage() {
           id: row.users?.id || row.user_id,
           name: row.users?.name || "Unknown",
           email: row.users?.email,
-          total_points: row.total_points ?? 0,
-          streak: row.streak ?? 0,
+          total_points: 0, // Will need to calculate from logs
+          streak: 0, // Will need to calculate from logs
           team_id: row.team_id,
         }));
         console.log("Mapped members:", mapped);
@@ -625,8 +621,6 @@ export default function ManageChallengePage() {
       .select(`
         user_id,
         team_id,
-        total_points,
-        streak,
         users (
           id,
           name,
@@ -640,8 +634,8 @@ export default function ManageChallengePage() {
         id: row.users?.id || row.user_id,
         name: row.users?.name || "Unknown",
         email: row.users?.email,
-        total_points: row.total_points ?? 0,
-        streak: row.streak ?? 0,
+        total_points: 0,
+        streak: 0,
         team_id: row.team_id,
         team_name: teams.find(t => t.id === row.team_id)?.name,
       }));
@@ -656,16 +650,17 @@ export default function ManageChallengePage() {
     streak: number;
     teamId: string | null;
   }) {
+    // Only update team_id since points/streak are calculated from logs
     await supabase
       .from("challenge_members")
-      .update({ total_points: data.points, streak: data.streak, team_id: data.teamId ?? null })
+      .update({ team_id: data.teamId ?? null })
       .eq("challenge_id", challengeId)
       .eq("user_id", data.memberId);
 
     const team = teams.find(t => t.id === data.teamId);
     setMembers(p =>
       p.map(m => m.id === data.memberId
-        ? { ...m, total_points: data.points, streak: data.streak, team_id: data.teamId ?? undefined, team_name: team?.name }
+        ? { ...m, team_id: data.teamId ?? undefined, team_name: team?.name }
         : m
       )
     );
@@ -735,7 +730,9 @@ export default function ManageChallengePage() {
                   <summary className="cursor-pointer font-semibold text-blue-700">View all members</summary>
                   <pre className="mt-2 p-2 bg-slate-50 rounded overflow-auto text-xs">
                     {JSON.stringify(members.map(m => ({ 
+                      id: m.id,
                       name: m.name, 
+                      email: m.email,
                       team_id: m.team_id, 
                       team_name: m.team_name 
                     })), null, 2)}
@@ -988,11 +985,8 @@ export default function ManageChallengePage() {
                   <p className="font-extrabold text-slate-900">Members ({members.length})</p>
                 </div>
                 <div className="space-y-2">
-                  {sortedMembers.map((member, i) => (
+                  {sortedMembers.map((member) => (
                     <div key={member.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50">
-                      <span className="text-sm font-black w-5 text-center text-slate-400 flex-shrink-0">
-                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
-                      </span>
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
                         style={{ background: "linear-gradient(135deg,#ff6b9d,#667eea)" }}
@@ -1001,7 +995,7 @@ export default function ManageChallengePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
-                        <p className="text-xs text-slate-400">{member.total_points ?? 0} pts · {member.streak ?? 0}🔥</p>
+                        <p className="text-xs text-slate-400">{member.email || "Member"}</p>
                       </div>
                       <button onClick={() => setEditingMember(member)}
                         className="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-white transition">
