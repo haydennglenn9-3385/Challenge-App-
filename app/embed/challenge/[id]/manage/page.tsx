@@ -596,53 +596,31 @@ export default function ManageChallengePage() {
   }
 
   async function handleAddMemberToTeam(teamId: string, userId: string) {
-    const { data: updateData, error } = await supabase
-      .from("challenge_members")
-      .update({ team_id: teamId })
-      .eq("challenge_id", challengeId)
-      .eq("user_id", userId)
-      .select();
+  const { data: { session } } = await supabase.auth.getSession();
 
-    console.log("Team assignment update:", { teamId, userId, updateData, error });
+  const res = await fetch("/api/assign-team", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session?.access_token}`,
+    },
+    body: JSON.stringify({ challengeId, userId, teamId }),
+  });
 
-    if (error) {
-      alert("Error assigning member: " + error.message);
-      return;
-    }
-
-    if (!updateData || updateData.length === 0) {
-      alert("No member record found to update. Member may not be in this challenge.");
-      return;
-    }
-
-    // Reload members to ensure data is fresh
-    const { data: mData } = await supabase
-      .from("challenge_members")
-      .select(`
-        user_id,
-        team_id,
-        users (
-          id,
-          name,
-          email
-        )
-      `)
-      .eq("challenge_id", challengeId);
-
-    if (mData) {
-      const mapped: Member[] = mData.map((row: any) => ({
-        id: row.users?.id || row.user_id,
-        name: row.users?.name || "Unknown",
-        email: row.users?.email,
-        total_points: 0,
-        streak: 0,
-        team_id: row.team_id,
-        team_name: teams.find(t => t.id === row.team_id)?.name,
-      }));
-      console.log("Reloaded members after assignment:", mapped);
-      setMembers(mapped);
-    }
+  if (!res.ok) {
+    const { error } = await res.json();
+    alert("Error assigning member: " + error);
+    return;
   }
+
+  const team = teams.find(t => t.id === teamId);
+  setMembers(p =>
+    p.map(m => m.id === userId
+      ? { ...m, team_id: teamId, team_name: team?.name }
+      : m
+    )
+  );
+}
 
   async function handleSaveMember(data: {
     memberId: string;
