@@ -695,30 +695,6 @@ export default function ManageChallengePage() {
         </div>
 
         <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
-          {/* DEBUG INFO - Remove this later */}
-          <div className="neon-card rounded-2xl overflow-hidden border-2 border-blue-200">
-            <div className="h-1 w-full bg-blue-500" />
-            <div className="p-4 space-y-2">
-              <p className="text-xs font-bold text-blue-900 uppercase">Debug Info (Open browser console for details)</p>
-              <div className="text-xs text-slate-600 space-y-1">
-                <p>Total members loaded: <strong>{members.length}</strong></p>
-                <p>Members with teams: <strong>{members.filter(m => m.team_id).length}</strong></p>
-                <p>Unassigned members: <strong>{unassignedMembers.length}</strong></p>
-                <details className="text-xs">
-                  <summary className="cursor-pointer font-semibold text-blue-700">View all members</summary>
-                  <pre className="mt-2 p-2 bg-slate-50 rounded overflow-auto text-xs">
-                    {JSON.stringify(members.map(m => ({ 
-                      id: m.id,
-                      name: m.name, 
-                      email: m.email,
-                      team_id: m.team_id, 
-                      team_name: m.team_name 
-                    })), null, 2)}
-                  </pre>
-                </details>
-              </div>
-            </div>
-          </div>
 
           {/* Direct member add */}
           <DirectAddMember 
