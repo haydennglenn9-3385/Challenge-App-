@@ -56,7 +56,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   const totalPoints  = GLOBAL_POINTS + streakBonus;
 
   // ── Update user ──────────────────────────────────────────────────────────
-  await supabase
+  const { error: updateError } = await supabase
     .from("users")
     .update({
       streak:            newStreak,
@@ -65,6 +65,11 @@ export async function dailyCheckin(): Promise<CheckInResult> {
       last_checkin_date: today,
     })
     .eq("id", user.id);
+
+  if (updateError) {
+    console.error("dailyCheckin update failed:", updateError);
+    return { success: false, error: updateError.message };
+  }
 
   // ── Activity feed ────────────────────────────────────────────────────────
   const userName = profile.display_name || profile.name || "Member";

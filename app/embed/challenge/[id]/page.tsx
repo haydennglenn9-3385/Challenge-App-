@@ -559,9 +559,6 @@ export default function ChallengeDetailPage() {
       }
     }
     const logs     = await loadLogs(userId);
-    const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
-    setUserTotalPoints(computed);
-    await supabase.from("users").update({ total_points: computed }).eq("id", userId);
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => {
