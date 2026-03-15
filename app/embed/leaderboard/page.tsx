@@ -503,7 +503,7 @@ const daysLeft = (c: UserChallenge) =>
           >
             Queers & Allies Fitness
           </p>
-          <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-4xl font-bold font-display text-slate-900 tracking-tight">
             Ranks
           </h1>
         </div>
