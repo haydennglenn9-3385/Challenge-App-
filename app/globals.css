@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --font-body: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-inter), system-ui, sans-serif;
+  --font-body: var(--font-body), system-ui, sans-serif;
+  --font-display: var(--font-display), system-ui, sans-serif;
 
   --neon-lime: #7dff61;
   --neon-teal: #12d6df;

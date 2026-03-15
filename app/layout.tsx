@@ -1,15 +1,23 @@
 import "./globals.css";
-import { Inter } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import ClientWrapper from "./client-wrapper";
 
-const inter = Inter({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-display",
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata = {
-  title: "Challenge App",
+  title: "Q&A Fitness",
   description: "Fitness challenges for the community",
 };
 
@@ -19,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${bricolage.variable} ${dmSans.variable}`}>
       <body>
         <ClientWrapper>{children}</ClientWrapper>
       </body>
