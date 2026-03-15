@@ -359,7 +359,7 @@ export default function ChallengeDetailPage() {
     setChallengeStreak(0);
     setCheckedInToday(false);
   }
-  // ─── Standard check-in ───────────────────────────────────────────────────
+ // ─── Standard check-in ───────────────────────────────────────────────────
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
     if (isTimed && !timeInputValid) return;
@@ -377,11 +377,9 @@ export default function ChallengeDetailPage() {
       reps_target:          isTimed ? 0 : target,
       duration_seconds:     durationSecs,
       points_earned:        points,
-      global_points_earned: 0, // global points are earned via the daily orb, not challenge check-ins
+      global_points_earned: 0,
     });
     if (!error) {
-      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
-      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
         setDeltaResult(timeDelta(durationSecs, previousBestSeconds, lowerIsBetter));
         setTimeout(() => setDeltaResult(null), 4000);
@@ -421,8 +419,6 @@ export default function ChallengeDetailPage() {
       completion_level:     selectedDaily,
     });
     if (!error) {
-      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
-      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       setCheckedInToday(true);
       setTodayPoints(points);
       setChallengePoints(prev => prev + points);
@@ -439,7 +435,8 @@ export default function ChallengeDetailPage() {
     }
     setCheckingIn(false);
   }
-  
+
+  // ─── Progressive cardio ───────────────────────────────────────────────────
   async function handleProgressiveCardio() {
     if (!userId || !challengeId || cardioLoggedThisWeek || savingCardio || !selectedCardio) return;
     setSavingCardio(true);
@@ -458,8 +455,6 @@ export default function ChallengeDetailPage() {
       completion_level:     selectedCardio,
     });
     if (!error) {
-      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
-      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       setCardioLoggedThisWeek(true);
       setCardioPoints(points);
       setChallengePoints(prev => prev + points);
@@ -475,7 +470,6 @@ export default function ChallengeDetailPage() {
     }
     setSavingCardio(false);
   }
-
   // ─── Calendar helpers ────────────────────────────────────────────────────
   function buildCalendarDays(): (number | null)[] {
     const firstDow    = new Date(calMonth.y, calMonth.m, 1).getDay();
