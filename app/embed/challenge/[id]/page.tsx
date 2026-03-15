@@ -369,53 +369,37 @@ export default function ChallengeDetailPage() {
     const target       = hasTarget ? effectiveTarget : 1;
     const points       = isTimed ? pointsMax : calcPoints(completed, target, pointsMax);
     const { error } = await supabase.from("daily_logs").insert({
-      user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "daily",
-      reps_completed: isTimed ? 0 : completed,
-      reps_target: isTimed ? 0 : target,
-      duration_seconds: durationSecs,
-      points_earned: points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+      user_id:              userId,
+      challenge_id:         challengeId,
+      date:                 todayStr,
+      log_type:             "daily",
+      reps_completed:       isTimed ? 0 : completed,
+      reps_target:          isTimed ? 0 : target,
+      duration_seconds:     durationSecs,
+      points_earned:        points,
+      global_points_earned: 0, // global points are earned via the daily orb, not challenge check-ins
     });
     if (!error) {
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
         setDeltaResult(timeDelta(durationSecs, previousBestSeconds, lowerIsBetter));
         setTimeout(() => setDeltaResult(null), 4000);
       }
-      const yesterday    = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-      const hadYesterday = challengeLogs.some(l => l.date === yesterdayStr && (!l.log_type || l.log_type === "daily"));
-      const newStreak    = hadYesterday ? challengeStreak + 1 : 1;
-      const STREAK_MILESTONES: Record<number, number> = { 7: 25, 30: 100, 100: 500 };
-      const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
-      const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
-      const newGlobal    = userTotalPoints + totalNewPoints;
-      await supabase.from("users").update({ total_points: newGlobal, streak: newStreak }).eq("id", userId);
-      const { data: uProfile } = await supabase.from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
-      await supabase.from("activity_feed").insert({
-        user_id: userId, user_name: uProfile?.name ?? "Member",
-        emoji_avatar: uProfile?.emoji_avatar ?? null, type: "streak",
-        text: streakBonus > 0
-          ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts`
-          : "checked in!",
-        meta: { challenge_id: challengeId, challenge_name: challenge?.name ?? null, days: newStreak, points: totalNewPoints, bonus: streakBonus },
-      });
       setCheckedInToday(true);
       setTodayPoints(points);
-      setUserTotalPoints(newGlobal);
-      setChallengeStreak(newStreak);
       setChallengePoints(prev => prev + points);
       setChallengeLogs(prev => [...prev, {
-        date: todayStr, log_type: "daily",
-        reps_completed: isTimed ? 0 : completed,
-        reps_target: isTimed ? 0 : target,
-        duration_seconds: durationSecs,
-        points_earned: points,
-        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+        date:                 todayStr,
+        log_type:             "daily",
+        reps_completed:       isTimed ? 0 : completed,
+        reps_target:          isTimed ? 0 : target,
+        duration_seconds:     durationSecs,
+        points_earned:        points,
+        global_points_earned: 0,
       }]);
     }
     setCheckingIn(false);
   }
+
   // ─── Progressive check-in ────────────────────────────────────────────────
   async function handleProgressiveCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn || !selectedDaily) return;
@@ -423,64 +407,69 @@ export default function ChallengeDetailPage() {
     const points    = selectedDaily === "100%" ? 2 : 1;
     const completed = selectedDaily === "100%" ? weeklyRepTarget : Math.ceil(weeklyRepTarget * 0.5);
     const { error } = await supabase.from("daily_logs").insert({
-      user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "daily",
-      reps_completed: completed, reps_target: weeklyRepTarget,
-      points_earned: points, global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
-      exercise: todayExercise, completion_level: selectedDaily,
+      user_id:              userId,
+      challenge_id:         challengeId,
+      date:                 todayStr,
+      log_type:             "daily",
+      reps_completed:       completed,
+      reps_target:          weeklyRepTarget,
+      points_earned:        points,
+      global_points_earned: 0,
+      exercise:             todayExercise,
+      completion_level:     selectedDaily,
     });
     if (!error) {
-      const yesterday    = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-      const hadYesterday = challengeLogs.some(l => l.date === yesterdayStr && (!l.log_type || l.log_type === "daily"));
-      const newStreak    = hadYesterday ? challengeStreak + 1 : 1;
-      const STREAK_MILESTONES: Record<number, number> = { 7: 25, 30: 100, 100: 500 };
-      const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
-      const totalNewPoints = GLOBAL_POINTS_PER_CHECKIN + streakBonus;
-      const newGlobal    = userTotalPoints + totalNewPoints;
-      await supabase.from("users").update({ total_points: newGlobal, streak: newStreak }).eq("id", userId);
-      const { data: uProfile } = await supabase.from("users").select("name, emoji_avatar").eq("id", userId).maybeSingle();
-      await supabase.from("activity_feed").insert({
-        user_id: userId, user_name: uProfile?.name ?? "Member",
-        emoji_avatar: uProfile?.emoji_avatar ?? null, type: "streak",
-        text: streakBonus > 0 ? `hit a ${newStreak}-day streak! 🎉 +${streakBonus} bonus pts` : "checked in!",
-        meta: { challenge_id: challengeId, challenge_name: challenge?.name ?? null, days: newStreak, points: totalNewPoints, bonus: streakBonus },
-      });
       setCheckedInToday(true);
       setTodayPoints(points);
-      setUserTotalPoints(newGlobal);
-      setChallengeStreak(newStreak);
+      setChallengePoints(prev => prev + points);
       setChallengeLogs(prev => [...prev, {
-        date: todayStr, log_type: "daily",
-        reps_completed: completed, reps_target: weeklyRepTarget,
-        points_earned: points, global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+        date:                 todayStr,
+        log_type:             "daily",
+        reps_completed:       completed,
+        reps_target:          weeklyRepTarget,
+        points_earned:        points,
+        global_points_earned: 0,
+        exercise:             todayExercise,
+        completion_level:     selectedDaily,
       }]);
     }
     setCheckingIn(false);
   }
+  
   async function handleProgressiveCardio() {
     if (!userId || !challengeId || cardioLoggedThisWeek || savingCardio || !selectedCardio) return;
     setSavingCardio(true);
     const points   = selectedCardio === "100%" ? 2 : 1;
     const duration = selectedCardio === "100%" ? weeklyCardioTarget * 60 : Math.ceil(weeklyCardioTarget * 60 * 0.5);
     const { error } = await supabase.from("daily_logs").insert({
-      user_id: userId, challenge_id: challengeId, date: todayStr, log_type: "cardio",
-      reps_completed: 0, reps_target: weeklyCardioTarget,
-      duration_seconds: duration, points_earned: points,
-      global_points_earned: 0, completion_level: selectedCardio,
+      user_id:              userId,
+      challenge_id:         challengeId,
+      date:                 todayStr,
+      log_type:             "cardio",
+      reps_completed:       0,
+      reps_target:          weeklyCardioTarget,
+      duration_seconds:     duration,
+      points_earned:        points,
+      global_points_earned: 0,
+      completion_level:     selectedCardio,
     });
     if (!error) {
       setCardioLoggedThisWeek(true);
       setCardioPoints(points);
+      setChallengePoints(prev => prev + points);
       setChallengeLogs(prev => [...prev, {
-        date: todayStr, log_type: "cardio",
-        reps_completed: 0, reps_target: weeklyCardioTarget,
-        duration_seconds: duration, points_earned: points,
+        date:                 todayStr,
+        log_type:             "cardio",
+        reps_completed:       0,
+        reps_target:          weeklyCardioTarget,
+        duration_seconds:     duration,
+        points_earned:        points,
         global_points_earned: 0,
       }]);
     }
     setSavingCardio(false);
   }
+
   // ─── Calendar helpers ────────────────────────────────────────────────────
   function buildCalendarDays(): (number | null)[] {
     const firstDow    = new Date(calMonth.y, calMonth.m, 1).getDay();
@@ -489,6 +478,7 @@ export default function ChallengeDetailPage() {
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
     return cells;
   }
+
   function toggleDay(dateStr: string) {
     if (dateStr > todayStr) return;
     setSelectedDays(prev => {
@@ -497,6 +487,7 @@ export default function ChallengeDetailPage() {
       return next;
     });
   }
+
   function openEditPanel() {
     if (!challenge) return;
     const seenWeeks = new Set<string>();
@@ -507,10 +498,11 @@ export default function ChallengeDetailPage() {
       const exercise = NYE_EXERCISES[new Date(dateStr).getDay()];
       // Daily exercise card
       cards.push({
-        date: dateStr, target,
-        completed: existing?.reps_completed ?? 0,
+        date:             dateStr,
+        target,
+        completed:        existing?.reps_completed ?? 0,
         duration_seconds: existing?.duration_seconds ?? null,
-        log_id: existing?.id,
+        log_id:           existing?.id,
         exercise,
       });
       // For progressive challenges, also add one cardio card per week
@@ -521,11 +513,12 @@ export default function ChallengeDetailPage() {
           const cardioLog = cardioLogsByWeek[weekNum];
           const pastWeekCardioTarget = 5 * weekNum;
           cards.push({
-            date: dateStr, target: pastWeekCardioTarget,
-            completed: cardioLog?.reps_completed ?? 0,
+            date:             dateStr,
+            target:           pastWeekCardioTarget,
+            completed:        cardioLog?.reps_completed ?? 0,
             duration_seconds: cardioLog?.duration_seconds ?? null,
-            log_id: cardioLog?.id,
-            isCardio: true,
+            log_id:           cardioLog?.id,
+            isCardio:         true,
           });
         }
       }
@@ -557,7 +550,7 @@ export default function ChallengeDetailPage() {
             ? card.duration_seconds
             : null,
         points_earned: points,
-        global_points_earned: isCardioCard ? 0 : GLOBAL_POINTS_PER_CHECKIN,
+        global_points_earned: 0,
       };
       if (card.log_id) {
         await supabase.from("daily_logs").update(payload).eq("id", card.log_id);
