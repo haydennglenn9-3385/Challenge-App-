@@ -124,28 +124,6 @@ function groupFeedByDate(feed: FeedItem[]): FeedGroup[] {
     .map((l) => ({ label: l, items: map.get(l)! }));
 }
 
-// ─── App check-in streak ──────────────────────────────────────────────────────
-async function handleAppCheckin(userId: string): Promise<{ appStreak: number }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase
-    .from("users")
-    .select("app_streak, app_last_checkin")
-    .eq("id", userId)
-    .single();
-
-  const lastCheckin: string | null = data?.app_last_checkin ?? null;
-  const currentStreak: number = data?.app_streak ?? 0;
-  if (lastCheckin === today) return { appStreak: currentStreak };
-
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const newStreak = lastCheckin === yesterday ? currentStreak + 1 : 1;
-  await supabase
-    .from("users")
-    .update({ app_streak: newStreak, app_last_checkin: today })
-    .eq("id", userId);
-  return { appStreak: newStreak };
-}
-
 // ─── Challenge sub-card ───────────────────────────────────────────────────────
 function ChallengeSubCard({ meta, type }: { meta: Record<string, unknown>; type: FeedType }) {
   const name     = meta.challenge_name     as string | undefined;
@@ -386,8 +364,6 @@ export default function DashboardPage() {
             "Member"
           );
         }
-        const { appStreak: streak } = await handleAppCheckin(user.id);
-        setAppStreak(streak);
       }
 
       // No join — emoji_avatar is a direct column on activity_feed

@@ -380,6 +380,8 @@ export default function ChallengeDetailPage() {
       global_points_earned: 0, // global points are earned via the daily orb, not challenge check-ins
     });
     if (!error) {
+      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
+      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
         setDeltaResult(timeDelta(durationSecs, previousBestSeconds, lowerIsBetter));
         setTimeout(() => setDeltaResult(null), 4000);
@@ -419,6 +421,8 @@ export default function ChallengeDetailPage() {
       completion_level:     selectedDaily,
     });
     if (!error) {
+      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
+      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       setCheckedInToday(true);
       setTodayPoints(points);
       setChallengePoints(prev => prev + points);
@@ -454,6 +458,8 @@ export default function ChallengeDetailPage() {
       completion_level:     selectedCardio,
     });
     if (!error) {
+      console.error("❌ Check-in insert failed:", error); // <-- ADD THIS
+      alert(`Insert error: ${error.message}`);  // <-- ADD THIS
       setCardioLoggedThisWeek(true);
       setCardioPoints(points);
       setChallengePoints(prev => prev + points);
