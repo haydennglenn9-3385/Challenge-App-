@@ -29,13 +29,36 @@ export async function dailyCheckin(): Promise<CheckInResult> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const { data: profile } = await supabase
+  // ── Fetch or create profile ──────────────────────────────────────────────
+  let { data: profile } = await supabase
     .from("users")
     .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile) return { success: false, error: "User not found" };
+  if (!profile) {
+    const { error: insertError } = await supabase.from("users").insert({
+      id:            user.id,
+      email:         user.email ?? "",
+      streak:        0,
+      total_points:  0,
+      global_points: 0,
+    });
+
+    if (insertError) {
+      console.error("dailyCheckin: failed to create user row:", insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    const { data: newProfile } = await supabase
+      .from("users")
+      .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
+      .eq("id", user.id)
+      .single();
+
+    if (!newProfile) return { success: false, error: "Failed to initialize user" };
+    profile = newProfile;
+  }
 
   // ── Already checked in today ─────────────────────────────────────────────
   if (profile.last_checkin_date === today) {
@@ -52,8 +75,8 @@ export async function dailyCheckin(): Promise<CheckInResult> {
       ? (profile.streak ?? 0) + 1
       : 1;
 
-  const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
-  const totalPoints  = GLOBAL_POINTS + streakBonus;
+  const streakBonus = STREAK_MILESTONES[newStreak] ?? 0;
+  const totalPoints = GLOBAL_POINTS + streakBonus;
 
   // ── Update user ──────────────────────────────────────────────────────────
   const { error: updateError } = await supabase
@@ -122,7 +145,7 @@ export async function getCheckinStatus(): Promise<{
     .from("users")
     .select("streak, last_checkin_date")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return {
     checkedInToday: data?.last_checkin_date === today,

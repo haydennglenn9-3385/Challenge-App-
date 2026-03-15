@@ -572,7 +572,7 @@ export default function ChallengeDetailPage() {
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
     </div>
   );
   if (notFound || !challenge) return (
@@ -613,7 +613,7 @@ export default function ChallengeDetailPage() {
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>
               {challenge.scoring_type?.replace(/_/g, " ")}
             </p>
-            <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, color: "#0e0e0e", letterSpacing: 1, lineHeight: 1.1, marginBottom: 8 }}>
               {challenge.name}
             </h1>
             {challenge.description && (
@@ -643,7 +643,7 @@ export default function ChallengeDetailPage() {
             <div style={{ height: 4, background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }} />
             <div style={{ padding: "20px 24px", textAlign: "center" }}>
               <p style={{ fontSize: 32, marginBottom: 8 }}>🏁</p>
-              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Challenge Complete!</p>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Challenge Complete!</p>
               <p style={{ fontSize: 14, color: "#64748b" }}>This challenge ended on {formatDate(endDate!)}. Final results are below.</p>
               {isMember && sortedMembers.length > 0 && sortedMembers[0].id === userId && (
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, padding: "8px 16px", borderRadius: 99, background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }}>
@@ -694,7 +694,7 @@ export default function ChallengeDetailPage() {
                       : { value: `${challengeLogs.filter(l => !l.log_type || l.log_type === "daily").length}`, label: "Check-ins" },
                 ].map(stat => (
                   <div key={stat.label} style={{ textAlign: "center", padding: "12px 8px", background: "rgba(0,0,0,0.03)", borderRadius: 14 }}>
-                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>{stat.value}</p>
+                    <p style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "#0e0e0e", letterSpacing: 0.5, lineHeight: 1 }}>{stat.value}</p>
                     <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 4 }}>{stat.label}</p>
                   </div>
                 ))}
@@ -716,7 +716,7 @@ export default function ChallengeDetailPage() {
                   {/* Daily exercise */}
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#0e0e0e", letterSpacing: 0.5, fontWeight: 700 }}>
+                      <p style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#0e0e0e", letterSpacing: 0.5, fontWeight: 700 }}>
                         💪 {todayExercise}
                       </p>
                       {checkedInToday && (
@@ -754,7 +754,7 @@ export default function ChallengeDetailPage() {
                   {/* Cardio */}
                   <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 20 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#0e0e0e", letterSpacing: 0.5, fontWeight: 700 }}>🚴 Weekly Cardio</p>
+                      <p style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#0e0e0e", letterSpacing: 0.5, fontWeight: 700 }}>🚴 Weekly Cardio</p>
                       {cardioLoggedThisWeek && (
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#48cfad", background: "rgba(72,207,173,0.12)", padding: "3px 10px", borderRadius: 99 }}>
                           ✓ Done · +{cardioPoints}pts
@@ -804,7 +804,7 @@ export default function ChallengeDetailPage() {
                   {checkedInToday ? (
                     <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
                       <p style={{ fontSize: 28, marginBottom: 4 }}>✅</p>
-                      <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#48cfad", letterSpacing: 0.5, fontWeight: 700 }}>
+                      <p style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#48cfad", letterSpacing: 0.5, fontWeight: 700 }}>
                         Logged! +{todayPoints}pts
                       </p>
                       {deltaResult && (
@@ -836,7 +836,7 @@ export default function ChallengeDetailPage() {
                           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                             <button className="stepper-btn" onClick={() => setInputValue(v => Math.max(0, v - 1))}>−</button>
                             <div style={{ flex: 1, textAlign: "center" }}>
-                              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 40, fontWeight: 900, color: "#0e0e0e", lineHeight: 1 }}>{inputValue}</p>
+                              <p style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 900, color: "#0e0e0e", lineHeight: 1 }}>{inputValue}</p>
                               <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>/ {effectiveTarget} {targetUnit}</p>
                             </div>
                             <button className="stepper-btn" onClick={() => setInputValue(v => v + 1)}>+</button>
@@ -1009,7 +1009,7 @@ export default function ChallengeDetailPage() {
                 disabled={challenge.start_date ? toDateStr(calMonth.y, calMonth.m, 1) <= challenge.start_date : false}>
                 ←
               </button>
-              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, fontWeight: 700, color: "#0e0e0e" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "#0e0e0e" }}>
                 {MONTH_NAMES[calMonth.m]} {calMonth.y}
               </p>
               <button className="stepper-btn"
@@ -1070,14 +1070,14 @@ export default function ChallengeDetailPage() {
         <div style={backdropStyle} onClick={e => { if (e.target === e.currentTarget && !saving) setShowEditPanel(false); }}>
           <div style={panelStyle}>
             <div style={handleStyle} />
-            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>Edit Check-ins</p>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 1, color: "#0e0e0e", marginBottom: 4 }}>Edit Check-ins</p>
             <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
               {isTimed ? "Adjust your logged time for each selected day." : "Adjust your completed reps for each selected day."}
             </p>
             {saveSuccess ? (
               <div style={{ textAlign: "center", padding: "24px 0" }}>
                 <p style={{ fontSize: 36, marginBottom: 8 }}>✅</p>
-                <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>Saved! Points updated.</p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "#48cfad", letterSpacing: 1 }}>Saved! Points updated.</p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Your total is now ⭐ {userTotalPoints}</p>
               </div>
             ) : (
