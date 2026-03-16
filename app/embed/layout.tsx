@@ -296,6 +296,7 @@ function BottomNav() {
     if (result.success) {
       setCheckedIn(true);
       setStreak(result.streak ?? 0);
+      router.refresh();
     } else if (result.alreadyDone) {
       setCheckedIn(true);
       setStreak(result.streak ?? streak);
@@ -415,6 +416,7 @@ function Sidebar() {
     if (result.success) {
       setCheckedIn(true);
       setStreak(result.streak ?? 0);
+      router.refresh();
     } else if (result.alreadyDone) {
       setCheckedIn(true);
       setStreak(result.streak ?? streak);

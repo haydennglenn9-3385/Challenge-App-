@@ -377,7 +377,7 @@ export default function ChallengeDetailPage() {
       reps_target:          isTimed ? 0 : target,
       duration_seconds:     durationSecs,
       points_earned:        points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+      global_points_earned: 0,
     });
     if (!error) {
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
@@ -394,14 +394,9 @@ export default function ChallengeDetailPage() {
         reps_target:          isTimed ? 0 : target,
         duration_seconds:     durationSecs,
         points_earned:        points,
-        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+        global_points_earned: 0,
       }]);
-      const newTotal = userTotalPoints + GLOBAL_POINTS_PER_CHECKIN;
-      setUserTotalPoints(newTotal);
-      await supabase
-        .from("users")
-        .update({ total_points: newTotal, global_points: newTotal })
-        .eq("id", userId);
+      
     } else {
       console.warn("handleCheckIn failed:", error);
     }
@@ -422,7 +417,7 @@ export default function ChallengeDetailPage() {
       reps_completed:       completed,
       reps_target:          weeklyRepTarget,
       points_earned:        points,
-      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+      global_points_earned: 0,
       exercise:             todayExercise,
       completion_level:     selectedDaily,
     });
@@ -436,16 +431,11 @@ export default function ChallengeDetailPage() {
         reps_completed:       completed,
         reps_target:          weeklyRepTarget,
         points_earned:        points,
-        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
+        global_points_earned: 0,
         exercise:             todayExercise,
         completion_level:     selectedDaily,
       }]);
-      const newTotal = userTotalPoints + GLOBAL_POINTS_PER_CHECKIN;
-      setUserTotalPoints(newTotal);
-      await supabase
-        .from("users")
-        .update({ total_points: newTotal, global_points: newTotal })
-        .eq("id", userId);
+      
     } else {
       console.warn("handleProgressiveCheckIn failed:", error);
     }

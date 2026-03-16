@@ -12,6 +12,7 @@ export interface CheckInResult {
   streak?: number;
   pointsEarned?: number;
   streakBonus?: number;
+  newTotalPoints?: number; // ← added
   error?: string;
 }
 
@@ -75,16 +76,18 @@ export async function dailyCheckin(): Promise<CheckInResult> {
       ? (profile.streak ?? 0) + 1
       : 1;
 
-  const streakBonus = STREAK_MILESTONES[newStreak] ?? 0;
-  const totalPoints = GLOBAL_POINTS + streakBonus;
+  const streakBonus  = STREAK_MILESTONES[newStreak] ?? 0;
+  const totalPoints  = GLOBAL_POINTS + streakBonus;
+  const newTotalPts  = (profile.total_points  ?? 0) + totalPoints;
+  const newGlobalPts = (profile.global_points ?? 0) + totalPoints;
 
   // ── Update user ──────────────────────────────────────────────────────────
   const { error: updateError } = await supabase
     .from("users")
     .update({
       streak:            newStreak,
-      total_points:      (profile.total_points  ?? 0) + totalPoints,
-      global_points:     (profile.global_points ?? 0) + totalPoints,
+      total_points:      newTotalPts,
+      global_points:     newGlobalPts,
       last_checkin_date: today,
     })
     .eq("id", user.id);
@@ -113,10 +116,11 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   });
 
   return {
-    success:      true,
-    streak:       newStreak,
-    pointsEarned: GLOBAL_POINTS,
+    success:       true,
+    streak:        newStreak,
+    pointsEarned:  GLOBAL_POINTS,
     streakBonus,
+    newTotalPoints: newTotalPts, // ← added
   };
 }
 
