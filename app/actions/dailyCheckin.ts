@@ -25,15 +25,24 @@ export interface CheckInResult {
 }
 
 export async function dailyCheckin(): Promise<CheckInResult> {
-  // ── Verify identity via session cookie ───────────────────────────────────
   const cookieStore = await cookies();
+  
+  // ADD THESE:
+  console.log("SERVER: SUPABASE_URL =", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("SERVER: ANON_KEY set?", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  console.log("SERVER: SERVICE_KEY set?", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { get: (name) => cookieStore.get(name)?.value } }
   );
 
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+  
+  // ADD THIS:
+  console.log("SERVER: auth.getUser result — user:", user?.id ?? "null", "error:", authError?.message ?? "none");
+  
   if (!user) return { success: false, error: "Not authenticated" };
 
   const today = new Date().toISOString().split("T")[0];
