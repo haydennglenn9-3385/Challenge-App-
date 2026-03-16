@@ -55,7 +55,7 @@ let { data: profile } = await supabaseAdmin
   .maybeSingle();
 
 if (!profile) {
-  await supabaseAdmin.from("users").upsert({
+  const { error: upsertError } = await supabaseAdmin.from("users").upsert({
     id:            user.id,
     email:         user.email ?? "",
     name:          user.user_metadata?.display_name
@@ -65,15 +65,24 @@ if (!profile) {
     streak:        0,
     total_points:  0,
     global_points: 0,
-  }, { onConflict: "id", ignoreDuplicates: true });
+  }, { onConflict: "id" });  // removed ignoreDuplicates — we need to know if it fails
 
-  const { data: newProfile } = await supabaseAdmin
+  if (upsertError) {
+    console.error("dailyCheckin: failed to create user profile:", upsertError);
+    return { success: false, error: `Profile creation failed: ${upsertError.message}` };
+  }
+
+  const { data: newProfile, error: refetchError } = await supabaseAdmin
     .from("users")
     .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
     .eq("id", user.id)
     .single();
 
-  if (!newProfile) return { success: false, error: "Failed to load user profile" };
+  if (refetchError || !newProfile) {
+    console.error("dailyCheckin: refetch after upsert failed:", refetchError);
+    return { success: false, error: "Failed to load user profile after creation" };
+  }
+  
   profile = newProfile;
 }
 
