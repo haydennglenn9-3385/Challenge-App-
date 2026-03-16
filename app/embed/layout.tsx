@@ -436,7 +436,7 @@ function Sidebar() {
       setLoading(false);
     }
   }
-
+  console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
   return (
     <aside style={{
       width: 240, flexShrink: 0, position: "sticky", top: 0,
