@@ -291,15 +291,22 @@ function BottomNav() {
       return;
     }
     setLoading(true);
-    const result = await dailyCheckin();
-    setLoading(false);
-    if (result.success) {
-      setCheckedIn(true);
-      setStreak(result.streak ?? 0);
-      router.refresh();
-    } else if (result.alreadyDone) {
-      setCheckedIn(true);
-      setStreak(result.streak ?? streak);
+    console.log("🔵 orb pressed — calling dailyCheckin");
+    try {
+      const result = await dailyCheckin();
+      console.log("🟢 dailyCheckin result:", JSON.stringify(result));
+      setLoading(false);
+      if (result.success) {
+        setCheckedIn(true);
+        setStreak(result.streak ?? 0);
+        router.refresh();
+      } else if (result.alreadyDone) {
+        setCheckedIn(true);
+        setStreak(result.streak ?? streak);
+      }
+    } catch (err) {
+      console.error("🔴 dailyCheckin threw:", err);
+      setLoading(false);
     }
   }
 
@@ -411,15 +418,22 @@ function Sidebar() {
       return;
     }
     setLoading(true);
-    const result = await dailyCheckin();
-    setLoading(false);
-    if (result.success) {
-      setCheckedIn(true);
-      setStreak(result.streak ?? 0);
-      router.refresh();
-    } else if (result.alreadyDone) {
-      setCheckedIn(true);
-      setStreak(result.streak ?? streak);
+    console.log("🔵 orb pressed — calling dailyCheckin");
+    try {
+      const result = await dailyCheckin();
+      console.log("🟢 dailyCheckin result:", JSON.stringify(result));
+      setLoading(false);
+      if (result.success) {
+        setCheckedIn(true);
+        setStreak(result.streak ?? 0);
+        router.refresh();
+      } else if (result.alreadyDone) {
+        setCheckedIn(true);
+        setStreak(result.streak ?? streak);
+      }
+    } catch (err) {
+      console.error("🔴 dailyCheckin threw:", err);
+      setLoading(false);
     }
   }
 
