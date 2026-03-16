@@ -47,40 +47,35 @@ export async function dailyCheckin(): Promise<CheckInResult> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // ── Fetch or create profile (admin client — no RLS interference) ─────────
-  let { data: profile } = await supabaseAdmin
+  // ── Fetch or create profile (admin client — bypasses RLS) ────────────────
+let { data: profile } = await supabaseAdmin
+  .from("users")
+  .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
+  .eq("id", user.id)
+  .maybeSingle();
+
+if (!profile) {
+  await supabaseAdmin.from("users").upsert({
+    id:            user.id,
+    email:         user.email ?? "",
+    name:          user.user_metadata?.display_name
+                   ?? user.user_metadata?.name
+                   ?? user.email?.split("@")[0]
+                   ?? "Member",
+    streak:        0,
+    total_points:  0,
+    global_points: 0,
+  }, { onConflict: "id", ignoreDuplicates: true });
+
+  const { data: newProfile } = await supabaseAdmin
     .from("users")
     .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
     .eq("id", user.id)
-    .maybeSingle();
+    .single();
 
-  if (!profile) {
-    const { error: insertError } = await supabaseAdmin.from("users").insert({
-      id:            user.id,
-      email:         user.email ?? "",
-      name:          user.user_metadata?.display_name
-                    ?? user.user_metadata?.name
-                    ?? user.email?.split("@")[0]
-                    ?? "Member",
-      streak:        0,
-      total_points:  0,
-      global_points: 0,
-    });
-
-    if (insertError) {
-      console.error("dailyCheckin: failed to create user row:", insertError);
-      return { success: false, error: insertError.message };
-    }
-
-    const { data: newProfile } = await supabaseAdmin
-      .from("users")
-      .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
-      .eq("id", user.id)
-      .single();
-
-    if (!newProfile) return { success: false, error: "Failed to initialize user" };
-    profile = newProfile;
-  }
+  if (!newProfile) return { success: false, error: "Failed to load user profile" };
+  profile = newProfile;
+}
 
   // ── Already checked in today ─────────────────────────────────────────────
   if (profile.last_checkin_date === today) {
