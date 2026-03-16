@@ -1,10 +1,18 @@
 "use server";
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient }       from "@supabase/supabase-js";
+import { cookies }            from "next/headers";
 
 const GLOBAL_POINTS = 5;
 const STREAK_MILESTONES: Record<number, number> = { 7: 25, 30: 100, 100: 500 };
+
+// Service-role client — bypasses RLS, safe here because we verify identity first
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 export interface CheckInResult {
   success: boolean;
@@ -12,33 +20,33 @@ export interface CheckInResult {
   streak?: number;
   pointsEarned?: number;
   streakBonus?: number;
-  newTotalPoints?: number; // ← added
+  newTotalPoints?: number;
   error?: string;
 }
 
 export async function dailyCheckin(): Promise<CheckInResult> {
+  // ── Verify identity via session cookie ───────────────────────────────────
   const cookieStore = await cookies();
-
-  const supabase = createServerClient(
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { get: (name) => cookieStore.get(name)?.value } }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
   const today = new Date().toISOString().split("T")[0];
 
-  // ── Fetch or create profile ──────────────────────────────────────────────
-  let { data: profile } = await supabase
+  // ── Fetch or create profile (admin client — no RLS interference) ─────────
+  let { data: profile } = await supabaseAdmin
     .from("users")
     .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!profile) {
-    const { error: insertError } = await supabase.from("users").insert({
+    const { error: insertError } = await supabaseAdmin.from("users").insert({
       id:            user.id,
       email:         user.email ?? "",
       streak:        0,
@@ -51,7 +59,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
       return { success: false, error: insertError.message };
     }
 
-    const { data: newProfile } = await supabase
+    const { data: newProfile } = await supabaseAdmin
       .from("users")
       .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
       .eq("id", user.id)
@@ -82,7 +90,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   const newGlobalPts = (profile.global_points ?? 0) + totalPoints;
 
   // ── Update user ──────────────────────────────────────────────────────────
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from("users")
     .update({
       streak:            newStreak,
@@ -100,7 +108,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   // ── Activity feed ────────────────────────────────────────────────────────
   const userName = profile.display_name || profile.name || "Member";
 
-  await supabase.from("activity_feed").insert({
+  await supabaseAdmin.from("activity_feed").insert({
     user_id:      user.id,
     user_name:    userName,
     emoji_avatar: profile.emoji_avatar ?? null,
@@ -120,7 +128,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
     streak:        newStreak,
     pointsEarned:  GLOBAL_POINTS,
     streakBonus,
-    newTotalPoints: newTotalPts, // ← added
+    newTotalPoints: newTotalPts,
   };
 }
 
@@ -133,19 +141,18 @@ export async function getCheckinStatus(): Promise<{
   streak: number;
 }> {
   const cookieStore = await cookies();
-
-  const supabase = createServerClient(
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { get: (name) => cookieStore.get(name)?.value } }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { checkedInToday: false, streak: 0 };
 
   const today = new Date().toISOString().split("T")[0];
 
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from("users")
     .select("streak, last_checkin_date")
     .eq("id", user.id)
