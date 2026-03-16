@@ -47,12 +47,16 @@ export async function dailyCheckin(): Promise<CheckInResult> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // ── Fetch or create profile (admin client — bypasses RLS) ────────────────
-let { data: profile } = await supabaseAdmin
+// ── Fetch profile ────────────────────────────────────────────────────────
+const { data: existingProfile, error: profileFetchError } = await supabaseAdmin
   .from("users")
-  .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
+  .select("streak, total_points, global_points, last_checkin_date, name, avatar_emoji")
   .eq("id", user.id)
   .maybeSingle();
+
+console.log("SERVER: profile fetch —", { existingProfile, profileFetchError });
+
+let profile = existingProfile;
 
 if (!profile) {
   const { error: upsertError } = await supabaseAdmin.from("users").upsert({
@@ -65,7 +69,7 @@ if (!profile) {
     streak:        0,
     total_points:  0,
     global_points: 0,
-  }, { onConflict: "id" });  // removed ignoreDuplicates — we need to know if it fails
+  }, { onConflict: "id" });
 
   if (upsertError) {
     console.error("dailyCheckin: failed to create user profile:", upsertError);
@@ -74,7 +78,7 @@ if (!profile) {
 
   const { data: newProfile, error: refetchError } = await supabaseAdmin
     .from("users")
-    .select("streak, total_points, global_points, last_checkin_date, name, display_name, emoji_avatar")
+    .select("streak, total_points, global_points, last_checkin_date, name, avatar_emoji")
     .eq("id", user.id)
     .single();
 
@@ -82,7 +86,7 @@ if (!profile) {
     console.error("dailyCheckin: refetch after upsert failed:", refetchError);
     return { success: false, error: "Failed to load user profile after creation" };
   }
-  
+
   profile = newProfile;
 }
 
@@ -123,12 +127,12 @@ if (!profile) {
   }
 
   // ── Activity feed ────────────────────────────────────────────────────────
-  const userName = profile.display_name || profile.name || "Member";
+  const userName = profile.name || "Member";
 
   await supabaseAdmin.from("activity_feed").insert({
     user_id:      user.id,
     user_name:    userName,
-    emoji_avatar: profile.emoji_avatar ?? null,
+    emoji_avatar: profile.avatar_emoji ?? null,
     type:         "streak",
     text:         streakBonus > 0
       ? `hit a ${newStreak}-day streak! 🔥 +${streakBonus} bonus pts`
