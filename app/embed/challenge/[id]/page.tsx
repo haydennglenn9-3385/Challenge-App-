@@ -377,7 +377,7 @@ export default function ChallengeDetailPage() {
       reps_target:          isTimed ? 0 : target,
       duration_seconds:     durationSecs,
       points_earned:        points,
-      global_points_earned: 0,
+      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
     });
     if (!error) {
       if (isTimed && durationSecs !== null && previousBestSeconds !== null) {
@@ -394,8 +394,16 @@ export default function ChallengeDetailPage() {
         reps_target:          isTimed ? 0 : target,
         duration_seconds:     durationSecs,
         points_earned:        points,
-        global_points_earned: 0,
+        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
       }]);
+      const newTotal = userTotalPoints + GLOBAL_POINTS_PER_CHECKIN;
+      setUserTotalPoints(newTotal);
+      await supabase
+        .from("users")
+        .update({ total_points: newTotal, global_points: newTotal })
+        .eq("id", userId);
+    } else {
+      console.warn("handleCheckIn failed:", error);
     }
     setCheckingIn(false);
   }
@@ -414,7 +422,7 @@ export default function ChallengeDetailPage() {
       reps_completed:       completed,
       reps_target:          weeklyRepTarget,
       points_earned:        points,
-      global_points_earned: 0,
+      global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
       exercise:             todayExercise,
       completion_level:     selectedDaily,
     });
@@ -428,10 +436,18 @@ export default function ChallengeDetailPage() {
         reps_completed:       completed,
         reps_target:          weeklyRepTarget,
         points_earned:        points,
-        global_points_earned: 0,
+        global_points_earned: GLOBAL_POINTS_PER_CHECKIN,
         exercise:             todayExercise,
         completion_level:     selectedDaily,
       }]);
+      const newTotal = userTotalPoints + GLOBAL_POINTS_PER_CHECKIN;
+      setUserTotalPoints(newTotal);
+      await supabase
+        .from("users")
+        .update({ total_points: newTotal, global_points: newTotal })
+        .eq("id", userId);
+    } else {
+      console.warn("handleProgressiveCheckIn failed:", error);
     }
     setCheckingIn(false);
   }
@@ -442,12 +458,13 @@ export default function ChallengeDetailPage() {
     setSavingCardio(true);
     const points   = selectedCardio === "100%" ? 2 : 1;
     const duration = selectedCardio === "100%" ? weeklyCardioTarget * 60 : Math.ceil(weeklyCardioTarget * 60 * 0.5);
+    const completed = selectedCardio === "100%" ? weeklyCardioTarget : Math.ceil(weeklyCardioTarget * 0.5);
     const { error } = await supabase.from("daily_logs").insert({
       user_id:              userId,
       challenge_id:         challengeId,
       date:                 todayStr,
       log_type:             "cardio",
-      reps_completed:       0,
+      reps_completed:       completed,
       reps_target:          weeklyCardioTarget,
       duration_seconds:     duration,
       points_earned:        points,
@@ -461,12 +478,14 @@ export default function ChallengeDetailPage() {
       setChallengeLogs(prev => [...prev, {
         date:                 todayStr,
         log_type:             "cardio",
-        reps_completed:       0,
+        reps_completed:       completed,
         reps_target:          weeklyCardioTarget,
         duration_seconds:     duration,
         points_earned:        points,
         global_points_earned: 0,
       }]);
+    } else {
+      console.warn("handleProgressiveCardio failed:", error);
     }
     setSavingCardio(false);
   }
