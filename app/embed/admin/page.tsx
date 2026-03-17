@@ -395,26 +395,55 @@ export default function AdminPage() {
 
   async function handleSaveMember(data: {
     memberId: string; points: number; streak: number; teamId: string | null;
+    name?: string; email?: string;
   }) {
-    // Save points + streak
+    // Update points + streak in users table
     await supabase
       .from("users")
       .update({ total_points: data.points, streak: data.streak })
       .eq("id", data.memberId);
 
+    // Update name/email via admin API if provided
+    if (data.name || data.email) {
+      await fetch("/api/admin/update-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: data.memberId, name: data.name, email: data.email }),
+      });
+    }
+
     setMembers((p) =>
       p.map((m) =>
         m.id === data.memberId
-          ? { ...m, total_points: data.points, streak: data.streak }
+          ? {
+              ...m,
+              total_points: data.points,
+              streak: data.streak,
+              ...(data.name ? { name: data.name } : {}),
+              ...(data.email ? { email: data.email } : {}),
+            }
           : m
       )
     );
   }
 
   async function handleRemoveMember(memberId: string) {
-    alert("To remove a member from a challenge, use the Manage page for that challenge.");
+    alert("To remove a member from a specific challenge, use the Manage page for that challenge.");
   }
 
+  async function handleDeleteMember(memberId: string) {
+    const res = await fetch("/api/admin/delete-user", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: memberId }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Failed to delete user.");
+    setMembers((p) => p.filter((m) => m.id !== memberId));
+    setEditingMember(null);
+  }
+
+ 
   // ── Guards ─────────────────────────────────────────────────────────────────
 
   if (loading) return <LoadingScreen />;
@@ -675,14 +704,15 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Edit Member Modal — now correctly passes teams */}
       {editingMember && (
         <MemberEditModal
           member={editingMember}
           teams={teams.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+          isAdmin={true}
           onClose={() => setEditingMember(null)}
           onSave={handleSaveMember}
           onRemove={handleRemoveMember}
+          onDelete={handleDeleteMember}
         />
       )}
 
