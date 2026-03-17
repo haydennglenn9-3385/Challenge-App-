@@ -226,7 +226,7 @@ export default function ChallengeDetailPage() {
   return map;
 }, [challengeLogs, startDate]);
   const sortedMembers = useMemo(
-    () => [...members].sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0)),
+    () => [...members].sort((a, b) => (b.challenge_points ?? 0) - (a.challenge_points ?? 0)),
     [members]
   );
   const teamStandings = useMemo((): TeamStanding[] => {
@@ -234,7 +234,7 @@ export default function ChallengeDetailPage() {
     return teams.map(team => {
       const memberIds = teamMemberships.filter(tm => tm.team_id === team.id).map(tm => tm.user_id);
       const teamMembers = members.filter(m => memberIds.includes(m.id));
-      const total = teamMembers.reduce((s: number, m: any) => s + (m.total_points ?? 0), 0);
+      const total = teamMembers.reduce((s: number, m: any) => s + (m.challenge_points ?? 0), 0);
       return {
         id: team.id, name: team.name, color: team.color,
         total_points: total, member_count: teamMembers.length,
@@ -266,90 +266,125 @@ export default function ChallengeDetailPage() {
     return rows;
   }
   // ─── useEffect ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!challengeId) return;
-    async function load() {
-      const { data: ch } = await supabase.from("challenges").select("*").eq("id", challengeId).single();
-      if (!ch) { setNotFound(true); setLoading(false); return; }
-      setChallenge(ch);
-      const { data: membersData } = await supabase
+ useEffect(() => {
+  if (!challengeId) return;
+  async function load() {
+    // Round 1: challenge + auth in parallel
+    const [{ data: ch }, { data: { user } }] = await Promise.all([
+      supabase.from("challenges").select("*").eq("id", challengeId).single(),
+      supabase.auth.getUser(),
+    ]);
+
+    if (!ch) { setNotFound(true); setLoading(false); return; }
+    setChallenge(ch);
+
+    // Round 2: members, all logs, teams, profile, membership — all in parallel
+    const [
+      { data: membersData },
+      { data: allLogs },
+      { data: teamsData },
+      { data: tmData },
+      { data: profile },
+      { data: memberCheck },
+    ] = await Promise.all([
+      supabase
         .from("challenge_members")
         .select("user_id, users(id, name, total_points, streak, avatar_emoji)")
-        .eq("challenge_id", challengeId);
-      if (membersData) {
-        setMembers(membersData.map((m: any) => ({ ...m.users })).filter(Boolean));
+        .eq("challenge_id", challengeId),
+      supabase
+        .from("daily_logs")
+        .select("user_id, points_earned, reps_completed")
+        .eq("challenge_id", challengeId),
+      ch.has_teams
+        ? supabase.from("teams").select("id, name, color").eq("challenge_id", challengeId).order("name")
+        : Promise.resolve({ data: null }),
+      ch.has_teams
+        ? supabase.from("challenge_members").select("team_id, user_id").eq("challenge_id", challengeId).not("team_id", "is", null)
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from("users").select("name").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from("challenge_members").select("id").eq("challenge_id", challengeId).eq("user_id", user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    // Members with challenge-specific points (not global total_points)
+    if (membersData) {
+      const challengePointsMap: Record<string, number> = {};
+      const challengeMetricMap: Record<string, number> = {};
+      for (const log of allLogs ?? []) {
+        challengePointsMap[log.user_id] = (challengePointsMap[log.user_id] ?? 0) + (log.points_earned ?? 0);
+        challengeMetricMap[log.user_id] = (challengeMetricMap[log.user_id] ?? 0) + (log.reps_completed ?? 0);
       }
-      if (ch.has_teams) {
-        const { data: teamsData } = await supabase
-          .from("teams").select("id, name, color").eq("challenge_id", challengeId).order("name");
-        if (teamsData) {
-          setTeams(teamsData);
-          if (teamsData.length > 0) {
-            // Load team memberships from challenge_members.team_id instead of team_members table
-            const { data: tmData } = await supabase
-              .from("challenge_members")
-              .select("team_id, user_id")
-              .eq("challenge_id", challengeId)
-              .not("team_id", "is", null);
-            if (tmData) setTeamMemberships(tmData);
-          }
-        }
-      }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const { data: profile } = await supabase.from("users").select("name").eq("id", user.id).single();
-        if (profile?.name) setUserName(profile.name);
-        const { data: memberCheck } = await supabase
-          .from("challenge_members").select("id")
-          .eq("challenge_id", challengeId).eq("user_id", user.id).maybeSingle();
-        const member = !!memberCheck;
-        setIsMember(member);
-        if (member) {
-          const logs = await loadLogs(user.id);
-          const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
-          setUserTotalPoints(computed);
-          await supabase.from("users").update({ total_points: computed }).eq("id", user.id);
-          const { data: teamRow } = await supabase
-            .from("team_members").select("team_id, teams(name)").eq("user_id", user.id).maybeSingle();
-          if (teamRow?.teams) setUserTeam((teamRow.teams as any).name);
-        }
-      }
-      setLoading(false);
+      setMembers(
+        membersData
+          .map((m: any) => ({
+            ...m.users,
+            challenge_points: challengePointsMap[m.user_id] ?? 0,
+            challenge_metric: challengeMetricMap[m.user_id] ?? 0,
+          }))
+          .filter(Boolean)
+      );
     }
-    load();
-  }, [challengeId]);
-  // ─── Join ─────────────────────────────────────────────────────────────────
-  async function handleJoin() {
-    if (!userId || !challenge) return;
-    let assignedTeamId: string | null = null;
-    if (challenge.has_teams && challenge.auto_assign_teams) {
-      const { data: teams } = await supabase.from("teams").select("id").eq("challenge_id", challenge.id);
-      if (teams && teams.length > 0) {
-        const teamCounts = await Promise.all(
-          teams.map(async (team) => {
-            const { count } = await supabase
-              .from("challenge_members").select("id", { count: "exact", head: true })
-              .eq("challenge_id", challenge.id).eq("team_id", team.id);
-            return { teamId: team.id, count: count ?? 0 };
-          })
-        );
-        teamCounts.sort((a, b) => a.count - b.count);
-        assignedTeamId = teamCounts[0].teamId;
+
+    // Teams
+    if (teamsData) setTeams(teamsData);
+    if (tmData) setTeamMemberships(tmData);
+
+    // Current user
+    if (user) {
+      setUserId(user.id);
+      if (profile?.name) setUserName(profile.name);
+      const member = !!memberCheck;
+      setIsMember(member);
+      if (member) {
+        const logs = await loadLogs(user.id);
+        const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
+        setUserTotalPoints(computed);
+        await supabase.from("users").update({ total_points: computed }).eq("id", user.id);
+        const { data: teamRow } = await supabase
+          .from("team_members").select("team_id, teams(name)").eq("user_id", user.id).maybeSingle();
+        if (teamRow?.teams) setUserTeam((teamRow.teams as any).name);
       }
     }
-    await supabase.from("challenge_members").insert({
-      challenge_id: challenge.id, user_id: userId, team_id: assignedTeamId,
-    });
-    setIsMember(true);
-    const logs = await loadLogs(userId);
-    const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
-    setUserTotalPoints(computed);
-    if (assignedTeamId) {
-      const { data: teamRow } = await supabase.from("teams").select("name").eq("id", assignedTeamId).single();
-      if (teamRow) setUserTeam(teamRow.name);
+
+    setLoading(false);
+  }
+  load();
+}, [challengeId]);
+
+// ─── Join ─────────────────────────────────────────────────────────────────
+async function handleJoin() {
+  if (!userId || !challenge) return;
+  let assignedTeamId: string | null = null;
+  if (challenge.has_teams && challenge.auto_assign_teams) {
+    const { data: teams } = await supabase.from("teams").select("id").eq("challenge_id", challenge.id);
+    if (teams && teams.length > 0) {
+      const teamCounts = await Promise.all(
+        teams.map(async (team) => {
+          const { count } = await supabase
+            .from("challenge_members").select("id", { count: "exact", head: true })
+            .eq("challenge_id", challenge.id).eq("team_id", team.id);
+          return { teamId: team.id, count: count ?? 0 };
+        })
+      );
+      teamCounts.sort((a, b) => a.count - b.count);
+      assignedTeamId = teamCounts[0].teamId;
     }
   }
+  await supabase.from("challenge_members").insert({
+    challenge_id: challenge.id, user_id: userId, team_id: assignedTeamId,
+  });
+  setIsMember(true);
+  const logs = await loadLogs(userId);
+  const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
+  setUserTotalPoints(computed);
+  if (assignedTeamId) {
+    const { data: teamRow } = await supabase.from("teams").select("name").eq("id", assignedTeamId).single();
+    if (teamRow) setUserTeam(teamRow.name);
+  }
+}
   // ─── Leave ────────────────────────────────────────────────────────────────
   async function handleLeave() {
     if (!confirm("Leave this challenge?")) return;
@@ -925,7 +960,7 @@ export default function ChallengeDetailPage() {
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: isMe ? "#fff" : "#1e293b" }}>
                           {member.name || "Member"}{isMe && <span style={{ opacity: 0.6, fontWeight: 400 }}> (You)</span>}
                         </span>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: isMe ? "#fff" : "#334155" }}>⭐ {member.total_points ?? 0}</span>
+                        <span style={{ fontSize: 13, fontWeight: 900, color: isMe ? "#fff" : "#334155" }}>⭐ {member.challenge_points ?? 0}</span>
                       </div>
                     );
                   })}
