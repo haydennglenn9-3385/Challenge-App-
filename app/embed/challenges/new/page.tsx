@@ -377,8 +377,8 @@ export default function NewChallengePage() {
               </>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 overflow-hidden">
-                  <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       Start Date
                     </label>
@@ -386,12 +386,12 @@ export default function NewChallengePage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      style={{ boxSizing: "border-box", minWidth: 0 }}
-                      className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                      className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                     />
                   </div>
 
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       End Date
                     </label>
@@ -400,8 +400,8 @@ export default function NewChallengePage() {
                       disabled={isOngoing}
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      style={{ boxSizing: "border-box", minWidth: 0 }}
-                      className={`w-full rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                      style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                      className={`rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
                         isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
                       }`}
                     />

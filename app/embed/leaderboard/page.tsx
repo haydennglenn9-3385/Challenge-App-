@@ -153,19 +153,30 @@ function ranksByMetric(challenge: UserChallenge): boolean {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function RankRow({
-  rank, name, avatar, primary, secondary, isMe,
+  rank, name, avatar, primary, secondary, isMe, userId, onNavigate,
 }: {
   rank: number;
   name: string;
   avatar: string;
-  primary: string;   // e.g. "1,250 pts" or "42 km"
-  secondary: string; // sub-label
+  primary: string;
+  secondary: string;
   isMe?: boolean;
+  userId?: string;         // ADD THIS PROP
+  onNavigate?: (id: string) => void; // ADD THIS PROP
 }) {
+  const clickable = !!userId && !!onNavigate && !isMe;
+ 
   return (
     <div
+      onClick={() => clickable && onNavigate!(userId!)}
       className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0"
-      style={isMe ? { background: "#1C1C1E", borderRadius: 0 } : {}}
+      style={{
+        ...(isMe ? { background: "#1C1C1E", borderRadius: 0 } : {}),
+        cursor: clickable ? "pointer" : "default",
+        transition: "background 0.12s",
+      }}
+      onMouseEnter={e => { if (clickable) (e.currentTarget as HTMLElement).style.background = isMe ? "#252525" : "rgba(0,0,0,0.03)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isMe ? "#1C1C1E" : ""; }}
     >
       <div className="w-6 text-center flex-shrink-0">
         {getMedal(rank)
@@ -183,7 +194,7 @@ function RankRow({
         {avatar}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`font-bold text-sm ${isMe ? "text-white" : "text-slate-900"}`}>
+        <p className={`font-bold text-sm ${isMe ? "text-white" : clickable ? "text-purple-700 underline decoration-dotted" : "text-slate-900"}`}>
           {name}{isMe && <span className="ml-1 text-xs font-normal opacity-40">(You)</span>}
         </p>
         <p className={`text-xs mt-0.5 ${isMe ? "text-white/40" : "text-slate-400"}`}>{secondary}</p>
@@ -251,6 +262,7 @@ export default function LeaderboardPage() {
   const [tab, setTab]         = useState<Tab>("global");
   const [userId, setUserId]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [standingsSearch, setStandingsSearch] = useState("");
 
   // Global tab
   const [globalUsers, setGlobalUsers] = useState<GlobalUser[]>([]);
@@ -357,6 +369,7 @@ export default function LeaderboardPage() {
   const loadChallengeStandings = async (challenge: UserChallenge) => {
     if (expandedChallenge === challenge.id) {
       setExpandedChallenge(null);
+      setStandingsSearch("");
       return;
     }
     setExpandedChallenge(challenge.id);
@@ -560,6 +573,8 @@ const daysLeft = (c: UserChallenge) =>
                       : "No active streak"
                   }
                   isMe={u.id === userId}
+                  userId={u.id}
+                  onNavigate={(id) => router.push(`/embed/profile/${id}`)}
                 />
               ))}
             </div>
@@ -722,33 +737,51 @@ const daysLeft = (c: UserChallenge) =>
                               Ranked by {byMetric ? unit : "pts"}
                             </p>
                           </div>
-                          {(standings as ChallengeStanding[]).map((s, i) => {
-                            const primary = byMetric
-                              ? formatMetric(s.metric, challenge)
-                              : `${s.points.toLocaleString()} pts`;
-                            const secondary = [
-                              byMetric
-                                ? `${s.points.toLocaleString()} pts`
-                                : s.metric > 0
-                                  ? formatMetric(s.metric, challenge)
-                                  : null,
-                              s.streak > 0 ? `🔥 ${s.streak}-day streak` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ");
-
-                            return (
-                              <RankRow
-                                key={s.user_id}
-                                rank={i + 1}
-                                name={s.name}
-                                avatar={getAvatar(s.avatar_emoji, s.name)}
-                                primary={primary}
-                                secondary={secondary}
-                                isMe={s.user_id === userId}
+                          {(standings as ChallengeStanding[]).length > 8 && (
+                            <div className="px-5 pb-2">
+                              <input
+                                type="text"
+                                placeholder="Search members…"
+                                value={standingsSearch}
+                                onChange={(e) => setStandingsSearch(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
                               />
-                            );
-                          })}
+                            </div>
+                          )}
+                          {(standings as ChallengeStanding[])
+                            .filter((s) =>
+                              !standingsSearch.trim() ||
+                              s.name.toLowerCase().includes(standingsSearch.toLowerCase())
+                            )
+                            .map((s, i) => {
+                              const primary = byMetric
+                                ? formatMetric(s.metric, challenge)
+                                : `${s.points.toLocaleString()} pts`;
+                              const secondary = [
+                                byMetric
+                                  ? `${s.points.toLocaleString()} pts`
+                                  : s.metric > 0
+                                    ? formatMetric(s.metric, challenge)
+                                    : null,
+                                s.streak > 0 ? `🔥 ${s.streak}-day streak` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ");
+
+                              return (
+                                <RankRow
+                                  key={s.user_id}
+                                  rank={i + 1}
+                                  name={s.name}
+                                  avatar={getAvatar(s.avatar_emoji, s.name)}
+                                  primary={primary}
+                                  secondary={secondary}
+                                  isMe={s.user_id === userId}
+                                  userId={s.user_id}
+                                  onNavigate={(id) => router.push(`/embed/profile/${id}`)}
+                                />
+                              );
+                            })}
                         </div>
                       )}
                     </div>

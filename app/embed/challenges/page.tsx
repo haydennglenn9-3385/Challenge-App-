@@ -61,7 +61,8 @@ function ChallengesInner() {
       const { data } = await supabase
         .from("challenges")
         .select("*, challenge_members(count)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       setChallenges(
         (data || []).map((c: any) => ({
