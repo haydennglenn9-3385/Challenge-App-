@@ -745,23 +745,25 @@ export default function ManageChallengePage() {
             <div className="h-1 w-full rainbow-cta" />
             <div className="p-5 space-y-4">
               <p className="font-extrabold text-slate-900">Challenge Duration</p>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Start Date</label>
-                <input
-                  type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                  style={{ boxSizing: "border-box", minWidth: 0 }}
-                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Start Date</label>
+                  <input
+                    type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                    style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                    className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">End Date <span className="normal-case font-normal text-slate-400">(optional)</span></label>
+                  <input
+                    type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                    style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                    className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">End Date (optional)</label>
-                <input
-                  type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                  style={{ boxSizing: "border-box", minWidth: 0 }}
-                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
-                <p className="text-xs text-slate-400 mt-1.5">Leave blank for ongoing challenges</p>
-              </div>
+              <p className="text-xs text-slate-400">Leave end date blank for ongoing challenges</p>
               <button onClick={handleSaveDates} disabled={savingDates}
                 className="rainbow-cta w-full rounded-xl py-3 font-bold text-sm disabled:opacity-50">
                 {savingDates ? "Saving..." : "Save Dates"}

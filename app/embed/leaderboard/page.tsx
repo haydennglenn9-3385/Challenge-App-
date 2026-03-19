@@ -194,7 +194,7 @@ function RankRow({
         {avatar}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`font-bold text-sm ${isMe ? "text-white" : clickable ? "text-purple-700 underline decoration-dotted" : "text-slate-900"}`}>
+        <p className={`font-bold text-sm ${isMe ? "text-white" : clickable ? "text-purple-700" : "text-slate-900"}`}>
           {name}{isMe && <span className="ml-1 text-xs font-normal opacity-40">(You)</span>}
         </p>
         <p className={`text-xs mt-0.5 ${isMe ? "text-white/40" : "text-slate-400"}`}>{secondary}</p>
@@ -521,12 +521,20 @@ const daysLeft = (c: UserChallenge) =>
           </h1>
         </div>
         {tab === "prs" && userId && (
-          <button
-            onClick={() => setShowPRModal(true)}
-            className="rainbow-cta rounded-xl px-4 py-2 text-sm font-bold"
-          >
-            + Log PR
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push("/embed/pr")}
+              className="rounded-xl px-4 py-2 text-sm font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+            >
+              ✏️ Edit PRs
+            </button>
+            <button
+              onClick={() => setShowPRModal(true)}
+              className="rainbow-cta rounded-xl px-4 py-2 text-sm font-bold"
+            >
+              + Log PR
+            </button>
+          </div>
         )}
       </div>
 
@@ -737,7 +745,7 @@ const daysLeft = (c: UserChallenge) =>
                               Ranked by {byMetric ? unit : "pts"}
                             </p>
                           </div>
-                          {(standings as ChallengeStanding[]).length > 8 && (
+                          {(standings as ChallengeStanding[]).length > 2 && (
                             <div className="px-5 pb-2">
                               <input
                                 type="text"
