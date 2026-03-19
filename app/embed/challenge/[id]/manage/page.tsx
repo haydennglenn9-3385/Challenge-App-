@@ -746,19 +746,19 @@ export default function ManageChallengePage() {
             <div className="p-5 space-y-4">
               <p className="font-extrabold text-slate-900">Challenge Duration</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Start Date</label>
                   <input
                     type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                    style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                    style={{ boxSizing: "border-box", width: "100%", maxWidth: "100%", minWidth: 0, display: "block" }}
                     className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                   />
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">End Date <span className="normal-case font-normal text-slate-400">(optional)</span></label>
                   <input
                     type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                    style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
+                    style={{ boxSizing: "border-box", width: "100%", maxWidth: "100%", minWidth: 0, display: "block" }}
                     className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                   />
                 </div>
