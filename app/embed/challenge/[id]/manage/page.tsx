@@ -749,6 +749,7 @@ export default function ManageChallengePage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Start Date</label>
                 <input
                   type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                  style={{ boxSizing: "border-box", minWidth: 0 }}
                   className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
               </div>
@@ -756,6 +757,7 @@ export default function ManageChallengePage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">End Date (optional)</label>
                 <input
                   type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  style={{ boxSizing: "border-box", minWidth: 0 }}
                   className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
                 <p className="text-xs text-slate-400 mt-1.5">Leave blank for ongoing challenges</p>

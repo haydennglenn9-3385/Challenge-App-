@@ -51,8 +51,12 @@ function gradientForId(id: string) {
   return AVATAR_GRADIENTS[n % AVATAR_GRADIENTS.length];
 }
 
+// FIX: Handle both full ISO timestamps and bare YYYY-MM-DD strings
 function formatDate(d: string) {
-  return new Date(d + "T12:00:00").toLocaleDateString("en-US", {
+  if (!d) return "Unknown";
+  const date = d.includes("T") ? new Date(d) : new Date(d + "T12:00:00");
+  if (isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -83,7 +87,6 @@ function prImprovementLabel(pr: PublicPR): string | null {
   return `+${delta % 1 === 0 ? delta : delta.toFixed(1)} ${pr.unit}`;
 }
 
-// Best PR per label (highest value; for timed units lowest)
 function bestPRsPerLabel(prs: PublicPR[]): PublicPR[] {
   const map: Record<string, PublicPR> = {};
   for (const pr of prs) {
@@ -109,13 +112,12 @@ export default function PublicProfilePage() {
   const [prs,        setPrs]        = useState<PublicPR[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [notFound,   setNotFound]   = useState(false);
-  const [viewerSelf, setViewerSelf] = useState(false); // viewing your own profile
+  const [viewerSelf, setViewerSelf] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
 
     async function load() {
-      // 1. Fetch user profile
       const { data: userData, error: userErr } = await supabase
         .from("users")
         .select("id, name, email, avatar_emoji, total_points, global_points, streak, created_at")
@@ -130,11 +132,9 @@ export default function PublicProfilePage() {
 
       setProfile(userData);
 
-      // 2. Check if viewer is the same person (for a subtle hint)
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser?.id === userId) setViewerSelf(true);
 
-      // 3. Joined challenges
       const { data: memberRows } = await supabase
         .from("challenge_members")
         .select(`
@@ -147,12 +147,10 @@ export default function PublicProfilePage() {
         .map((r: any) => r.challenges)
         .filter(Boolean) as JoinedChallenge[];
 
-      // Sort: active first, then upcoming, then ended
       const order = { active: 0, upcoming: 1, ended: 2 };
       joined.sort((a, b) => order[challengeStatus(a)] - order[challengeStatus(b)]);
       setChallenges(joined);
 
-      // 4. Public PRs only
       const { data: prData } = await supabase
         .from("performance_records")
         .select("id, type, label, value, unit, date, notes, previous_value")
@@ -171,13 +169,14 @@ export default function PublicProfilePage() {
 
   const avatarEmoji    = profile?.avatar_emoji || "🏳️‍🌈";
   const avatarGradient = profile ? gradientForId(profile.id) : AVATAR_GRADIENTS[0];
+  // FIX: Always prefer global_points as the canonical display value
   const displayPts     = profile?.global_points ?? profile?.total_points ?? 0;
   const bestPRs        = bestPRsPerLabel(prs);
 
-  const activeChallenges  = challenges.filter(c => challengeStatus(c) === "active");
-  const endedChallenges   = challenges.filter(c => challengeStatus(c) !== "active");
+  const activeChallenges = challenges.filter(c => challengeStatus(c) === "active");
+  const endedChallenges  = challenges.filter(c => challengeStatus(c) !== "active");
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Loading / Not Found ──────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -221,6 +220,8 @@ export default function PublicProfilePage() {
       </div>
     );
   }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -293,6 +294,12 @@ export default function PublicProfilePage() {
           color: #94a3b8;
           margin-bottom: 12px;
         }
+
+        .clickable-name {
+          cursor: pointer;
+          transition: color 0.15s;
+        }
+        .clickable-name:hover { color: #7b2d8b; }
       `}</style>
 
       <div style={{
@@ -302,7 +309,7 @@ export default function PublicProfilePage() {
         padding: "0 0 80px",
       }}>
 
-        {/* ── Top bar ─────────────────────────────────────────────────────── */}
+        {/* ── Top bar ── */}
         <div style={{
           display: "flex", alignItems: "center", gap: 12,
           padding: "16px 20px 8px",
@@ -334,7 +341,7 @@ export default function PublicProfilePage() {
           </div>
         </div>
 
-        {/* ── Hero card ───────────────────────────────────────────────────── */}
+        {/* ── Hero card ── */}
         <div style={{ padding: "8px 16px 0" }}>
           <div className="pub-card" style={{ borderRadius: 24, overflow: "hidden" }}>
             <div className="rainbow-bar" />
@@ -355,10 +362,11 @@ export default function PublicProfilePage() {
                   <p style={{ fontSize: 22, fontWeight: 900, color: "#0e0e0e", lineHeight: 1.1 }}>
                     {profile.name}
                   </p>
+                  {/* FIX: "Member since" now uses robust date parser */}
                   <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
                     Member since {formatDate(profile.created_at)}
                   </p>
-                 {viewerSelf ? (
+                  {viewerSelf ? (
                     <button
                       onClick={() => router.push("/embed/profile")}
                       style={{
@@ -393,6 +401,7 @@ export default function PublicProfilePage() {
               {/* Stats row */}
               <div style={{ display: "flex", gap: 10 }}>
                 <div className="stat-pill">
+                  {/* FIX: Use global_points as the canonical points value */}
                   <p style={{ fontSize: 22, fontWeight: 900, color: "#0e0e0e" }}>{displayPts.toLocaleString()}</p>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginTop: 2 }}>Points</p>
                 </div>
@@ -412,7 +421,7 @@ export default function PublicProfilePage() {
           </div>
         </div>
 
-        {/* ── Active challenges ────────────────────────────────────────────── */}
+        {/* ── Active challenges ── */}
         {activeChallenges.length > 0 && (
           <div style={{ padding: "20px 16px 0" }}>
             <div className="pub-card" style={{ borderRadius: 20, padding: "18px 16px" }}>
@@ -446,7 +455,7 @@ export default function PublicProfilePage() {
           </div>
         )}
 
-        {/* ── Public PRs ──────────────────────────────────────────────────── */}
+        {/* ── Public PRs ── */}
         {bestPRs.length > 0 && (
           <div style={{ padding: "20px 16px 0" }}>
             <div className="pub-card" style={{ borderRadius: 20, padding: "18px 16px" }}>
@@ -489,7 +498,7 @@ export default function PublicProfilePage() {
           </div>
         )}
 
-        {/* ── Past challenges ──────────────────────────────────────────────── */}
+        {/* ── Past challenges ── */}
         {endedChallenges.length > 0 && (
           <div style={{ padding: "20px 16px 0" }}>
             <div className="pub-card" style={{ borderRadius: 20, padding: "18px 16px" }}>
@@ -519,7 +528,7 @@ export default function PublicProfilePage() {
           </div>
         )}
 
-        {/* ── Empty state for PRs ──────────────────────────────────────────── */}
+        {/* ── Empty PRs state ── */}
         {bestPRs.length === 0 && !loading && (
           <div style={{ padding: "20px 16px 0" }}>
             <div className="pub-card" style={{

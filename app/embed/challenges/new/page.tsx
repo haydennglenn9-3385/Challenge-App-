@@ -377,7 +377,7 @@ export default function NewChallengePage() {
               </>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 overflow-hidden">
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       Start Date
@@ -386,6 +386,7 @@ export default function NewChallengePage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
+                      style={{ boxSizing: "border-box", minWidth: 0 }}
                       className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
                     />
                   </div>
@@ -399,6 +400,7 @@ export default function NewChallengePage() {
                       disabled={isOngoing}
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
+                      style={{ boxSizing: "border-box", minWidth: 0 }}
                       className={`w-full rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
                         isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
                       }`}
@@ -654,7 +656,7 @@ export default function NewChallengePage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
                   Unit
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3 overflow-hidden">
                   {unitOptions.map((opt) => (
                     <button
                       key={opt.value}

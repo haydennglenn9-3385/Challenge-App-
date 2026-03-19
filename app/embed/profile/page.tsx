@@ -140,7 +140,7 @@ function ProfileContent() {
   }
 
   const streakDays  = profile?.streak || 0;
-  const totalPoints = profile?.total_points || 0;
+  const totalPoints = profile?.global_points ?? profile?.total_points ?? 0;
   const avatarEmoji = profile?.avatar_emoji || "😊";
   const weekDays    = ["M", "T", "W", "T", "F", "S", "S"];
 

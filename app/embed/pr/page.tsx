@@ -1,5 +1,5 @@
 "use client";
-// app/embed/pr/page.tsx — Personal Records
+// app/embed/pr/page.tsx — Personal Records (with edit support + fixed time display)
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,16 +7,16 @@ import { supabase } from "@/lib/supabase/client";
 
 // ─── Preset PR types ──────────────────────────────────────────────────────────
 const PRESET_TYPES = [
-  { type: "deadlift",       label: "Deadlift",          unit: "lbs", emoji: "🏋️" },
-  { type: "squat",          label: "Back Squat",        unit: "lbs", emoji: "🦵" },
-  { type: "bench",          label: "Bench Press",       unit: "lbs", emoji: "💪" },
-  { type: "overhead_press", label: "Overhead Press",    unit: "lbs", emoji: "🙌" },
-  { type: "pull_ups",       label: "Pull-ups",          unit: "reps", emoji: "🐒" },
-  { type: "push_ups",       label: "Push-ups",          unit: "reps", emoji: "🔥" },
-  { type: "fastest_mile",   label: "Fastest Mile",      unit: "min",  emoji: "🏃" },
-  { type: "5k",             label: "5K Run",            unit: "min",  emoji: "🎽" },
-  { type: "plank",          label: "Plank Hold",        unit: "sec",  emoji: "🧘" },
-  { type: "custom",         label: "Custom",            unit: "",     emoji: "✨" },
+  { type: "deadlift",       label: "Deadlift",       unit: "lbs",  emoji: "🏋️" },
+  { type: "squat",          label: "Back Squat",     unit: "lbs",  emoji: "🦵" },
+  { type: "bench",          label: "Bench Press",    unit: "lbs",  emoji: "💪" },
+  { type: "overhead_press", label: "Overhead Press", unit: "lbs",  emoji: "🙌" },
+  { type: "pull_ups",       label: "Pull-ups",       unit: "reps", emoji: "🐒" },
+  { type: "push_ups",       label: "Push-ups",       unit: "reps", emoji: "🔥" },
+  { type: "fastest_mile",   label: "Fastest Mile",   unit: "min",  emoji: "🏃" },
+  { type: "5k",             label: "5K Run",         unit: "min",  emoji: "🎽" },
+  { type: "plank",          label: "Plank Hold",     unit: "sec",  emoji: "🧘" },
+  { type: "custom",         label: "Custom",         unit: "",     emoji: "✨" },
 ];
 
 const EQUIPMENT_OPTIONS = ["Barbell", "Dumbbells", "Kettlebell", "Bodyweight", "Machine", "Bands", "Other"];
@@ -35,25 +35,28 @@ interface PR {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function getEmoji(type: string) {
   return PRESET_TYPES.find(p => p.type === type)?.emoji || "✨";
 }
 
+// FIX: Display time as both minutes AND seconds (e.g. "5:32" not just "5" or "332")
 function formatValue(value: number, unit: string) {
   if (unit === "min") {
-    const mins = Math.floor(value);
-    const secs = Math.round((value - mins) * 60);
+    const totalSecs = Math.round(value * 60);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
     return `${mins}:${String(secs).padStart(2, "0")}`;
   }
   if (unit === "sec") {
     const mins = Math.floor(value / 60);
     const secs = Math.round(value % 60);
-    return `${mins}:${String(secs).padStart(2, "0")}`;
+    if (mins > 0) return `${mins}:${String(secs).padStart(2, "0")}`;
+    return `${Math.round(value)}s`;
   }
   return `${value}`;
 }
 
-// Parses "1:01", "0:45", or "61" → total seconds (or minutes as decimal for "min" unit)
 function parseTimeInput(raw: string, unit: string): number {
   const trimmed = raw.trim();
   if (trimmed.includes(":")) {
@@ -64,12 +67,13 @@ function parseTimeInput(raw: string, unit: string): number {
   }
   return parseFloat(trimmed) || 0;
 }
+
 function formatDate(d: string) {
-  return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (!d) return "";
+  const date = d.includes("T") ? new Date(d) : new Date(d + "T12:00:00");
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Group PRs by type, keep only the best (highest value) per type
-// For timed events (min unit), lower = better
 function getBestPerType(prs: PR[]): Record<string, PR> {
   const best: Record<string, PR> = {};
   for (const pr of prs) {
@@ -87,21 +91,23 @@ function getBestPerType(prs: PR[]): Record<string, PR> {
 export default function PRPage() {
   const router = useRouter();
 
-  const [userId,    setUserId]    = useState<string | null>(null);
-  const [prs,       setPrs]       = useState<PR[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [showAdd,   setShowAdd]   = useState(false);
-  const [showHistory, setShowHistory] = useState<string | null>(null); // type key
-  const [saving,    setSaving]    = useState(false);
+  const [userId,      setUserId]      = useState<string | null>(null);
+  const [prs,         setPrs]         = useState<PR[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [showHistory, setShowHistory] = useState<string | null>(null);
+  const [editingPR,   setEditingPR]   = useState<PR | null>(null); // NEW: edit mode
+  const [saving,      setSaving]      = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
 
-  // ── Add form state ──────────────────────────────────────────────────────────
-  const [selectedPreset,  setSelectedPreset]  = useState(PRESET_TYPES[0]);
-  const [customLabel,     setCustomLabel]     = useState("");
-  const [customUnit,      setCustomUnit]      = useState("lbs");
-  const [valueInput,      setValueInput]      = useState("");
-  const [dateInput,       setDateInput]       = useState(new Date().toISOString().split("T")[0]);
-  const [notesInput,      setNotesInput]      = useState("");
-  const [equipmentInput,  setEquipmentInput]  = useState("");
+  // ── Add/Edit form state ──────────────────────────────────────────────────────
+  const [selectedPreset, setSelectedPreset] = useState(PRESET_TYPES[0]);
+  const [customLabel,    setCustomLabel]    = useState("");
+  const [customUnit,     setCustomUnit]     = useState("lbs");
+  const [valueInput,     setValueInput]     = useState("");
+  const [dateInput,      setDateInput]      = useState(new Date().toISOString().split("T")[0]);
+  const [notesInput,     setNotesInput]     = useState("");
+  const [equipmentInput, setEquipmentInput] = useState("");
 
   // ─── Load ───────────────────────────────────────────────────────────────────
   async function loadPRs(uid: string) {
@@ -124,51 +130,101 @@ export default function PRPage() {
     init();
   }, []);
 
-  // ─── Save ───────────────────────────────────────────────────────────────────
-  async function handleSave() {
-    if (!userId || !valueInput) return;
-    setSaving(true);
+  // ─── Open Edit ────────────────────────────────────────────────────────────────
+  function openEdit(pr: PR) {
+    setEditingPR(pr);
+    // Pre-populate form fields
+    const preset = PRESET_TYPES.find(p => p.type === pr.type) || PRESET_TYPES[PRESET_TYPES.length - 1]; // custom
+    setSelectedPreset(preset);
+    setCustomLabel(pr.label);
+    setCustomUnit(pr.unit);
+    // Format time values back to display string
+    const isTimed = pr.unit === "min" || pr.unit === "sec";
+    if (isTimed) {
+      setValueInput(formatValue(pr.value, pr.unit));
+    } else {
+      setValueInput(String(pr.value));
+    }
+    setDateInput(pr.date);
+    setNotesInput(pr.notes || "");
+    setEquipmentInput(pr.equipment || "");
+    setShowAdd(true);
+    setShowHistory(null);
+  }
 
-    const isCustom  = selectedPreset.type === "custom";
-    const label     = isCustom ? customLabel || "Custom" : selectedPreset.label;
-    const unit      = isCustom ? customUnit : selectedPreset.unit;
-    const type      = isCustom ? `custom_${label.toLowerCase().replace(/\s+/g, "_")}` : selectedPreset.type;
-    const isTimedUnit = unit === "min" || unit === "sec";
-    const value = isTimedUnit ? parseTimeInput(valueInput, unit) : parseFloat(valueInput);  
-
-    // Find the current best for this type so we can store previous_value
-    const existing  = prs.filter(p => p.type === type);
-    const isTimed   = unit === "min" || unit === "sec";
-    const currentBest = existing.length
-      ? existing.reduce((best, p) => (isTimed ? p.value < best.value : p.value > best.value) ? p : best)
-      : null;
-
-    await supabase.from("performance_records").insert({
-      user_id:        userId,
-      type,
-      label,
-      value,
-      unit,
-      date:           dateInput,
-      notes:          notesInput || null,
-      equipment:      equipmentInput || null,
-      previous_value: currentBest?.value ?? null,
-      is_custom:      isCustom,
-    });
-
-    await loadPRs(userId);
-    setSaving(false);
+  // ─── Close form ────────────────────────────────────────────────────────────────
+  function closeForm() {
     setShowAdd(false);
+    setEditingPR(null);
     setValueInput("");
     setNotesInput("");
     setEquipmentInput("");
     setCustomLabel("");
+    setSelectedPreset(PRESET_TYPES[0]);
+  }
+
+  // ─── Save (create or update) ─────────────────────────────────────────────────
+  async function handleSave() {
+    if (!userId || !valueInput) return;
+    setSaving(true);
+
+    const isCustom    = selectedPreset.type === "custom";
+    const label       = isCustom ? customLabel || "Custom" : selectedPreset.label;
+    const unit        = isCustom ? customUnit : selectedPreset.unit;
+    const type        = isCustom ? `custom_${label.toLowerCase().replace(/\s+/g, "_")}` : selectedPreset.type;
+    const isTimedUnit = unit === "min" || unit === "sec";
+    const value = isTimedUnit ? parseTimeInput(valueInput, unit) : parseFloat(valueInput);
+
+    if (editingPR) {
+      // UPDATE existing
+      await supabase
+        .from("performance_records")
+        .update({
+          label,
+          value,
+          unit,
+          date:      dateInput,
+          notes:     notesInput || null,
+          equipment: equipmentInput || null,
+          type,
+          is_custom: isCustom,
+        })
+        .eq("id", editingPR.id);
+    } else {
+      // INSERT new
+      const existing = prs.filter(p => p.type === type);
+      const isTimed  = unit === "min" || unit === "sec";
+      const currentBest = existing.length
+        ? existing.reduce((best, p) => (isTimed ? p.value < best.value : p.value > best.value) ? p : best)
+        : null;
+
+      await supabase.from("performance_records").insert({
+        user_id:        userId,
+        type,
+        label,
+        value,
+        unit,
+        date:           dateInput,
+        notes:          notesInput || null,
+        equipment:      equipmentInput || null,
+        previous_value: currentBest?.value ?? null,
+        is_custom:      isCustom,
+      });
+    }
+
+    await loadPRs(userId);
+    setSaving(false);
+    closeForm();
   }
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
   async function handleDelete(id: string) {
+    if (!userId) return;
+    setDeleting(true);
     await supabase.from("performance_records").delete().eq("id", id);
-    if (userId) await loadPRs(userId);
+    await loadPRs(userId);
+    setDeleting(false);
+    if (editingPR?.id === id) closeForm();
   }
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
@@ -179,11 +235,10 @@ export default function PRPage() {
   if (loading) return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg,#d4f5e2 0%,#fde0ef 30%,#fdf6d3 60%,#d4eaf7 100%)" }}>
       <div style={{ fontSize: 52 }}>🏳️‍🌈</div>
-      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
+      <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 18, color: "#7b2d8b", letterSpacing: 2 }}>LOADING...</div>
     </div>
   );
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
@@ -222,10 +277,16 @@ export default function PRPage() {
           font-family: var(--font-inter), system-ui, sans-serif;
         }
         .pr-save-btn:disabled { opacity: 0.45; cursor: default; }
+        .pr-delete-btn {
+          width: 100%; padding: 13px; border-radius: 16px; border: 1.5px solid #fca5a5;
+          background: #fff5f5; color: #ef4444; font-size: 14px; font-weight: 700;
+          cursor: pointer; font-family: var(--font-inter), system-ui, sans-serif; margin-top: 8px;
+        }
         .preset-chip {
           padding: 8px 14px; border-radius: 99px; border: 1.5px solid #e5e7eb;
           background: #fff; font-size: 13px; font-weight: 700;
-          cursor: pointer; white-space: nowrap; font-family: var(--font-inter), system-ui, sans-serif;
+          cursor: pointer; white-space: nowrap;
+          font-family: var(--font-inter), system-ui, sans-serif;
           color: #374151; transition: all 0.12s; flex-shrink: 0;
         }
         .preset-chip.active {
@@ -256,6 +317,14 @@ export default function PRPage() {
           flex-shrink: 0;
         }
         .eq-chip.active { border-color: #7b2d8b; background: #f3e8ff; color: #7b2d8b; }
+        .edit-btn {
+          background: rgba(102,126,234,0.1); border: 1px solid rgba(102,126,234,0.2);
+          color: #667eea; border-radius: 8px; padding: 4px 10px;
+          font-size: 11px; font-weight: 700; cursor: pointer;
+          font-family: var(--font-inter), system-ui, sans-serif;
+          transition: background 0.12s;
+        }
+        .edit-btn:hover { background: rgba(102,126,234,0.18); }
       `}</style>
 
       <div className="min-h-screen px-5 pt-6 pb-28 space-y-5">
@@ -266,11 +335,11 @@ export default function PRPage() {
             <p className="text-xs font-bold tracking-[0.2em] uppercase mb-1" style={{
               background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#4fc3f7,#667eea)",
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            }}>Queers & Allies Fitness</p>
+            }}>Queers &amp; Allies Fitness</p>
             <h1 className="text-3xl font-display font-extrabold text-slate-900 tracking-tight">Personal Records</h1>
           </div>
           <button
-            onClick={() => setShowAdd(true)}
+            onClick={() => { setEditingPR(null); setShowAdd(true); }}
             className="rainbow-cta rounded-full px-4 py-2 font-bold text-sm"
           >
             + New PR
@@ -283,7 +352,7 @@ export default function PRPage() {
             <p style={{ fontSize: 48 }}>🏆</p>
             <p className="font-extrabold text-slate-900 text-lg">No PRs yet</p>
             <p className="text-sm text-slate-500">Log your first personal record and start tracking your progress.</p>
-            <button onClick={() => setShowAdd(true)} className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
+            <button onClick={() => { setEditingPR(null); setShowAdd(true); }} className="rainbow-cta rounded-xl px-6 py-3 font-bold text-sm">
               Log First PR
             </button>
           </div>
@@ -293,7 +362,7 @@ export default function PRPage() {
         {bestList.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
             {bestList.map((pr) => {
-              const isTimed = pr.unit === "min" || pr.unit === "sec";
+              const isTimed  = pr.unit === "min" || pr.unit === "sec";
               const hasDelta = pr.previous_value != null;
               const improved = hasDelta && (isTimed ? pr.value < pr.previous_value! : pr.value > pr.previous_value!);
               const delta    = hasDelta ? Math.abs(pr.value - pr.previous_value!) : null;
@@ -304,22 +373,24 @@ export default function PRPage() {
                   className="pr-card"
                   onClick={() => setShowHistory(pr.type)}
                 >
-                  {/* Rainbow top bar */}
                   <div style={{ height: 4, background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }} />
                   <div style={{ padding: "14px 16px 16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       <span style={{ fontSize: 22 }}>{getEmoji(pr.type)}</span>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#64748b", lineHeight: 1.2 }}>{pr.label}</p>
                     </div>
-                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 36, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
+                    {/* FIX: Use formatValue which now shows m:ss for time */}
+                    <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 32, color: "#0e0e0e", lineHeight: 1, marginBottom: 2 }}>
                       {formatValue(pr.value, pr.unit)}
                     </p>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>{pr.unit}</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>
+                      {isTimed ? (pr.unit === "min" ? "min:sec" : "m:ss") : pr.unit}
+                    </p>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{formatDate(pr.date)}</p>
                       {hasDelta && delta !== null && delta > 0 && (
                         <span className={improved ? "delta-up" : "delta-down"}>
-                          {improved ? "↑" : "↓"} {formatValue(delta, pr.unit)} {pr.unit}
+                          {improved ? "↑" : "↓"} {formatValue(delta, pr.unit)}
                         </span>
                       )}
                     </div>
@@ -343,16 +414,19 @@ export default function PRPage() {
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════════════
-          SHEET — Add New PR
-      ══════════════════════════════════════════════════════ */}
+      {/* ══ SHEET — Add / Edit PR ═══════════════════════════════════════════════ */}
       {showAdd && (
-        <div className="pr-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}>
+        <div className="pr-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}>
           <div className="pr-sheet">
             <div className="pr-handle" />
-            <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 22, color: "#0e0e0e", letterSpacing: 1, marginBottom: 20 }}>
-              Log a Personal Record
-            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 22, color: "#0e0e0e", letterSpacing: 1 }}>
+                {editingPR ? "Edit PR" : "Log a Personal Record"}
+              </p>
+              <button onClick={closeForm} style={{ background: "#f1f5f9", border: "none", borderRadius: 10, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#555" }}>
+                Cancel
+              </button>
+            </div>
 
             {/* Preset type selector */}
             <div style={{ marginBottom: 20 }}>
@@ -391,19 +465,16 @@ export default function PRPage() {
               <div>
                 <span className="pr-label">
                   {selectedPreset.unit === "min" || selectedPreset.unit === "sec"
-                    ? "Time (e.g. 1:01 or 45)"
+                    ? "Time (m:ss or seconds)"
                     : `Value (${selectedPreset.type === "custom" ? customUnit || "unit" : selectedPreset.unit})`}
                 </span>
                 <input
                   className="pr-input"
                   type={selectedPreset.unit === "min" || selectedPreset.unit === "sec" ? "text" : "number"}
+                  inputMode={selectedPreset.unit === "min" || selectedPreset.unit === "sec" ? "text" : "decimal"}
                   min={0}
                   step="0.1"
-                  placeholder={
-                    selectedPreset.unit === "min" || selectedPreset.unit === "sec"
-                      ? "1:01"
-                      : "225"
-                  }
+                  placeholder={selectedPreset.unit === "min" || selectedPreset.unit === "sec" ? "5:32" : "225"}
                   value={valueInput}
                   onChange={(e) => setValueInput(e.target.value)}
                 />
@@ -411,7 +482,8 @@ export default function PRPage() {
               <div>
                 <span className="pr-label">Date</span>
                 <input className="pr-input" type="date"
-                  value={dateInput} onChange={(e) => setDateInput(e.target.value)} />
+                  value={dateInput} onChange={(e) => setDateInput(e.target.value)}
+                  style={{ boxSizing: "border-box" }} />
               </div>
             </div>
 
@@ -447,15 +519,24 @@ export default function PRPage() {
               onClick={handleSave}
               disabled={saving || !valueInput || (selectedPreset.type === "custom" && !customLabel)}
             >
-              {saving ? "Saving…" : "Save PR 🏆"}
+              {saving ? "Saving…" : editingPR ? "Save Changes" : "Save PR 🏆"}
             </button>
+
+            {/* Delete button when editing */}
+            {editingPR && (
+              <button
+                className="pr-delete-btn"
+                onClick={() => handleDelete(editingPR.id)}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting…" : "Delete This Entry"}
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════
-          SHEET — History for a type
-      ══════════════════════════════════════════════════════ */}
+      {/* ══ SHEET — History for a type ═════════════════════════════════════════ */}
       {showHistory && (
         <div className="pr-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowHistory(null); }}>
           <div className="pr-sheet">
@@ -466,7 +547,7 @@ export default function PRPage() {
                 onClick={() => setShowHistory(null)}
                 style={{ background: "#f1f5f9", border: "none", borderRadius: 10, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#555" }}
               >← Back</button>
-              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
+              <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 20, color: "#0e0e0e", letterSpacing: 1 }}>
                 {getEmoji(showHistory)} {historyForType[0]?.label || showHistory}
               </p>
             </div>
@@ -481,10 +562,10 @@ export default function PRPage() {
               }}>
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8 }}>Current Best</p>
-                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
+                  <p style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 40, color: "#0e0e0e", lineHeight: 1 }}>
                     {formatValue(bestByType[showHistory].value, bestByType[showHistory].unit)}
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", marginLeft: 6, fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-                      {bestByType[showHistory].unit}
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", marginLeft: 6 }}>
+                      {bestByType[showHistory].unit === "min" ? "min:sec" : bestByType[showHistory].unit === "sec" ? "m:ss" : bestByType[showHistory].unit}
                     </span>
                   </p>
                   <p style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>{formatDate(bestByType[showHistory].date)}</p>
@@ -495,15 +576,18 @@ export default function PRPage() {
 
             {/* History list */}
             <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>All Logs</p>
-            {historyForType.map((pr, i) => {
-              const isBest = pr.id === bestByType[pr.type]?.id;
+            {historyForType.map((pr) => {
+              const isBest   = pr.id === bestByType[pr.type]?.id;
+              const isTimed  = pr.unit === "min" || pr.unit === "sec";
               return (
                 <div key={pr.id} className="history-row">
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <p style={{ fontWeight: 800, fontSize: 18, color: "#0e0e0e" }}>
                         {formatValue(pr.value, pr.unit)}
-                        <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 4, fontWeight: 600 }}>{pr.unit}</span>
+                        <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 4, fontWeight: 600 }}>
+                          {isTimed ? (pr.unit === "min" ? "min:sec" : "m:ss") : pr.unit}
+                        </span>
                       </p>
                       {isBest && <span style={{ fontSize: 14 }}>🥇</span>}
                     </div>
@@ -512,29 +596,33 @@ export default function PRPage() {
                     {pr.equipment && <p style={{ fontSize: 11, color: "#c4b5fd", fontWeight: 700 }}>🏋️ {pr.equipment}</p>}
                     {pr.previous_value != null && (
                       <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
-                        Was: {formatValue(pr.previous_value, pr.unit)} {pr.unit}
+                        Was: {formatValue(pr.previous_value, pr.unit)}
                         {" · "}
-                        <span className={pr.unit === "min" || pr.unit === "sec"
+                        <span className={isTimed
                           ? (pr.value < pr.previous_value ? "delta-up" : "delta-down")
                           : (pr.value > pr.previous_value ? "delta-up" : "delta-down")}>
-                          {(pr.unit === "min" || pr.unit === "sec"
-                            ? pr.value < pr.previous_value
-                            : pr.value > pr.previous_value) ? "↑" : "↓"} {formatValue(Math.abs(pr.value - pr.previous_value), pr.unit)}
+                          {(isTimed ? pr.value < pr.previous_value : pr.value > pr.previous_value) ? "↑" : "↓"}
+                          {" "}{formatValue(Math.abs(pr.value - pr.previous_value), pr.unit)}
                         </span>
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDelete(pr.id)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#e2e8f0", fontSize: 16, padding: "4px 8px", flexShrink: 0 }}
-                    title="Delete"
-                  >✕</button>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    {/* Edit button */}
+                    <button className="edit-btn" onClick={() => openEdit(pr)}>✏️ Edit</button>
+                    {/* Delete button */}
+                    <button
+                      onClick={() => handleDelete(pr.id)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#e2e8f0", fontSize: 16, padding: "4px 8px" }}
+                      title="Delete"
+                    >✕</button>
+                  </div>
                 </div>
               );
             })}
 
             <button
-              onClick={() => { setShowHistory(null); setShowAdd(true); setSelectedPreset(PRESET_TYPES.find(p => p.type === showHistory) || PRESET_TYPES[0]); }}
+              onClick={() => { setShowHistory(null); setEditingPR(null); setShowAdd(true); setSelectedPreset(PRESET_TYPES.find(p => p.type === showHistory) || PRESET_TYPES[0]); }}
               style={{ width: "100%", marginTop: 20, padding: "14px", borderRadius: 14, border: "1.5px solid #e5e7eb", background: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-inter), system-ui, sans-serif", color: "#374151" }}
             >
               + Log New {historyForType[0]?.label || "PR"}
