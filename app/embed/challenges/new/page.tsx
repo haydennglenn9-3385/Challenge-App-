@@ -398,15 +398,15 @@ export default function NewChallengePage() {
                       End Date
                     </label>
                     <input
-                      type="date"
-                      disabled={isOngoing}
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
-                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-2 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
-                        isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
-                      }`}
-                    />
+                    type="date"
+                    disabled={isOngoing}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{ boxSizing: "border-box", minWidth: 0 }}
+                    className={`w-full rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                      isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
+                    }`}
+                  />
                   </div>
                 </div>
 
