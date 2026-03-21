@@ -446,15 +446,17 @@ function ProfileContent() {
                 </div>
               </>
             )}
-            {showPRModal && profile?.id && (
-              <PRLogModal
-                userId={profile.id}
-                onClose={() => setShowPRModal(false)}
-                onSaved={() => setShowPRModal(false)}
-              />
-            )}
-          </div>
+              </div>
         </div>
+      )}
+
+      {/* ── PR Log Modal — outside all sheets ── */}
+      {showPRModal && profile?.id && (
+        <PRLogModal
+          userId={profile.id}
+          onClose={() => setShowPRModal(false)}
+          onSaved={() => setShowPRModal(false)}
+        />
       )}
     </>
   );

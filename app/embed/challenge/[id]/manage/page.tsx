@@ -741,8 +741,8 @@ export default function ManageChallengePage() {
           </div>
 
           {/* ── Dates ── */}
-          <div className="neon-card rounded-2xl overflow-hidden">
-            <div className="h-1 w-full rainbow-cta" />
+          <div className="neon-card rounded-2xl">
+            <div className="h-1 w-full rainbow-cta rounded-t-2xl" />
             <div className="p-5 space-y-4">
               <p className="font-extrabold text-slate-900">Challenge Duration</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

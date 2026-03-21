@@ -184,7 +184,10 @@ export default function ChallengeDetailPage() {
   const pointsMax      = challenge?.local_points_per_checkin ?? 2;
   const progressionType = challenge?.progression_type ?? "daily";
   const everyXDays     = challenge?.progression_interval_days ?? null;
-  const hasTarget      = dailyTarget > 0 && !isTimed && !isProgressive;
+  // For reps-type challenges, always show the input (default target to 1 if not set)
+  const isRepsBased    = scoringType === "reps";
+  const hasTarget      = (dailyTarget > 0 || isRepsBased) && !isTimed && !isProgressive;
+  const effectiveDefaultTarget = hasTarget && dailyTarget === 0 ? 10000 : dailyTarget; // steps default 10k
   const hasTeams       = challenge?.has_teams ?? false;
   const startDate      = challenge?.start_date ?? todayStr;
   const endDate        = challenge?.end_date ?? null;
@@ -197,8 +200,8 @@ export default function ChallengeDetailPage() {
   const weeklyCardioTarget = isProgressive ? 5 * currentWeek : 0;
   const todayExercise    = NYE_EXERCISES[todayDow] ?? "Exercise";
   const effectiveTarget  = challenge
-    ? getEffectiveTarget(todayStr, startDate, dailyTarget, scoringType, progressionType)
-    : dailyTarget;
+    ? (getEffectiveTarget(todayStr, startDate, dailyTarget, scoringType, progressionType) || (isRepsBased ? 10000 : 1))
+    : (dailyTarget || 1);
   const previousBestSeconds = useMemo(() => {
     if (!isTimed) return null;
     const times = challengeLogs
@@ -225,10 +228,17 @@ export default function ChallengeDetailPage() {
   }
   return map;
 }, [challengeLogs, startDate]);
-  const sortedMembers = useMemo(
-    () => [...members].sort((a, b) => (b.challenge_points ?? 0) - (a.challenge_points ?? 0)),
-    [members]
-  );
+  const sortedMembers = useMemo(() => {
+    // For metric challenges (reps, steps, distance, weight) rank by the actual logged metric
+    const metricTypes = new Set(["reps", "distance", "weight"]);
+    const byMetric = metricTypes.has(scoringType);
+    return [...members].sort((a, b) =>
+      byMetric
+        ? (b.challenge_metric ?? 0) - (a.challenge_metric ?? 0)
+        : (b.challenge_points ?? 0) - (a.challenge_points ?? 0)
+    );
+  }, [members, scoringType]);
+
   const teamStandings = useMemo((): TeamStanding[] => {
     if (!teams.length) return [];
     return teams.map(team => {
@@ -395,6 +405,7 @@ async function handleJoin() {
     setCheckedInToday(false);
   }
  // ─── Standard check-in ───────────────────────────────────────────────────
+
   async function handleCheckIn() {
     if (!userId || !challengeId || checkedInToday || checkingIn) return;
     if (isTimed && !timeInputValid) return;
@@ -431,7 +442,24 @@ async function handleJoin() {
         points_earned:        points,
         global_points_earned: 0,
       }]);
-      
+
+      const displayText = isTimed && durationSecs
+        ? `logged ${secondsToDisplay(durationSecs)} on ${challenge.name}! ⏱️`
+        : hasTarget
+        ? `logged ${completed} ${targetUnit} on ${challenge.name}! 💪`
+        : `checked in on ${challenge.name}! 💪`;
+
+      await supabase.from("activity_feed").insert({
+        user_id:      userId,
+        user_name:    userName || "Member",
+        type:         "score",
+        text:         displayText,
+        meta: {
+          challenge_id:   challengeId,
+          challenge_name: challenge.name,
+          points,
+        },
+      });
     } else {
       console.warn("handleCheckIn failed:", error);
     }
@@ -456,6 +484,8 @@ async function handleJoin() {
       exercise:             todayExercise,
       completion_level:     selectedDaily,
     });
+    
+    // REPLACE WITH:
     if (!error) {
       setCheckedInToday(true);
       setTodayPoints(points);
@@ -470,12 +500,20 @@ async function handleJoin() {
         exercise:             todayExercise,
         completion_level:     selectedDaily,
       }]);
-      
+
+      await supabase.from("activity_feed").insert({
+        user_id:      userId,
+        user_name:    userName || "Member",
+        type:         "score",
+        text:         `completed ${todayExercise} (${selectedDaily}) on ${challenge.name}! 💪`,
+        meta: { challenge_id: challengeId, challenge_name: challenge.name, points },
+      });
     } else {
       console.warn("handleProgressiveCheckIn failed:", error);
     }
     setCheckingIn(false);
   }
+    
 
   // ─── Progressive cardio ───────────────────────────────────────────────────
   async function handleProgressiveCardio() {
@@ -960,7 +998,15 @@ async function handleJoin() {
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: isMe ? "#fff" : "#1e293b" }}>
                           {member.name || "Member"}{isMe && <span style={{ opacity: 0.6, fontWeight: 400 }}> (You)</span>}
                         </span>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: isMe ? "#fff" : "#334155" }}>⭐ {member.challenge_points ?? 0}</span>
+                        <span style={{ fontSize: 13, fontWeight: 900, color: isMe ? "#fff" : "#334155" }}>
+                          {(() => {
+                            const metricTypes = new Set(["reps", "distance", "weight"]);
+                            if (metricTypes.has(scoringType)) {
+                              return `${(member.challenge_metric ?? 0).toLocaleString()} ${targetUnit || "reps"}`;
+                            }
+                            return `⭐ ${member.challenge_points ?? 0}`;
+                          })()}
+                        </span>
                       </div>
                     );
                   })}

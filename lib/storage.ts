@@ -226,7 +226,8 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       dailyTarget?: number | null;
       targetUnit?: string | null;
       progressionType?: string | null;
-      everyXDaysValue?: number | null;
+      everyXDaysValue?:  number | null;
+      scoringDirection?: "asc" | "desc" | null;
     }): Promise<Challenge | null> {
 
       const joinCode  = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -239,16 +240,21 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
           ?? new Date(Date.now() + challengeData.duration * 86400000)
               .toISOString().split("T")[0];
 
-  // Create a team for this challenge
-  const { data: team, error: teamError } = await supabase
-    .from("teams")
-    .insert({ name: `${challengeData.name} Team` })
-    .select()
-    .single();
+  // Only create a default team for team-based challenges
+  let defaultTeamId: string | null = null;
 
-  if (teamError) {
-    console.error("Error creating team:", teamError);
-    return null;
+  if (challengeData.hasTeams) {
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .insert({ name: `${challengeData.name} Team` })
+      .select()
+      .single();
+
+    if (teamError) {
+      console.error("Error creating team:", teamError);
+    } else {
+      defaultTeamId = team.id;
+    }
   }
 
   const { data, error } = await supabase
@@ -257,7 +263,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       name: challengeData.name,
       join_code: joinCode,
       creator_id: challengeData.creatorId,
-      team_id: team.id,
+      team_id: defaultTeamId,
       start_date: startDate,
       end_date: endDate,
       has_teams: challengeData.hasTeams ?? false,
@@ -270,7 +276,8 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
       daily_target:        challengeData.dailyTarget      ?? null,
       target_unit:         challengeData.targetUnit       ?? null,
       progression_type:    challengeData.progressionType  ?? "daily",   // ← add
-      every_x_days_value:  challengeData.everyXDaysValue  ?? null,  
+      every_x_days_value:    challengeData.everyXDaysValue  ?? null,
+      scoring_direction:     challengeData.scoringDirection ?? "desc",
       
     })
     .select()

@@ -39,6 +39,11 @@ export default function AuthPage() {
       return;
     }
 
+    if (mode === "signup" && !displayName.trim()) {
+      setError("Please enter a display name.");
+      return;
+    }
+    
     if (mode === "signup" && !agreed) {
       setError("Please agree to the terms to create an account.");
       return;
@@ -63,23 +68,41 @@ export default function AuthPage() {
         window.location.href = "/embed/profile";
       }
     } else {
-      const { data, error: err } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { display_name: displayName || email.split("@")[0] },
-        },
-      });
+        const { data, error: err } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { display_name: displayName.trim() },
+          },
+        });
 
-      if (err) {
-        setError(err.message);
-      } else if (data.user && !data.session) {
-        setSuccess("Check your email to confirm your account, then log in.");
-        setMode("login");
-      } else {
-        window.location.href = "/embed/dashboard";
+        if (err) {
+          setError(err.message);
+        } else if (data.user && !data.session) {
+          // Email confirmation required — still create the profile row
+          await supabase.from("users").upsert({
+            id:           data.user.id,
+            email:        email.trim(),
+            name:         displayName.trim(),
+            total_points: 0,
+            streak:       0,
+            global_points: 0,
+          }, { onConflict: "id" });
+          setSuccess("Check your email to confirm your account, then log in.");
+          setMode("login");
+        } else if (data.user && data.session) {
+          // No confirmation needed — create profile and redirect
+          await supabase.from("users").upsert({
+            id:           data.user.id,
+            email:        email.trim(),
+            name:         displayName.trim(),
+            total_points: 0,
+            streak:       0,
+            global_points: 0,
+          }, { onConflict: "id" });
+          window.location.href = "/embed/dashboard";
+        }
       }
-    }
 
     setLoading(false);
   }
@@ -327,7 +350,7 @@ export default function AuthPage() {
                 <input
                   className="input-field"
                   type="text"
-                  placeholder="Display name (optional)"
+                  placeholder="Display name (e.g. Alex)"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   autoComplete="name"

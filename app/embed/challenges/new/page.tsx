@@ -90,7 +90,8 @@ export default function NewChallengePage() {
   const [isPublic,     setIsPublic]     = useState(true);
   const [hasTeams,     setHasTeams]     = useState(false);
   const [scoringType,  setScoringType]  = useState("simple");
-  const [targetUnit,   setTargetUnit]   = useState<string>("");
+  const [targetUnit,       setTargetUnit]       = useState<string>("");
+  const [scoringDirection, setScoringDirection] = useState<"asc" | "desc">("desc");
   const [submitting,   setSubmitting]   = useState(false);
   const [error,        setError]        = useState("");
   const [dailyTarget, setDailyTarget] = useState<string>(""); 
@@ -186,7 +187,8 @@ export default function NewChallengePage() {
         creatorId:   session.user.id,
         isPublic,
         isOngoing,                // ← ADD
-        scoringType: scoringType === "progressive_exercise" ? "progressive" : scoringType,
+        scoringType:      scoringType === "progressive_exercise" ? "progressive" : scoringType,
+        scoringDirection: scoringType === "time" ? scoringDirection : undefined,
         hasTeams,
         dailyTarget: scoringType === "progressive_exercise" ? parseInt(dailyTarget, 10) : undefined,
         targetUnit:  targetUnit || undefined,
@@ -387,7 +389,7 @@ export default function NewChallengePage() {
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
-                      className="rounded-xl border border-slate-200 bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-2 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
                     />
                   </div>
 
@@ -401,7 +403,7 @@ export default function NewChallengePage() {
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
-                      className={`rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-2 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
                         isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
                       }`}
                     />
@@ -656,7 +658,7 @@ export default function NewChallengePage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
                   Unit
                 </label>
-                <div className="grid grid-cols-2 gap-3 overflow-hidden">
+                <div className="grid grid-cols-2 gap-2 overflow-hidden">
                   {unitOptions.map((opt) => (
                     <button
                       key={opt.value}
@@ -675,7 +677,33 @@ export default function NewChallengePage() {
                     </button>
                   ))}
                 </div>
-
+                  {scoringType === "time" && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">
+                        Ranking Direction
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { value: "asc",  label: "⚡ Fastest",  desc: "Lower time = higher rank" },
+                          { value: "desc", label: "⏱️ Longest",  desc: "More time = higher rank"  },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setScoringDirection(opt.value as "asc" | "desc")}
+                            className={`px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                              scoringDirection === opt.value
+                                ? "border-slate-800 bg-slate-50 text-slate-900"
+                                : "border-slate-200 text-slate-500 hover:border-slate-300"
+                            }`}
+                          >
+                            <p className="font-bold text-sm">{opt.label}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{opt.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 {targetUnit && (
                   <div
                     className="mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2"
