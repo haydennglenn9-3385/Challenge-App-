@@ -34,75 +34,93 @@ export default function AuthPage() {
   async function handleEmailAuth() {
     clearState();
 
-    if (!email || !password) {
-      setError("Please enter your email and password.");
+    if (!email.trim()) {
+      setError("Please enter your email address.");
       return;
     }
 
-    if (mode === "signup" && !displayName.trim()) {
-      setError("Please enter a display name.");
-      return;
-    }
-    
-    if (mode === "signup" && !agreed) {
-      setError("Please agree to the terms to create an account.");
+    if (!password) {
+      setError("Please enter your password.");
       return;
     }
 
-    if (mode === "signup" && password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
+    if (mode === "signup") {
+      if (!displayName.trim()) {
+        setError("Display name is required — this is how you'll appear to the community.");
+        return;
+      }
+      if (!agreed) {
+        setError("Please agree to the terms to create an account.");
+        return;
+      }
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
+        return;
+      }
     }
 
     setLoading(true);
 
     if (mode === "login") {
       const { error: err } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
       if (err) {
         setError(err.message);
       } else {
-        window.location.href = "/embed/profile";
+        window.location.href = "/embed/dashboard";
       }
     } else {
-        const { data, error: err } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { display_name: displayName.trim() },
-          },
-        });
+      const trimmedName = displayName.trim();
+      const trimmedEmail = email.trim();
 
-        if (err) {
-          setError(err.message);
-        } else if (data.user && !data.session) {
-          // Email confirmation required — still create the profile row
-          await supabase.from("users").upsert({
-            id:           data.user.id,
-            email:        email.trim(),
-            name:         displayName.trim(),
-            total_points: 0,
-            streak:       0,
+      const { data, error: err } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: {
+          data: {
+            display_name: trimmedName,
+            name: trimmedName,
+          },
+        },
+      });
+
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Always upsert the profile immediately — covers both confirmation flows
+        const { error: profileError } = await supabase.from("users").upsert(
+          {
+            id:            data.user.id,
+            email:         trimmedEmail,
+            name:          trimmedName,
+            total_points:  0,
+            streak:        0,
             global_points: 0,
-          }, { onConflict: "id" });
+          },
+          { onConflict: "id" }
+        );
+
+        if (profileError) {
+          console.error("Profile upsert error:", profileError);
+        }
+
+        if (!data.session) {
+          // Email confirmation required
           setSuccess("Check your email to confirm your account, then log in.");
           setMode("login");
-        } else if (data.user && data.session) {
-          // No confirmation needed — create profile and redirect
-          await supabase.from("users").upsert({
-            id:           data.user.id,
-            email:        email.trim(),
-            name:         displayName.trim(),
-            total_points: 0,
-            streak:       0,
-            global_points: 0,
-          }, { onConflict: "id" });
+        } else {
+          // Logged in immediately
           window.location.href = "/embed/dashboard";
         }
       }
+    }
 
     setLoading(false);
   }
@@ -162,9 +180,23 @@ export default function AuthPage() {
           transition: border-color 0.15s;
           color: #0e0e0e;
         }
-
         .input-field:focus { border-color: #7b2d8b; }
         .input-field::placeholder { color: #aaa; }
+
+        .input-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          display: block;
+          margin-bottom: 6px;
+        }
+
+        .required-star {
+          color: #ff3c5f;
+          margin-left: 2px;
+        }
 
         .primary-btn {
           width: 100%;
@@ -180,7 +212,6 @@ export default function AuthPage() {
           transition: opacity 0.15s, transform 0.15s;
           letter-spacing: 0.3px;
         }
-
         .primary-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
         .primary-btn:disabled { opacity: 0.5; cursor: default; }
 
@@ -197,7 +228,6 @@ export default function AuthPage() {
           transition: background 0.15s, color 0.15s;
           color: #999;
         }
-
         .tab.active {
           background: #0e0e0e;
           color: #fff;
@@ -212,7 +242,6 @@ export default function AuthPage() {
           font-size: 13px;
           line-height: 1.4;
         }
-
         .success-box {
           background: #f0fff8;
           border: 1px solid #b7f5d8;
@@ -227,156 +256,120 @@ export default function AuthPage() {
           display: flex; align-items: flex-start; gap: 10px;
           cursor: pointer;
         }
-
         .checkbox-row input[type="checkbox"] {
           width: 18px; height: 18px; margin-top: 1px;
           accent-color: #7b2d8b; cursor: pointer; flex-shrink: 0;
         }
-
         .checkbox-label {
           font-size: 12px; color: #555; line-height: 1.5;
         }
-
         .checkbox-label a {
           color: #7b2d8b; text-decoration: none; font-weight: 600;
         }
-
         .checkbox-label a:hover { text-decoration: underline; }
       `}</style>
 
-      {/* Full page */}
       <div style={{ minHeight: "100dvh", width: "100%", display: "flex", flexDirection: "column" }}>
         {/* Rainbow strip */}
-        <div
-          style={{
-            height: 5,
-            width: "100%",
-            flexShrink: 0,
-            background:
-              "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
-            backgroundSize: "200% 100%",
-            animation: "rainbowShift 4s linear infinite",
-          }}
-        />
+        <div style={{
+          height: 5, width: "100%", flexShrink: 0,
+          background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b,#ff3c5f)",
+          backgroundSize: "200% 100%",
+          animation: "rainbowShift 4s linear infinite",
+        }} />
 
-        {/* Centered content */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "32px 20px",
-          }}
-        >
+        <div style={{
+          flex: 1, display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: "32px 20px",
+        }}>
           {/* Logo */}
           <div style={{ marginBottom: 28, textAlign: "center" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏳️‍🌈</div>
-            <div
-              style={{
-                fontFamily: "var(--font-inter), system-ui, sans-serif" ,
-                fontSize: 15,
-                letterSpacing: 3,
-                color: "#7b2d8b",
-                opacity: 0.85,
-              }}
-            >
+            <div style={{
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 15, letterSpacing: 3, color: "#7b2d8b", opacity: 0.85,
+            }}>
               QUEERS & ALLIES FITNESS
             </div>
           </div>
 
           <div className="auth-card">
             {/* Mode tabs */}
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                background: "rgba(0,0,0,0.06)",
-                borderRadius: 14,
-                padding: 4,
-                marginBottom: 24,
-              }}
-            >
-              <button
-                className={`tab ${mode === "login" ? "active" : ""}`}
-                onClick={() => switchMode("login")}
-              >
-                Log In
-              </button>
-              <button
-                className={`tab ${mode === "signup" ? "active" : ""}`}
-                onClick={() => switchMode("signup")}
-              >
-                Sign Up
-              </button>
+            <div style={{
+              display: "flex", gap: 6,
+              background: "rgba(0,0,0,0.06)",
+              borderRadius: 14, padding: 4, marginBottom: 24,
+            }}>
+              <button className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => switchMode("login")}>Log In</button>
+              <button className={`tab ${mode === "signup" ? "active" : ""}`} onClick={() => switchMode("signup")}>Sign Up</button>
             </div>
 
             {/* Heading */}
             <div style={{ marginBottom: 20 }}>
-              <h1
-                style={{
-                  fontFamily: "var(--font-inter), system-ui, sans-serif" ,
-                  fontSize: 26,
-                  letterSpacing: 1,
-                  color: "#0e0e0e",
-                  lineHeight: 1.1,
-                }}
-              >
+              <h1 style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 26, letterSpacing: 1, color: "#0e0e0e", lineHeight: 1.1 }}>
                 {isSignup ? "Create your account" : "Welcome back"}
               </h1>
               <p style={{ fontSize: 13, color: "#777", marginTop: 4 }}>
-                {isSignup
-                  ? "Join the Queers & Allies community."
-                  : "Log in to track your challenges and streak."}
+                {isSignup ? "Join the Queers & Allies community." : "Log in to track your challenges and streak."}
               </p>
             </div>
 
-            {/* Error / success */}
-            {error && (
-              <div className="error-box" style={{ marginBottom: 16 }}>
-                ⚠️ {error}
-              </div>
-            )}
-            {success && (
-              <div className="success-box" style={{ marginBottom: 16 }}>
-                ✅ {success}
-              </div>
-            )}
+            {error && <div className="error-box" style={{ marginBottom: 16 }}>⚠️ {error}</div>}
+            {success && <div className="success-box" style={{ marginBottom: 16 }}>✅ {success}</div>}
 
-            {/* Form fields */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* Display name — signup only, required */}
               {isSignup && (
-                <input
-                  className="input-field"
-                  type="text"
-                  placeholder="Display name (e.g. Alex)"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  autoComplete="name"
-                />
+                <div>
+                  <label className="input-label">
+                    Display Name <span className="required-star">*</span>
+                  </label>
+                  <input
+                    className="input-field"
+                    type="text"
+                    placeholder="How you'll appear to the community"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    autoComplete="name"
+                    autoFocus
+                  />
+                  <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                    This shows on the leaderboard and activity feed
+                  </p>
+                </div>
               )}
 
-              <input
-                className="input-field"
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
+              {/* Email */}
+              <div>
+                {isSignup && <label className="input-label">Email <span className="required-star">*</span></label>}
+                <input
+                  className="input-field"
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  autoFocus={!isSignup}
+                />
+              </div>
 
-              <input
-                className="input-field"
-                type="password"
-                placeholder={isSignup ? "Password (8+ characters)" : "Password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={isSignup ? "new-password" : "current-password"}
-                onKeyDown={(e) => e.key === "Enter" && handleEmailAuth()}
-              />
+              {/* Password */}
+              <div>
+                {isSignup && <label className="input-label">Password <span className="required-star">*</span></label>}
+                <input
+                  className="input-field"
+                  type="password"
+                  placeholder={isSignup ? "Password (8+ characters)" : "Password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  onKeyDown={(e) => e.key === "Enter" && handleEmailAuth()}
+                />
+              </div>
 
-              {/* Terms checkbox — signup only */}
+              {/* Terms — signup only */}
               {isSignup && (
                 <label className="checkbox-row">
                   <input
@@ -386,23 +379,13 @@ export default function AuthPage() {
                   />
                   <span className="checkbox-label">
                     I agree to the{" "}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer">
-                      Terms of Service
-                    </a>{" "}
-                    and{" "}
-                    <a
-                      href="/privacy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Privacy Policy
-                    </a>
-                    .
+                    <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+                    {" "}and{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
                   </span>
                 </label>
               )}
 
-              {/* Primary CTA */}
               <button
                 className="primary-btn"
                 onClick={handleEmailAuth}
@@ -416,30 +399,18 @@ export default function AuthPage() {
               {!isSignup && (
                 <button
                   onClick={async () => {
-                    if (!email) {
-                      setError("Enter your email above first.");
-                      return;
-                    }
+                    if (!email.trim()) { setError("Enter your email above first."); return; }
                     clearState();
-                    const { error: err } =
-                      await supabase.auth.resetPasswordForEmail(email, {
-                        redirectTo: `${window.location.origin}/auth/reset`,
-                      });
+                    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+                      redirectTo: `${window.location.origin}/auth/reset`,
+                    });
                     if (err) setError(err.message);
-                    else
-                      setSuccess(
-                        "Password reset email sent — check your inbox."
-                      );
+                    else setSuccess("Password reset email sent — check your inbox.");
                   }}
                   style={{
-                    background: "none",
-                    border: "none",
-                    color: "#7b2d8b",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    textAlign: "center",
-                    fontFamily: "var(--font-inter), system-ui, sans-serif",
+                    background: "none", border: "none", color: "#7b2d8b",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    textAlign: "center", fontFamily: "var(--font-inter), system-ui, sans-serif",
                   }}
                 >
                   Forgot password?
@@ -448,24 +419,13 @@ export default function AuthPage() {
             </div>
 
             {/* Footer switch */}
-            <p
-              style={{
-                marginTop: 20,
-                fontSize: 13,
-                color: "#777",
-                textAlign: "center",
-              }}
-            >
+            <p style={{ marginTop: 20, fontSize: 13, color: "#777", textAlign: "center" }}>
               {isSignup ? "Already have an account? " : "Don't have an account? "}
               <button
                 onClick={() => switchMode(isSignup ? "login" : "signup")}
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "#7b2d8b",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontSize: 13,
+                  background: "none", border: "none", color: "#7b2d8b",
+                  fontWeight: 700, cursor: "pointer", fontSize: 13,
                   fontFamily: "var(--font-inter), system-ui, sans-serif",
                 }}
               >

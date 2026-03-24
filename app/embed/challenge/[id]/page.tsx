@@ -185,7 +185,7 @@ export default function ChallengeDetailPage() {
   const progressionType = challenge?.progression_type ?? "daily";
   const everyXDays     = challenge?.progression_interval_days ?? null;
   // For reps-type challenges, always show the input (default target to 1 if not set)
-  const isRepsBased    = scoringType === "reps";
+  const isRepsBased = scoringType === "reps" || scoringType === "steps";
   const hasTarget      = (dailyTarget > 0 || isRepsBased) && !isTimed && !isProgressive;
   const effectiveDefaultTarget = hasTarget && dailyTarget === 0 ? 10000 : dailyTarget; // steps default 10k
   const hasTeams       = challenge?.has_teams ?? false;
@@ -202,7 +202,11 @@ export default function ChallengeDetailPage() {
   const effectiveTarget  = challenge
     ? (getEffectiveTarget(todayStr, startDate, dailyTarget, scoringType, progressionType) || (isRepsBased ? 10000 : 1))
     : (dailyTarget || 1);
-  const previousBestSeconds = useMemo(() => {
+  const isLargeUnit = ["steps", "mi", "miles", "km", "m", "yd", "calories"].includes(
+    (targetUnit || "").toLowerCase()
+  );
+  const useTextInput = isLargeUnit || effectiveTarget >= 5;
+    const previousBestSeconds = useMemo(() => {
     if (!isTimed) return null;
     const times = challengeLogs
       .filter(l => !l.log_type || l.log_type === "daily")
@@ -915,24 +919,86 @@ async function handleJoin() {
                         </div>
                       ) : hasTarget ? (
                         <div style={{ marginBottom: 16 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                            <button className="stepper-btn" onClick={() => setInputValue(v => Math.max(0, v - 1))}>−</button>
-                            <div style={{ flex: 1, textAlign: "center" }}>
-                              <p style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 900, color: "#0e0e0e", lineHeight: 1 }}>{inputValue}</p>
-                              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>/ {effectiveTarget} {targetUnit}</p>
+                          <label style={{
+                            fontSize: 12, fontWeight: 700, color: "#94a3b8",
+                            display: "block", marginBottom: 8,
+                            textTransform: "uppercase" as const, letterSpacing: 0.5,
+                          }}>
+                            Your {targetUnit || "reps"} today
+                          </label>
+
+                          {useTextInput ? (
+                            <div>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                value={inputValue === 0 ? "" : inputValue}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  setInputValue(isNaN(v) ? 0 : v);
+                                }}
+                                placeholder={`e.g. ${effectiveTarget.toLocaleString()}`}
+                                style={{
+                                  width: "100%", padding: "14px 16px", borderRadius: 16,
+                                  border: "1.5px solid #e5e7eb", fontSize: 24, fontWeight: 700,
+                                  outline: "none", textAlign: "center" as const,
+                                  boxSizing: "border-box" as const, color: "#0e0e0e",
+                                  transition: "border-color 0.15s",
+                                }}
+                                onFocus={(e) => (e.target.style.borderColor = "#7b2d8b")}
+                                onBlur={(e)  => (e.target.style.borderColor = "#e5e7eb")}
+                              />
+                              {inputValue > 0 && (
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 4 }}>
+                                    <span>{inputValue.toLocaleString()} {targetUnit || "reps"}</span>
+                                    <span>Goal: {effectiveTarget.toLocaleString()}</span>
+                                  </div>
+                                  <div style={{ height: 6, borderRadius: 99, background: "#f1f5f9", overflow: "hidden" }}>
+                                    <div style={{
+                                      height: "100%", borderRadius: 99,
+                                      width: `${Math.min(100, (inputValue / effectiveTarget) * 100)}%`,
+                                      transition: "width 0.3s ease",
+                                      background: inputValue >= effectiveTarget
+                                        ? "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
+                                        : "linear-gradient(90deg,#48cfad,#667eea)",
+                                    }} />
+                                  </div>
+                                  {inputValue >= effectiveTarget && (
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: "#48cfad", textAlign: "center" as const, marginTop: 4 }}>
+                                      🎉 Goal reached!
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <button className="stepper-btn" onClick={() => setInputValue(v => v + 1)}>+</button>
-                          </div>
-                          <div style={{ height: 6, borderRadius: 99, background: "#f1f5f9", overflow: "hidden" }}>
-                            <div style={{
-                              height: "100%", borderRadius: 99,
-                              width: `${Math.min(100, (inputValue / effectiveTarget) * 100)}%`,
-                              transition: "width 0.2s ease",
-                              background: inputValue >= effectiveTarget
-                                ? "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
-                                : "linear-gradient(90deg,#48cfad,#667eea)",
-                            }} />
-                          </div>
+                          ) : (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                                <button className="stepper-btn" onClick={() => setInputValue(v => Math.max(0, v - 1))}>−</button>
+                                <div style={{ flex: 1, textAlign: "center" as const }}>
+                                  <p style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 900, color: "#0e0e0e", lineHeight: 1 }}>
+                                    {inputValue}
+                                  </p>
+                                  <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                                    / {effectiveTarget} {targetUnit || "reps"}
+                                  </p>
+                                </div>
+                                <button className="stepper-btn" onClick={() => setInputValue(v => v + 1)}>+</button>
+                              </div>
+                              <div style={{ height: 6, borderRadius: 99, background: "#f1f5f9", overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", borderRadius: 99,
+                                  width: `${Math.min(100, (inputValue / effectiveTarget) * 100)}%`,
+                                  transition: "width 0.2s ease",
+                                  background: inputValue >= effectiveTarget
+                                    ? "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
+                                    : "linear-gradient(90deg,#48cfad,#667eea)",
+                                }} />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : null}
                       <button onClick={handleCheckIn} disabled={checkingIn || (hasTarget && inputValue === 0)}

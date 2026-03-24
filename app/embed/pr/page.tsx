@@ -36,55 +36,86 @@ interface PR {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getEmoji(type: string) {
-  return PRESET_TYPES.find(p => p.type === type)?.emoji || "✨";
+function normalizeUnit(unit: string): string {
+  const map: Record<string, string> = { secs: "sec", mins: "min", hrs: "hr" };
+  return map[unit] ?? unit;
 }
-
-// FIX: Display time as both minutes AND seconds (e.g. "5:32" not just "5" or "332")
-function formatValue(value: number, unit: string) {
-  if (unit === "min") {
+ 
+function isTimedUnit(unit: string): boolean {
+  return ["sec", "secs", "min", "mins", "hr", "hrs"].includes(unit);
+}
+ 
+/** Always renders time as m:ss regardless of input unit */
+function formatValue(value: number, unit: string): string {
+  const u = normalizeUnit(unit);
+ 
+  if (u === "sec") {
+    const totalSecs = Math.round(value);
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+ 
+  if (u === "min") {
     const totalSecs = Math.round(value * 60);
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins}:${String(secs).padStart(2, "0")}`;
   }
-  if (unit === "sec") {
-    const mins = Math.floor(value / 60);
-    const secs = Math.round(value % 60);
-    if (mins > 0) return `${mins}:${String(secs).padStart(2, "0")}`;
-    return `${Math.round(value)}s`;
+ 
+  if (u === "hr") {
+    const totalMins = Math.round(value * 60);
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
   }
-  return `${value}`;
+ 
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
-
+ 
+/** Unit display label shown next to the value */
+function unitLabel(unit: string): string {
+  const u = normalizeUnit(unit);
+  const labels: Record<string, string> = {
+    sec: "m:ss", min: "m:ss", hr: "hrs",
+    lbs: "lbs", kg: "kg", reps: "reps",
+    sets: "sets", miles: "mi", km: "km",
+  };
+  return labels[u] ?? unit;
+}
+ 
 function parseTimeInput(raw: string, unit: string): number {
+  const u = normalizeUnit(unit);
   const trimmed = raw.trim();
   if (trimmed.includes(":")) {
     const [left, right] = trimmed.split(":").map((s) => parseInt(s, 10));
     const mins = isNaN(left) ? 0 : left;
     const secs = isNaN(right) ? 0 : right;
-    return unit === "min" ? mins + secs / 60 : mins * 60 + secs;
+    // Store in the native unit
+    if (u === "sec") return mins * 60 + secs;   // store as total seconds
+    if (u === "min") return mins + secs / 60;    // store as fractional minutes
+    return mins * 60 + secs;
   }
   return parseFloat(trimmed) || 0;
 }
-
-function formatDate(d: string) {
-  if (!d) return "";
-  const date = d.includes("T") ? new Date(d) : new Date(d + "T12:00:00");
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
+ 
 function getBestPerType(prs: PR[]): Record<string, PR> {
   const best: Record<string, PR> = {};
   for (const pr of prs) {
     const existing = best[pr.type];
     if (!existing) { best[pr.type] = pr; continue; }
-    const isTimed = pr.unit === "min" || pr.unit === "sec";
+    const isTimed = isTimedUnit(pr.unit);
     if (isTimed ? pr.value < existing.value : pr.value > existing.value) {
       best[pr.type] = pr;
     }
   }
   return best;
+}
+ 
+function formatDate(d: string) {
+  if (!d) return "";
+  const date = d.includes("T") ? new Date(d) : new Date(d + "T12:00:00");
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -239,6 +270,10 @@ export default function PRPage() {
     </div>
   );
 
+  function getEmoji(showHistory: string): import("react").ReactNode {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <>
       <style>{`
@@ -367,6 +402,10 @@ export default function PRPage() {
               const improved = hasDelta && (isTimed ? pr.value < pr.previous_value! : pr.value > pr.previous_value!);
               const delta    = hasDelta ? Math.abs(pr.value - pr.previous_value!) : null;
 
+              function getEmoji(type: string): import("react").ReactNode {
+                throw new Error("Function not implemented.");
+              }
+
               return (
                 <div
                   key={pr.type}
@@ -384,7 +423,7 @@ export default function PRPage() {
                       {formatValue(pr.value, pr.unit)}
                     </p>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>
-                      {isTimed ? (pr.unit === "min" ? "min:sec" : "m:ss") : pr.unit}
+                      {isTimedUnit(pr.unit) ? "m:ss" : pr.unit}
                     </p>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{formatDate(pr.date)}</p>
@@ -586,7 +625,7 @@ export default function PRPage() {
                       <p style={{ fontWeight: 800, fontSize: 18, color: "#0e0e0e" }}>
                         {formatValue(pr.value, pr.unit)}
                         <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 4, fontWeight: 600 }}>
-                          {isTimed ? (pr.unit === "min" ? "min:sec" : "m:ss") : pr.unit}
+                          {isTimedUnit(pr.unit) ? "m:ss" : pr.unit}
                         </span>
                       </p>
                       {isBest && <span style={{ fontSize: 14 }}>🥇</span>}

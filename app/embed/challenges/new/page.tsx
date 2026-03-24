@@ -20,6 +20,7 @@ const SCORING_SYSTEMS = [
   { value: "time",                 label: "Time",              description: "Track duration" },
   { value: "distance",             label: "Distance",          description: "Track distance covered" },
   { value: "weight",               label: "Weight",            description: "Track weight lifted" },
+{ value: "steps", label: "Steps", description: "Daily step count tracking" },
 ];
 
 const DURATION_PRESETS = [
@@ -379,8 +380,8 @@ export default function NewChallengePage() {
               </>
             ) : (
               <div className="space-y-3">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       Start Date
                     </label>
@@ -388,25 +389,55 @@ export default function NewChallengePage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      style={{ boxSizing: "border-box", width: "100%", minWidth: 0 }}
-                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-2 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box" as const,
+                        padding: "10px 8px",
+                        borderRadius: 14,
+                        border: "1.5px solid #e2e8f0",
+                        background: "rgba(255,255,255,0.8)",
+                        fontSize: 13,
+                        fontFamily: "var(--font-inter), system-ui, sans-serif",
+                        outline: "none",
+                        color: "#0e0e0e",
+                        WebkitAppearance: "none",
+                      }}
                     />
                   </div>
-
-                  <div style={{ minWidth: 0 }}>
+                
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                      End Date
+                      End Date{" "}
+                      {isOngoing && (
+                        <span style={{ textTransform: "none", fontWeight: 400, color: "#94a3b8" }}>
+                          (ongoing)
+                        </span>
+                      )}
                     </label>
                     <input
-                    type="date"
-                    disabled={isOngoing}
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    style={{ boxSizing: "border-box", minWidth: 0 }}
-                    className={`w-full rounded-xl border bg-white/80 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 ${
-                      isOngoing ? "border-slate-100 text-slate-300" : "border-slate-200"
-                    }`}
-                  />
+                      type="date"
+                      disabled={isOngoing}
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box" as const,
+                        padding: "10px 8px",
+                        borderRadius: 14,
+                        border: "1.5px solid #e2e8f0",
+                        background: isOngoing ? "#f8fafc" : "rgba(255,255,255,0.8)",
+                        fontSize: 13,
+                        fontFamily: "var(--font-inter), system-ui, sans-serif",
+                        outline: "none",
+                        color: isOngoing ? "#cbd5e1" : "#0e0e0e",
+                        cursor: isOngoing ? "not-allowed" : "auto",
+                        WebkitAppearance: "none",
+                      }}
+                    />
                   </div>
                 </div>
 

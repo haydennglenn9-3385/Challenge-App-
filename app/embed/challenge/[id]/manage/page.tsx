@@ -438,14 +438,31 @@ export default function ManageChallengePage() {
     (async () => {
       setLoading(true);
 
-      const { data: ch } = await supabase
-        .from("challenges")
-        .select("*")
-        .eq("id", challengeId)
-        .single();
+      const [{ data: { user: currentUser } }, { data: ch }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("challenges").select("*").eq("id", challengeId).single(),
+      ]);
+
+      // Auth guard
+      if (!currentUser) {
+        router.push("/auth");
+        return;
+      }
 
       if (!ch) {
         router.push("/embed/dashboard");
+        return;
+      }
+
+      // Only allow creator or admin
+      const { data: userProfile } = await supabase
+        .from("users").select("role").eq("id", currentUser.id).single();
+
+      const isCreator = ch.creator_id === currentUser.id;
+      const isAdmin   = userProfile?.role === "admin";
+
+      if (!isCreator && !isAdmin) {
+        router.push(`/embed/challenge/${challengeId}`);
         return;
       }
 

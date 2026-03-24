@@ -1,5 +1,6 @@
 "use client";
 // app/embed/profile/edit/page.tsx — Edit Profile
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -21,18 +22,19 @@ export default function EditProfilePage() {
   const [pwSuccess, setPwSuccess]   = useState("");
   const [pwError, setPwError]       = useState("");
 
-  const [name, setName]               = useState("");
-  const [email, setEmail]             = useState("");
-  const [newEmail, setNewEmail]       = useState("");
-  const [avatarEmoji, setAvatarEmoji] = useState("😊");
-  const [newPassword, setNewPassword]         = useState("");
+  const [userId, setUserId]               = useState("");
+  const [name, setName]                   = useState("");
+  const [email, setEmail]                 = useState("");
+  const [newEmail, setNewEmail]           = useState("");
+  const [avatarEmoji, setAvatarEmoji]     = useState("😊");
+  const [newPassword, setNewPassword]     = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
-
+      setUserId(user.id);
       setEmail(user.email || "");
       setNewEmail(user.email || "");
 
@@ -48,6 +50,11 @@ export default function EditProfilePage() {
   }, []);
 
   async function handleSaveProfile() {
+    if (!name.trim()) {
+      setErrorMsg("Display name cannot be empty.");
+      return;
+    }
+
     setSuccessMsg("");
     setErrorMsg("");
     setSaving(true);
@@ -55,7 +62,7 @@ export default function EditProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    // Update display name + avatar in users table
+    // 1. Update users table
     const { error: dbError } = await supabase
       .from("users")
       .update({ name: name.trim(), avatar_emoji: avatarEmoji })
@@ -63,7 +70,19 @@ export default function EditProfilePage() {
 
     if (dbError) { setErrorMsg(dbError.message); setSaving(false); return; }
 
-    // If email changed, update via Supabase auth
+    // 2. Retroactively update their name in the activity feed
+    await supabase
+      .from("activity_feed")
+      .update({ user_name: name.trim() })
+      .eq("user_id", user.id);
+
+    // 3. Update emoji in activity feed too
+    await supabase
+      .from("activity_feed")
+      .update({ emoji_avatar: avatarEmoji })
+      .eq("user_id", user.id);
+
+    // 4. Handle email change
     if (newEmail.trim() && newEmail.trim() !== email) {
       const { error: emailError } = await supabase.auth.updateUser({ email: newEmail.trim() });
       if (emailError) {
@@ -129,9 +148,13 @@ export default function EditProfilePage() {
           display: flex; align-items: center; justify-content: center;
           transition: border-color 0.15s, background 0.15s;
         }
-        .emoji-option.selected {
-          border-color: #7b2d8b; background: #f3e8ff;
+        .emoji-option.selected { border-color: #7b2d8b; background: #f3e8ff; }
+        .field-label {
+          font-size: 11px; font-weight: 700; color: #64748b;
+          text-transform: uppercase; letter-spacing: 0.08em;
+          display: block; margin-bottom: 6px;
         }
+        .required-star { color: #ff3c5f; margin-left: 2px; }
       `}</style>
 
       <div style={{
@@ -153,7 +176,7 @@ export default function EditProfilePage() {
             >
               ← Back
             </button>
-            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" , fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
+            <div style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", fontSize: 26, letterSpacing: 1, color: "#0e0e0e" }}>
               Edit Profile
             </div>
           </div>
@@ -162,17 +185,15 @@ export default function EditProfilePage() {
           <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(16px)", borderRadius: 20, padding: 20, marginBottom: 16, boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
             <p style={{ fontSize: 13, fontWeight: 800, color: "#0e0e0e", marginBottom: 16 }}>Profile Info</p>
 
-            {/* Avatar preview + picker */}
+            {/* Avatar picker */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 10 }}>Avatar</label>
-              {/* Preview */}
+              <label className="field-label">Avatar</label>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flexShrink: 0 }}>
                   {avatarEmoji}
                 </div>
                 <p style={{ fontSize: 12, color: "#888" }}>Tap an emoji below to choose your avatar</p>
               </div>
-              {/* Picker grid */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {EMOJI_OPTIONS.map((emoji) => (
                   <button
@@ -186,9 +207,12 @@ export default function EditProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Display name */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Display Name</label>
+                <label className="field-label">
+                  Display Name <span className="required-star">*</span>
+                </label>
                 <input
                   className="edit-input"
                   type="text"
@@ -196,10 +220,14 @@ export default function EditProfilePage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="How you'll appear to others"
                 />
+                <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                  Updating this will also update your name on past activity feed posts.
+                </p>
               </div>
 
+              {/* Email */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Email</label>
+                <label className="field-label">Email</label>
                 <input
                   className="edit-input"
                   type="email"
@@ -226,7 +254,7 @@ export default function EditProfilePage() {
                 </div>
               )}
 
-              <button className="save-btn" onClick={handleSaveProfile} disabled={saving}>
+              <button className="save-btn" onClick={handleSaveProfile} disabled={saving || !name.trim()}>
                 {saving ? "Saving…" : "Save Changes"}
               </button>
             </div>
@@ -238,16 +266,15 @@ export default function EditProfilePage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>New Password</label>
+                <label className="field-label">New Password</label>
                 <input
                   className="edit-input" type="password" value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="8+ characters" autoComplete="new-password"
                 />
               </div>
-
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#555", display: "block", marginBottom: 6 }}>Confirm Password</label>
+                <label className="field-label">Confirm Password</label>
                 <input
                   className="edit-input" type="password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
