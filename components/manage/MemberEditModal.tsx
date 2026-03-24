@@ -102,7 +102,7 @@ export default function MemberEditModal({
         {/* Rainbow strip */}
         <div style={{ height: 4, background: "linear-gradient(90deg,#ff3c5f,#ff8c42,#ffd166,#06d6a0,#118ab2,#7b2d8b)" }} />
 
-        <div className="p-6 space-y-5 max-h-[85dvh] overflow-y-auto">
+        <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: "80dvh", paddingBottom: "max(24px, env(safe-area-inset-bottom, 24px))" }}>
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -214,7 +214,7 @@ export default function MemberEditModal({
 
           {/* ── Admin-only: Hard delete ── */}
           {isAdmin && onDelete && (
-            <div className="pt-1 border-t border-slate-100">
+            <div className="pt-1 border-t border-slate-100 mb-4">
               {!confirmDelete ? (
                 <button
                   onClick={() => setConfirmDelete(true)}
