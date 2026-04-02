@@ -44,7 +44,7 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   
   if (!user) return { success: false, error: "Not authenticated" };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date());
 
 // ── Fetch profile ────────────────────────────────────────────────────────
 const { data: existingProfile, error: profileFetchError } = await supabaseAdmin
@@ -93,9 +93,9 @@ if (!profile) {
   }
 
   // ── Streak calculation ───────────────────────────────────────────────────
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(yesterdayDate);
 
   const newStreak =
     profile.last_checkin_date === yesterdayStr
@@ -168,7 +168,7 @@ export async function getCheckinStatus(): Promise<{
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { checkedInToday: false, streak: 0 };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date());
 
   const { data } = await supabaseAdmin
     .from("users")
