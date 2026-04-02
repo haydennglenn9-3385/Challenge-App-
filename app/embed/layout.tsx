@@ -51,7 +51,6 @@ const ADMIN_ITEM = { label: "Admin", icon: "⚙️", path: "/embed/admin" };
 // ─── Admin hook ───────────────────────────────────────────────────────────────
 import { supabase } from "@/lib/supabase/client";
 import { useUser } from "@/lib/UserContext";
-import OnboardingModal from "@/components/OnboardingModal";
 
 function useIsAdmin() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -617,19 +616,13 @@ function Sidebar() {
   );
 }
 
-// ─── Onboarding ───────────────────────────────────────────────────────────────
-function OnboardingWrapper() {
-  const { user, isLoading } = useUser();
-  if (isLoading || !user) return null;
-  return <OnboardingModal userId={user.id} userName={user.name} />;
-}
-
 // ─── Layout ───────────────────────────────────────────────────────────────────
+import OnboardingModal from "@/components/OnboardingModal";
+
 export default function EmbedLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <UserProvider>
-        <OnboardingWrapper />
         <div className="lg:hidden min-h-screen w-full">
           {children}
           <BottomNav />
@@ -645,6 +638,7 @@ export default function EmbedLayout({ children }: { children: React.ReactNode })
             </div>
           </main>
         </div>
+        <OnboardingModal />
       </UserProvider>
     </Suspense>
   );

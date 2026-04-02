@@ -1,140 +1,188 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
-import EmojiAvatarPicker from "@/components/EmojiAvatarPicker";
+import { useUser } from "@/lib/UserContext";
+import { markOnboarded } from "@/app/actions/markOnboarded";
 
-const ONBOARDING_KEY = "qaf_onboarded";
+const EMOJI_CATEGORIES = [
+  {
+    label: "Pride 🏳️‍🌈",
+    emojis: ["🏳️‍🌈", "🏳️‍⚧️", "❤️‍🔥", "💜", "🩷", "🩵", "🤍", "🖤", "💛", "🧡", "❤️", "💙"],
+  },
+  {
+    label: "Fitness 💪",
+    emojis: ["💪", "🏋️", "🤸", "🧘", "🏃", "🚴", "🤾", "⚡", "🔥", "🥊", "🏅", "🎯"],
+  },
+  {
+    label: "Vibes ✨",
+    emojis: ["✨", "🌈", "🦋", "🌸", "🌻", "🌙", "⭐", "💫", "🦄", "🐝", "🌺", "💎"],
+  },
+  {
+    label: "Fun 😄",
+    emojis: ["😎", "🥳", "🤩", "😈", "👾", "🤖", "💀", "🎉", "🍀", "🫶", "✌️", "🤟"],
+  },
+];
 
-interface OnboardingModalProps {
-  userId: string;
-  userName: string;
-}
-
-export default function OnboardingModal({ userId, userName }: OnboardingModalProps) {
+export default function OnboardingModal() {
   const router = useRouter();
-  const [visible, setVisible]     = useState(false);
-  const [step, setStep]           = useState(0); // 0 = welcome, 1 = emoji, 2 = join
+  const { user, needsOnboarding, setOnboarded } = useUser();
+
+  const [step, setStep]           = useState(0);
   const [chosenEmoji, setChosenEmoji] = useState("");
-  const [closing, setClosing]     = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [saving, setSaving]       = useState(false);
 
-  useEffect(() => {
-    // Only show if they haven't been onboarded yet
-    const done = localStorage.getItem(ONBOARDING_KEY);
-    if (!done) setVisible(true);
-  }, []);
+  if (!needsOnboarding || !user) return null;
 
-  const finish = () => {
-    setClosing(true);
-    localStorage.setItem(ONBOARDING_KEY, "1");
-    setTimeout(() => setVisible(false), 300);
-  };
+  const firstName = user.name?.split(" ")[0] || "there";
 
-  const handleGoToChallenges = () => {
-    finish();
+  async function finish(emoji?: string) {
+    setSaving(true);
+    await markOnboarded(emoji || chosenEmoji || undefined);
+    setOnboarded();
+    setSaving(false);
+  }
+
+  async function handleGoToChallenges(emoji?: string) {
+    await finish(emoji);
     router.push("/embed/challenges");
-  };
+  }
 
-  if (!visible) return null;
+  async function handleJoinCode(emoji?: string) {
+    await finish(emoji);
+    router.push("/embed/join");
+  }
+
+  // ── Step content ─────────────────────────────────────────────────────────────
 
   const steps = [
     // Step 0 — Welcome
-    <div key="welcome" style={{ textAlign: "center", padding: "8px 0" }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>🏳️‍🌈</div>
-      <h2 style={{
-        fontFamily: "var(--font-inter), system-ui, sans-serif" ,
-        fontSize: 36,
-        color: "#1a1a1a",
-        lineHeight: 1.1,
-        margin: "0 0 12px",
-        letterSpacing: 0.5,
-      }}>
-        Welcome,<br />
-        <span style={{
-          background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-        }}>
-          {userName.split(" ")[0]}!
-        </span>
-      </h2>
-      <p style={{ color: "#555", fontSize: 15, lineHeight: 1.6, margin: "0 0 28px" }}>
-        You're joining the Queers & Allies Fitness community in Sacramento.
-        Streak-based challenges, team competition, and a crew that keeps you accountable.
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <button onClick={() => setStep(1)} style={primaryBtnStyle}>
-          Let's go →
-        </button>
-      </div>
-    </div>,
-
-    // Step 1 — Pick emoji
-    <div key="emoji" style={{ padding: "8px 0" }}>
-      <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", color: "#8E8E93", margin: "0 0 4px" }}>
-          Step 1 of 2
-        </p>
+    <div key="welcome">
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🏳️‍🌈</div>
         <h2 style={{
-          fontFamily: "var(--font-inter), system-ui, sans-serif" ,
-          fontSize: 28,
-          color: "#1a1a1a",
-          margin: 0,
-          letterSpacing: 0.5,
+          fontSize: 30, fontWeight: 900, color: "#0f172a",
+          margin: "0 0 10px", letterSpacing: -0.5, lineHeight: 1.15,
         }}>
-          Pick Your Avatar
+          Welcome,{" "}
+          <span style={{
+            background: "linear-gradient(135deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>
+            {firstName}!
+          </span>
         </h2>
-        <p style={{ color: "#8E8E93", fontSize: 13, margin: "4px 0 0", fontWeight: 500 }}>
-          Shows on the leaderboard & activity feed
+        <p style={{ color: "#64748b", fontSize: 15, lineHeight: 1.6, margin: 0 }}>
+          You're joining Queers & Allies Fitness — streak-based challenges,
+          team competition, and a crew that keeps you accountable.
         </p>
       </div>
-      <EmojiAvatarPicker
-        userId={userId}
-        currentEmoji={chosenEmoji}
-        onSave={(e) => setChosenEmoji(e)}
-      />
-      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-        <button onClick={() => setStep(2)} style={ghostBtnStyle}>
-          Skip
-        </button>
+      <button onClick={() => setStep(1)} style={primaryBtn}>
+        Let's get started →
+      </button>
+    </div>,
+
+    // Step 1 — Pick avatar
+    <div key="avatar">
+      <div style={{ marginBottom: 20 }}>
+        <p style={stepLabel}>Step 1 of 2</p>
+        <h2 style={stepTitle}>Pick Your Avatar</h2>
+        <p style={stepSub}>Shows on the leaderboard & activity feed</p>
+      </div>
+
+      {/* Preview */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: "50%", flexShrink: 0,
+          background: chosenEmoji
+            ? "linear-gradient(135deg, rgba(255,107,157,0.15), rgba(102,126,234,0.15))"
+            : "#f1f5f9",
+          border: chosenEmoji ? "2.5px solid rgba(255,107,157,0.4)" : "2px solid #e5e7eb",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 32, transition: "all 0.2s",
+        }}>
+          {chosenEmoji || "?"}
+        </div>
+        <p style={{ fontSize: 13, color: "#94a3b8", fontWeight: 600, margin: 0 }}>
+          {chosenEmoji ? "Tap any emoji to change it" : "Tap an emoji below to pick yours"}
+        </p>
+      </div>
+
+      {/* Category tabs */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
+        {EMOJI_CATEGORIES.map((cat, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveTab(i)}
+            style={{
+              padding: "5px 12px", borderRadius: 100, border: "none",
+              fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", cursor: "pointer",
+              background: activeTab === i
+                ? "linear-gradient(135deg, #ff6b9d, #667eea)"
+                : "#f1f5f9",
+              color: activeTab === i ? "white" : "#555",
+            }}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Emoji grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: 20 }}>
+        {EMOJI_CATEGORIES[activeTab].emojis.map((emoji) => (
+          <button
+            key={emoji}
+            onClick={() => setChosenEmoji(emoji)}
+            style={{
+              aspectRatio: "1", borderRadius: 12, border: "none",
+              background: chosenEmoji === emoji
+                ? "linear-gradient(135deg, rgba(255,107,157,0.15), rgba(102,126,234,0.15))"
+                : "#f8f9fa",
+              outline: chosenEmoji === emoji ? "2px solid #ff6b9d" : "2px solid transparent",
+              fontSize: 22, cursor: "pointer",
+              transform: chosenEmoji === emoji ? "scale(1.1)" : "scale(1)",
+              transition: "all 0.12s",
+            }}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <button
-          onClick={() => chosenEmoji ? setStep(2) : setStep(2)}
-          style={primaryBtnStyle}
+          onClick={() => setStep(2)}
+          disabled={!chosenEmoji}
+          style={chosenEmoji ? primaryBtn : primaryBtnDisabled}
         >
-          {chosenEmoji ? "Next →" : "Skip for now →"}
+          Save & Continue →
+        </button>
+        <button onClick={() => setStep(2)} style={ghostBtn}>
+          Skip for now
         </button>
       </div>
     </div>,
 
-    // Step 2 — Join or create
-    <div key="join" style={{ textAlign: "center", padding: "8px 0" }}>
+    // Step 2 — Join a challenge
+    <div key="join" style={{ textAlign: "center" }}>
       <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
-      <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", color: "#8E8E93", margin: "0 0 8px" }}>
-        Step 2 of 2
-      </p>
-      <h2 style={{
-        fontFamily: "var(--font-inter), system-ui, sans-serif" ,
-        fontSize: 28,
-        color: "#1a1a1a",
-        margin: "0 0 10px",
-        letterSpacing: 0.5,
-      }}>
-        Join a Challenge
-      </h2>
-      <p style={{ color: "#555", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
-        Got a code? Enter it to join your crew's challenge. Or browse what's public and dive in.
+      <p style={stepLabel}>Step 2 of 2</p>
+      <h2 style={{ ...stepTitle, marginBottom: 8 }}>Find a Challenge</h2>
+      <p style={{ color: "#64748b", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+        Got a code from your crew? Enter it to join their challenge.
+        Or browse what's open to everyone.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <button onClick={handleGoToChallenges} style={primaryBtnStyle}>
+        <button onClick={() => handleGoToChallenges()} disabled={saving} style={primaryBtn}>
           Browse Challenges
         </button>
-        <button
-          onClick={() => { finish(); router.push("/embed/join"); }}
-          style={ghostBtnStyle}
-        >
+        <button onClick={() => handleJoinCode()} disabled={saving} style={ghostBtn}>
           Enter a Join Code
         </button>
-        <button onClick={finish} style={textBtnStyle}>
+        <button onClick={() => finish()} disabled={saving} style={textBtn}>
           I'll do this later
         </button>
       </div>
@@ -144,62 +192,46 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap');
-        @keyframes modalIn {
-          from { opacity: 0; transform: translateY(40px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes backdropIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        .onboarding-backdrop {
-          position: fixed; inset: 0; z-index: 100;
-          background: rgba(0,0,0,0.5);
-          backdrop-filter: blur(6px);
-          display: flex; align-items: flex-end; justify-content: center;
-          animation: backdropIn 0.25s ease;
-          font-family: var(--font-inter), system-ui, sans-serif;
-        }
-        .onboarding-sheet {
-          width: 100%; max-width: 480px;
-          background: white;
-          border-radius: 28px 28px 0 0;
-          padding: 28px 24px;
-          padding-bottom: max(28px, env(safe-area-inset-bottom));
-          animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-        .onboarding-sheet.closing {
-          animation: none;
-          opacity: 0;
-          transform: translateY(40px);
-          transition: all 0.25s ease;
+        @keyframes qaf-backdrop-in { from { opacity:0 } to { opacity:1 } }
+        @keyframes qaf-card-in {
+          from { opacity:0; transform: translateY(24px) scale(0.97) }
+          to   { opacity:1; transform: translateY(0)    scale(1)    }
         }
       `}</style>
 
-      {/* Backdrop */}
-      <div className="onboarding-backdrop" onClick={(e) => {
-        if (e.target === e.currentTarget && step === 2) finish();
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(0,0,0,0.45)",
+        backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "24px 16px",
+        animation: "qaf-backdrop-in 0.2s ease",
       }}>
-        <div className={`onboarding-sheet ${closing ? "closing" : ""}`}>
+        <div style={{
+          width: "100%", maxWidth: 440,
+          background: "white",
+          borderRadius: 28,
+          padding: "32px 28px",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.18)",
+          animation: "qaf-card-in 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+          fontFamily: "var(--font-inter), system-ui, sans-serif",
+          maxHeight: "calc(100dvh - 48px)",
+          overflowY: "auto",
+        }}>
           {/* Progress dots */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 28 }}>
             {[0, 1, 2].map((i) => (
               <div key={i} style={{
-                width: i === step ? 20 : 6,
-                height: 6,
-                borderRadius: 100,
-                background: i === step
-                  ? "linear-gradient(90deg, #ff6b9d, #667eea)"
+                height: 6, borderRadius: 100,
+                width: i === step ? 24 : 6,
+                background: i <= step
+                  ? "linear-gradient(135deg, #ff6b9d, #667eea)"
                   : "#e5e7eb",
                 transition: "all 0.3s ease",
               }} />
             ))}
           </div>
 
-          {/* Step content */}
           {steps[step]}
         </div>
       </div>
@@ -207,44 +239,43 @@ export default function OnboardingModal({ userId, userName }: OnboardingModalPro
   );
 }
 
-// Shared button styles
-const primaryBtnStyle: React.CSSProperties = {
-  flex: 1,
-  width: "100%",
-  padding: "15px 20px",
-  borderRadius: 14,
-  border: "none",
-  background: "linear-gradient(90deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
-  color: "#1a1a1a",
-  fontSize: 14,
-  fontWeight: 800,
-  cursor: "pointer",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
+// ── Shared button styles ──────────────────────────────────────────────────────
+
+const primaryBtn: React.CSSProperties = {
+  width: "100%", padding: "15px 20px", borderRadius: 14, border: "none",
+  background: "linear-gradient(135deg, #ff6b9d, #ff9f43, #ffdd59, #48cfad, #667eea)",
+  color: "#0f172a", fontSize: 14, fontWeight: 800, cursor: "pointer",
 };
 
-const ghostBtnStyle: React.CSSProperties = {
-  flex: 1,
-  width: "100%",
-  padding: "14px 20px",
-  borderRadius: 14,
-  border: "1.5px solid #e5e7eb",
-  background: "white",
-  color: "#555",
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: "pointer",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
+const primaryBtnDisabled: React.CSSProperties = {
+  ...primaryBtn,
+  background: "#f1f5f9",
+  color: "#94a3b8",
+  cursor: "not-allowed",
 };
 
-const textBtnStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: 14,
-  border: "none",
-  background: "transparent",
-  color: "#aaa",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
+const ghostBtn: React.CSSProperties = {
+  width: "100%", padding: "14px 20px", borderRadius: 14,
+  border: "1.5px solid #e5e7eb", background: "white",
+  color: "#475569", fontSize: 14, fontWeight: 700, cursor: "pointer",
+};
+
+const textBtn: React.CSSProperties = {
+  width: "100%", padding: "10px", borderRadius: 14,
+  border: "none", background: "transparent",
+  color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer",
+};
+
+const stepLabel: React.CSSProperties = {
+  fontSize: 11, fontWeight: 800, letterSpacing: "0.15em",
+  textTransform: "uppercase", color: "#94a3b8", margin: "0 0 4px",
+};
+
+const stepTitle: React.CSSProperties = {
+  fontSize: 26, fontWeight: 900, color: "#0f172a",
+  margin: "0 0 4px", letterSpacing: -0.3,
+};
+
+const stepSub: React.CSSProperties = {
+  fontSize: 13, color: "#94a3b8", fontWeight: 500, margin: 0,
 };

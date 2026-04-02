@@ -10,19 +10,29 @@ export default function HomePage() {
   const [popularChallenges, setPopularChallenges] = useState<any[]>([]);
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [liveStats, setLiveStats] = useState({ teams: 0, challenges: 0, members: 0 });
 
   useEffect(() => {
     setMounted(true);
-    async function loadChallenges() {
-      const { data: challenges } = await supabase
-        .from("challenges")
-        .select(`id, name, start_date, end_date, is_public, challenge_members(count)`)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false })
-        .limit(3);
+    async function loadData() {
+      const [{ data: challenges }, { count: teamCount }, { count: memberCount }] = await Promise.all([
+        supabase
+          .from("challenges")
+          .select(`id, name, start_date, end_date, is_public, challenge_members(count)`)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false })
+          .limit(3),
+        supabase.from("teams").select("id", { count: "exact", head: true }),
+        supabase.from("users").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      ]);
       if (challenges) setPopularChallenges(challenges);
+      setLiveStats({
+        teams: teamCount ?? 0,
+        challenges: challenges?.length ?? 0,
+        members: memberCount ?? 0,
+      });
     }
-    loadChallenges();
+    loadData();
   }, []);
 
   async function handleDashboard() {
@@ -36,9 +46,9 @@ export default function HomePage() {
     Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000));
 
   const stats = [
-    { value: "3", label: "Active Teams" },
-    { value: "21", label: "Day Challenges" },
-    { value: "💪", label: "Sac, CA" },
+    { value: liveStats.teams.toString(), label: "Active Teams" },
+    { value: liveStats.challenges.toString(), label: "Public Challenges" },
+    { value: liveStats.members.toString(), label: "Members" },
   ];
 
   return (

@@ -491,24 +491,19 @@ export default function ManageChallengePage() {
         `)
         .eq("challenge_id", challengeId);
 
-      console.log("Member query result:", { mData, membersError });
-
       if (membersError) {
-        console.error("Error loading members:", membersError);
         alert("Error loading members: " + membersError.message);
       }
 
       if (mData) {
-        console.log("Raw member data:", mData);
         const mapped: Member[] = mData.map((row: any) => ({
           id: row.users?.id || row.user_id,
           name: row.users?.name || "Unknown",
           email: row.users?.email,
-          total_points: 0, // Will need to calculate from logs
-          streak: 0, // Will need to calculate from logs
+          total_points: 0,
+          streak: 0,
           team_id: row.team_id,
         }));
-        console.log("Mapped members:", mapped);
         setMembers(mapped);
       }
 
@@ -519,17 +514,13 @@ export default function ManageChallengePage() {
           .select("*")
           .eq("challenge_id", challengeId);
         if (tData) {
-          console.log("Loaded teams:", tData);
           setTeams(tData);
-          // Attach team names to members
-          setMembers(prev => {
-            const updated = prev.map(m => {
+          setMembers(prev =>
+            prev.map(m => {
               const team = tData.find(t => t.id === m.team_id);
               return { ...m, team_name: team?.name };
-            });
-            console.log("Members with team names:", updated);
-            return updated;
-          });
+            })
+          );
         }
       }
 
