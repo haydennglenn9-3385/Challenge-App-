@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { createUserProfile } from "@/app/actions/createUserProfile";
 
 type Mode = "login" | "signup";
 
@@ -94,22 +95,9 @@ export default function AuthPage() {
       }
 
       if (data.user) {
-        // Always upsert the profile immediately — covers both confirmation flows
-        const { error: profileError } = await supabase.from("users").upsert(
-          {
-            id:            data.user.id,
-            email:         trimmedEmail,
-            name:          trimmedName,
-            total_points:  0,
-            streak:        0,
-            global_points: 0,
-          },
-          { onConflict: "id" }
-        );
-
-        if (profileError) {
-          console.error("Profile upsert error:", profileError);
-        }
+        // Create the profile server-side using the service role key so it
+        // works even when email confirmation is required (no client session yet).
+        await createUserProfile({ id: data.user.id, email: trimmedEmail, name: trimmedName });
 
         if (!data.session) {
           // Email confirmation required

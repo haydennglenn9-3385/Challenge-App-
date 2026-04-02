@@ -5,7 +5,14 @@ import { createClient }       from "@supabase/supabase-js";
 import { cookies }            from "next/headers";
 
 const GLOBAL_POINTS = 5;
-const STREAK_MILESTONES: Record<number, number> = { 7: 25, 30: 100, 100: 500 };
+const STREAK_MILESTONES: Record<number, number> = {
+  7:   25,   // one week
+  14:  15,   // two weeks
+  21:  20,   // three weeks
+  30:  100,  // one month
+  60:  75,   // two months
+  100: 500,  // 100 days
+};
 
 // Service-role client — bypasses RLS, safe here because we verify identity first
 const supabaseAdmin = createClient(
@@ -27,11 +34,6 @@ export interface CheckInResult {
 export async function dailyCheckin(): Promise<CheckInResult> {
   const cookieStore = await cookies();
   
-  // ADD THESE:
-  console.log("SERVER: SUPABASE_URL =", process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log("SERVER: ANON_KEY set?", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  console.log("SERVER: SERVICE_KEY set?", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-  
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -39,9 +41,6 @@ export async function dailyCheckin(): Promise<CheckInResult> {
   );
 
   const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-  
-  // ADD THIS:
-  console.log("SERVER: auth.getUser result — user:", user?.id ?? "null", "error:", authError?.message ?? "none");
   
   if (!user) return { success: false, error: "Not authenticated" };
 
@@ -53,8 +52,6 @@ const { data: existingProfile, error: profileFetchError } = await supabaseAdmin
   .select("streak, total_points, global_points, last_checkin_date, name, avatar_emoji")
   .eq("id", user.id)
   .maybeSingle();
-
-console.log("SERVER: profile fetch —", { existingProfile, profileFetchError });
 
 let profile = existingProfile;
 

@@ -109,6 +109,7 @@ export default function PublicProfilePage() {
 
   const [profile,    setProfile]    = useState<UserProfile | null>(null);
   const [challenges, setChallenges] = useState<JoinedChallenge[]>([]);
+  const [rankMap,    setRankMap]    = useState<Record<string, { rank: number; total: number }>>({});
   const [prs,        setPrs]        = useState<PublicPR[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [notFound,   setNotFound]   = useState(false);
@@ -150,6 +151,25 @@ export default function PublicProfilePage() {
       const order = { active: 0, upcoming: 1, ended: 2 };
       joined.sort((a, b) => order[challengeStatus(a)] - order[challengeStatus(b)]);
       setChallenges(joined);
+
+      // Fetch all members' points for each challenge to compute rankings
+      if (joined.length > 0) {
+        const challengeIds = joined.map(c => c.id);
+        const { data: memberPoints } = await supabase
+          .from("challenge_members")
+          .select("challenge_id, user_id, points_earned")
+          .in("challenge_id", challengeIds);
+
+        const map: Record<string, { rank: number; total: number }> = {};
+        for (const cid of challengeIds) {
+          const members = (memberPoints || [])
+            .filter(m => m.challenge_id === cid)
+            .sort((a, b) => (b.points_earned ?? 0) - (a.points_earned ?? 0));
+          const pos = members.findIndex(m => m.user_id === userId);
+          map[cid] = { rank: pos >= 0 ? pos + 1 : members.length, total: members.length };
+        }
+        setRankMap(map);
+      }
 
       const { data: prData } = await supabase
         .from("performance_records")
@@ -427,18 +447,30 @@ export default function PublicProfilePage() {
             <div className="pub-card" style={{ borderRadius: 20, padding: "18px 16px" }}>
               <p className="section-title">Active Challenges</p>
               {activeChallenges.map(c => {
-                const st = STATUS_STYLES[challengeStatus(c)];
+                const st   = STATUS_STYLES[challengeStatus(c)];
+                const rank = rankMap[c.id];
                 return (
                   <div key={c.id} className="challenge-row">
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#0e0e0e", marginBottom: 2 }}>
                         {c.name}
                       </p>
-                      {c.end_date && (
-                        <p style={{ fontSize: 12, color: "#94a3b8" }}>
-                          Ends {formatDate(c.end_date)}
-                        </p>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                        {c.end_date && (
+                          <p style={{ fontSize: 12, color: "#94a3b8" }}>
+                            Ends {formatDate(c.end_date)}
+                          </p>
+                        )}
+                        {rank && rank.total > 1 && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: rank.rank === 1 ? "#d97706" : rank.rank <= 3 ? "#667eea" : "#64748b",
+                          }}>
+                            {rank.rank === 1 ? "🥇" : rank.rank === 2 ? "🥈" : rank.rank === 3 ? "🥉" : ""}
+                            {" "}#{rank.rank} of {rank.total}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 800,
@@ -504,14 +536,26 @@ export default function PublicProfilePage() {
             <div className="pub-card" style={{ borderRadius: 20, padding: "18px 16px" }}>
               <p className="section-title">Past Challenges</p>
               {endedChallenges.map(c => {
-                const st = STATUS_STYLES[challengeStatus(c)];
+                const st   = STATUS_STYLES[challengeStatus(c)];
+                const rank = rankMap[c.id];
                 return (
                   <div key={c.id} className="challenge-row">
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>{c.name}</p>
-                      {c.end_date && (
-                        <p style={{ fontSize: 12, color: "#94a3b8" }}>Ended {formatDate(c.end_date)}</p>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                        {c.end_date && (
+                          <p style={{ fontSize: 12, color: "#94a3b8" }}>Ended {formatDate(c.end_date)}</p>
+                        )}
+                        {rank && rank.total > 1 && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: rank.rank === 1 ? "#d97706" : rank.rank <= 3 ? "#667eea" : "#64748b",
+                          }}>
+                            {rank.rank === 1 ? "🥇" : rank.rank === 2 ? "🥈" : rank.rank === 3 ? "🥉" : ""}
+                            {" "}#{rank.rank} of {rank.total}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 800,

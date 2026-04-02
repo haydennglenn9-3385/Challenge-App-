@@ -396,6 +396,7 @@ export default function ManageChallengePage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   // ── Challenge details
   const [name, setName] = useState("");
@@ -713,14 +714,30 @@ export default function ManageChallengePage() {
 
         <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
 
-          {/* Direct member add */}
-          <DirectAddMember 
-            challengeId={challengeId} 
-            onMemberAdded={() => window.location.reload()} 
-            existingMemberIds={new Set(members.map(m => m.id))}
-            teams={teams}
-            hasTeams={hasTeams}
-          />
+          {/* Direct member add — collapsed by default */}
+          <div className="neon-card rounded-2xl overflow-hidden">
+            <div className="h-1 w-full rainbow-cta" />
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-extrabold text-slate-900">Add Member</p>
+                <button
+                  onClick={() => setShowAddMember(p => !p)}
+                  className="text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                >
+                  {showAddMember ? "Cancel" : "+ Add"}
+                </button>
+              </div>
+              {showAddMember && (
+                <DirectAddMember
+                  challengeId={challengeId}
+                  onMemberAdded={() => window.location.reload()}
+                  existingMemberIds={new Set(members.map(m => m.id))}
+                  teams={teams}
+                  hasTeams={hasTeams}
+                />
+              )}
+            </div>
+          </div>
 
           {/* ── Details ── */}
           <div className="neon-card rounded-2xl overflow-hidden">

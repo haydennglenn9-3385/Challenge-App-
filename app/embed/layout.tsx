@@ -50,6 +50,8 @@ const ADMIN_ITEM = { label: "Admin", icon: "⚙️", path: "/embed/admin" };
 
 // ─── Admin hook ───────────────────────────────────────────────────────────────
 import { supabase } from "@/lib/supabase/client";
+import { useUser } from "@/lib/UserContext";
+import OnboardingModal from "@/components/OnboardingModal";
 
 function useIsAdmin() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -61,6 +63,50 @@ function useIsAdmin() {
     });
   }, []);
   return isAdmin;
+}
+
+// ─── Unread DMs hook ──────────────────────────────────────────────────────────
+function useUnreadDMs(): boolean {
+  const { user }         = useUser();
+  const pathname         = usePathname();
+  const [unread, setUnread] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const uid = user.id;
+
+    async function check() {
+      const { data } = await supabase
+        .from("messages")
+        .select("author_id, created_at")
+        .eq("recipient_id", uid)
+        .eq("type", "dm")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!data?.length) { setUnread(false); return; }
+
+      const latestBySender: Record<string, string> = {};
+      for (const msg of data) {
+        if (!latestBySender[msg.author_id]) {
+          latestBySender[msg.author_id] = msg.created_at;
+        }
+      }
+
+      for (const [senderId, msgTime] of Object.entries(latestBySender)) {
+        const lastSeen = localStorage.getItem(`last_seen_dm_${senderId}`);
+        if (!lastSeen || new Date(msgTime).getTime() > parseInt(lastSeen)) {
+          setUnread(true);
+          return;
+        }
+      }
+      setUnread(false);
+    }
+
+    check();
+  }, [user?.id, pathname]);
+
+  return unread;
 }
 
 // ─── Particle type ────────────────────────────────────────────────────────────
@@ -276,8 +322,9 @@ function BottomNav() {
     router.push(params ? `${path}?${params}` : path);
   };
 
-  const isActive = (path: string) => pathname.includes(path);
-  const items    = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  const isActive      = (path: string) => pathname.includes(path);
+  const items         = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  const hasUnreadDMs  = useUnreadDMs();
 
   // Split items around the center orb
   const mid   = Math.floor(items.length / 2);
@@ -291,10 +338,8 @@ function BottomNav() {
       return;
     }
     setLoading(true);
-    console.log("🔵 orb pressed — calling dailyCheckin");
     try {
       const result = await dailyCheckin();
-      console.log("🟢 dailyCheckin result:", JSON.stringify(result));
       setLoading(false);
       if (result.success) {
         setCheckedIn(true);
@@ -305,7 +350,7 @@ function BottomNav() {
         setStreak(result.streak ?? streak);
       }
     } catch (err) {
-      console.error("🔴 dailyCheckin threw:", err);
+      console.error("dailyCheckin threw:", err);
       setLoading(false);
     }
   }
@@ -327,10 +372,19 @@ function BottomNav() {
             onClick={() => nav(item.path)}
             className="flex flex-col items-center gap-1 px-2 pb-0.5"
           >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
-              isActive(item.path) ? "bg-slate-900" : "bg-transparent"
-            }`}>
-              {item.icon}
+            <div style={{ position: "relative" }}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
+                isActive(item.path) ? "bg-slate-900" : "bg-transparent"
+              }`}>
+                {item.icon}
+              </div>
+              {item.label === "Messages" && hasUnreadDMs && (
+                <span style={{
+                  position: "absolute", top: 2, right: 2,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444", border: "2px solid white",
+                }} />
+              )}
             </div>
             <span className={`text-[10px] font-bold transition-colors ${
               isActive(item.path) ? "text-slate-900" : "text-slate-400"
@@ -367,10 +421,19 @@ function BottomNav() {
             onClick={() => nav(item.path)}
             className="flex flex-col items-center gap-1 px-2 pb-0.5"
           >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
-              isActive(item.path) ? "bg-slate-900" : "bg-transparent"
-            }`}>
-              {item.icon}
+            <div style={{ position: "relative" }}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all ${
+                isActive(item.path) ? "bg-slate-900" : "bg-transparent"
+              }`}>
+                {item.icon}
+              </div>
+              {item.label === "Messages" && hasUnreadDMs && (
+                <span style={{
+                  position: "absolute", top: 2, right: 2,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444", border: "2px solid white",
+                }} />
+              )}
             </div>
             <span className={`text-[10px] font-bold transition-colors ${
               isActive(item.path) ? "text-slate-900" : "text-slate-400"
@@ -407,9 +470,10 @@ function Sidebar() {
     router.push(params ? `${path}?${params}` : path);
   };
 
-  const isActive = (path: string) => pathname.includes(path);
-  const items    = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
-  const fontStack = "var(--font-inter), system-ui, sans-serif";
+  const isActive     = (path: string) => pathname.includes(path);
+  const items        = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  const fontStack    = "var(--font-inter), system-ui, sans-serif";
+  const hasUnreadDMs = useUnreadDMs();
 
   async function handleOrbPress() {
     if (loading) return;
@@ -418,10 +482,8 @@ function Sidebar() {
       return;
     }
     setLoading(true);
-    console.log("🔵 orb pressed — calling dailyCheckin");
     try {
       const result = await dailyCheckin();
-      console.log("🟢 dailyCheckin result:", JSON.stringify(result));
       setLoading(false);
       if (result.success) {
         setCheckedIn(true);
@@ -432,11 +494,11 @@ function Sidebar() {
         setStreak(result.streak ?? streak);
       }
     } catch (err) {
-      console.error("🔴 dailyCheckin threw:", err);
+      console.error("dailyCheckin threw:", err);
       setLoading(false);
     }
   }
-  console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+
   return (
     <aside style={{
       width: 240, flexShrink: 0, position: "sticky", top: 0,
@@ -507,19 +569,28 @@ function Sidebar() {
                 fontFamily: fontStack,
               }}
             >
-              <span style={{
-                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18,
-                background: active
-                  ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
-                  : item.label === "Admin"
-                  ? "rgba(123,45,139,0.12)"
-                  : "rgba(0,0,0,0.04)",
-                boxShadow: active ? "0 3px 10px rgba(102,126,234,0.3)" : "none",
-              }}>
-                {item.icon}
-              </span>
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <span style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18,
+                  background: active
+                    ? "linear-gradient(135deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)"
+                    : item.label === "Admin"
+                    ? "rgba(123,45,139,0.12)"
+                    : "rgba(0,0,0,0.04)",
+                  boxShadow: active ? "0 3px 10px rgba(102,126,234,0.3)" : "none",
+                }}>
+                  {item.icon}
+                </span>
+                {item.label === "Messages" && hasUnreadDMs && (
+                  <span style={{
+                    position: "absolute", top: 3, right: 3,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#ef4444", border: "2px solid white",
+                  }} />
+                )}
+              </div>
               <span style={{
                 fontSize: 15, fontWeight: active ? 800 : 600,
                 color: active ? "#0e0e0e" : item.label === "Admin" ? "#7b2d8b" : "#64748b",
@@ -546,11 +617,19 @@ function Sidebar() {
   );
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+function OnboardingWrapper() {
+  const { user, isLoading } = useUser();
+  if (isLoading || !user) return null;
+  return <OnboardingModal userId={user.id} userName={user.name} />;
+}
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 export default function EmbedLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <UserProvider>
+        <OnboardingWrapper />
         <div className="lg:hidden min-h-screen w-full">
           {children}
           <BottomNav />

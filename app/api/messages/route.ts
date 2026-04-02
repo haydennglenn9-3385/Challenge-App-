@@ -33,8 +33,24 @@ export async function GET(req: Request) {
     .limit(100);
 
   if (challengeId) {
+    // Verify user is a member of this challenge
+    const { data: membership } = await supabaseAdmin
+      .from("challenge_members")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     query = query.eq("challenge_id", challengeId).eq("is_dm", false);
   } else if (teamId) {
+    // Verify user is assigned to this team
+    const { data: membership } = await supabaseAdmin
+      .from("challenge_members")
+      .select("id")
+      .eq("team_id", teamId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     query = query.eq("team_id", teamId).eq("is_dm", false);
   } else if (dmUserId) {
     query = query

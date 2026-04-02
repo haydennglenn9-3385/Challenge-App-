@@ -9,6 +9,7 @@ import {
   timeDelta,
 } from "@/lib/utils/time";
 import ChatPanel from "@/components/chat/ChatPanel";
+import { awardChallengeWinPoints } from "@/app/actions/awardGlobalPoints";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const GLOBAL_POINTS_PER_CHECKIN = 5;
 const MONTH_NAMES = [
@@ -180,7 +181,7 @@ export default function ChallengeDetailPage() {
   const isProgressive  = scoringType === "progressive";
   const lowerIsBetter  = challenge?.scoring_direction === "asc";
   const dailyTarget    = Number(challenge?.daily_target ?? 0);
-  const targetUnit     = challenge?.target_unit ?? "reps";
+  const targetUnit     = challenge?.target_unit ?? (scoringType === "steps" ? "steps" : "reps");
   const pointsMax      = challenge?.local_points_per_checkin ?? 2;
   const progressionType = challenge?.progression_type ?? "daily";
   const everyXDays     = challenge?.progression_interval_days ?? null;
@@ -354,9 +355,8 @@ export default function ChallengeDetailPage() {
       setIsMember(member);
       if (member) {
         const logs = await loadLogs(user.id);
-        const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
+        const computed = logs.reduce((s, l) => s + (l.points_earned ?? 0), 0);
         setUserTotalPoints(computed);
-        await supabase.from("users").update({ total_points: computed }).eq("id", user.id);
         const { data: teamRow } = await supabase
           .from("team_members").select("team_id, teams(name)").eq("user_id", user.id).maybeSingle();
         if (teamRow?.teams) setUserTeam((teamRow.teams as any).name);
@@ -367,6 +367,15 @@ export default function ChallengeDetailPage() {
   }
   load();
 }, [challengeId]);
+
+// ─── Award winner global points (runs once when ended challenge loads) ────
+useEffect(() => {
+  if (!isEnded || !userId || !isMember || sortedMembers.length === 0) return;
+  if (sortedMembers[0].id !== userId) return;
+  // Server action uses supabaseAdmin — bypasses RLS, idempotent via activity_feed check
+  awardChallengeWinPoints(challengeId, challenge?.name ?? "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isEnded, userId, isMember, sortedMembers]);
 
 // ─── Join ─────────────────────────────────────────────────────────────────
 async function handleJoin() {
@@ -392,8 +401,7 @@ async function handleJoin() {
   });
   setIsMember(true);
   const logs = await loadLogs(userId);
-  const computed = logs.reduce((s, l) => s + (l.global_points_earned ?? 0), 0);
-  setUserTotalPoints(computed);
+  setUserTotalPoints(logs.reduce((s, l) => s + (l.points_earned ?? 0), 0));
   if (assignedTeamId) {
     const { data: teamRow } = await supabase.from("teams").select("name").eq("id", assignedTeamId).single();
     if (teamRow) setUserTeam(teamRow.name);
@@ -488,8 +496,6 @@ async function handleJoin() {
       exercise:             todayExercise,
       completion_level:     selectedDaily,
     });
-    
-    // REPLACE WITH:
     if (!error) {
       setCheckedInToday(true);
       setTodayPoints(points);
@@ -614,7 +620,7 @@ async function handleJoin() {
   }
   // ─── FIXED: handleSaveEdits handles cardio vs daily cards correctly ───────
   async function handleSaveEdits() {
-    if (!userId || !challenge) return;
+    if (!userId || !challenge || isEnded) return;
     setSaving(true);
     for (const card of editCards) {
       const isCardioCard = card.isCardio === true;
@@ -644,7 +650,8 @@ async function handleJoin() {
         await supabase.from("daily_logs").insert(payload);
       }
     }
-    const logs     = await loadLogs(userId);
+    const logs = await loadLogs(userId);
+    setUserTotalPoints(logs.reduce((s, l) => s + (l.points_earned ?? 0), 0));
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => {
@@ -730,12 +737,40 @@ async function handleJoin() {
             <div style={{ padding: "20px 24px", textAlign: "center" }}>
               <p style={{ fontSize: 32, marginBottom: 8 }}>🏁</p>
               <p style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Challenge Complete!</p>
-              <p style={{ fontSize: 14, color: "#64748b" }}>This challenge ended on {formatDate(endDate!)}. Final results are below.</p>
+              <p style={{ fontSize: 14, color: "#64748b" }}>This challenge ended on {formatDate(endDate!)}.</p>
               {isMember && sortedMembers.length > 0 && sortedMembers[0].id === userId && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, padding: "8px 16px", borderRadius: 99, background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, padding: "8px 16px", borderRadius: 99, background: "linear-gradient(90deg,#ff6b9d,#ff9f43,#ffdd59,#48cfad,#667eea)", animation: "pulse 2s ease-in-out infinite" }}>
                   <span style={{ fontSize: 18 }}>🥇</span>
                   <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>You won this challenge!</span>
                 </div>
+              )}
+              {/* Top 3 finishers */}
+              {sortedMembers.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16 }}>
+                  {sortedMembers.slice(0, 3).map((m, i) => {
+                    const medals = ["🥇", "🥈", "🥉"];
+                    return (
+                      <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "8px 10px", borderRadius: 12, background: "rgba(0,0,0,0.04)", minWidth: 72 }}>
+                        <span style={{ fontSize: 16 }}>{medals[i]}</span>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
+                        <p style={{ fontSize: 11, color: "#64748b" }}>{m.challenge_points ?? 0} pts</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Share button */}
+              {sortedMembers.length > 0 && (
+                <button
+                  onClick={() => {
+                    const winner = sortedMembers[0];
+                    const text = `🏁 ${challenge.name} is complete! Winner: ${winner.name} with ${winner.challenge_points ?? 0} pts 💪 #QAFitness`;
+                    navigator.clipboard.writeText(text).catch(() => {});
+                  }}
+                  style={{ marginTop: 14, padding: "8px 18px", borderRadius: 99, fontSize: 12, fontWeight: 700, color: "#7b2d8b", background: "transparent", border: "1.5px solid #c084fc", cursor: "pointer" }}
+                >
+                  📋 Share Results
+                </button>
               )}
             </div>
           </div>
@@ -1049,6 +1084,11 @@ async function handleJoin() {
                   </div>
                 )}
               </div>
+              {leaderboardView === "individual" && sortedMembers.length > 0 && sortedMembers.every(m => (m.challenge_points ?? 0) === 0 && (m.challenge_metric ?? 0) === 0) && !isEnded && (
+                <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "4px 0 8px", fontStyle: "italic" }}>
+                  No check-ins yet — be the first on the board!
+                </p>
+              )}
               {leaderboardView === "individual" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {sortedMembers.map((member, i) => {

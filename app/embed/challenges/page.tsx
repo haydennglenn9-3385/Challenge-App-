@@ -111,13 +111,23 @@ function ChallengesInner() {
 
   // ── Join handlers ─────────────────────────────────────────────────────────
 
+  function joinErrorMessage(error: any): string {
+    if (error?.code === "23505") return "You're already a member of this challenge.";
+    if (error?.message?.toLowerCase().includes("capacity")) return "This challenge is full.";
+    return "Something went wrong. Please try again.";
+  }
+
   const handleJoinPublic = async (challenge: Challenge) => {
     if (!currentUserId) { router.push("/auth"); return; }
     setJoining(true);
     const { error } = await supabase.from("challenge_members").insert({
       challenge_id: challenge.id, user_id: currentUserId,
     });
-    if (!error) setJoinedIds(prev => new Set([...prev, challenge.id]));
+    if (!error) {
+      setJoinedIds(prev => new Set([...prev, challenge.id]));
+    } else if (error.code === "23505") {
+      setJoinedIds(prev => new Set([...prev, challenge.id])); // already a member, treat as joined
+    }
     setJoining(false);
   };
 
@@ -125,7 +135,7 @@ function ChallengesInner() {
     if (!codeModal || !currentUserId) return;
     setCodeError(""); setJoining(true);
     if (codeInput.trim().toUpperCase() !== codeModal.join_code?.toUpperCase()) {
-      setCodeError("Incorrect code. Try again.");
+      setCodeError("Invalid join code. Check the code and try again.");
       setJoining(false); return;
     }
     const { error } = await supabase.from("challenge_members").insert({
@@ -135,7 +145,7 @@ function ChallengesInner() {
       setJoinedIds(prev => new Set([...prev, codeModal.id]));
       setCodeModal(null); setCodeInput("");
     } else {
-      setCodeError("Something went wrong. Please try again.");
+      setCodeError(joinErrorMessage(error));
     }
     setJoining(false);
   };

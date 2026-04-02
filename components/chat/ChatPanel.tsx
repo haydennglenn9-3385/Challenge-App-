@@ -318,6 +318,12 @@ const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
   useEffect(() => {
     setLoading(true);
     setMessages([]);
+    // Mark this conversation as seen when opened
+    const contextKey = context.type === "community"
+      ? "last_seen_community"
+      : `last_seen_${context.type}_${(context as any).id}`;
+    localStorage.setItem(contextKey, Date.now().toString());
+
     async function load() {
       const { data, error } = await buildSelectQuery();
       if (!error && data) setMessages(data.map(normalize));

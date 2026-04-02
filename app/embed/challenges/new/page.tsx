@@ -380,8 +380,8 @@ export default function NewChallengePage() {
               </>
             ) : (
               <div className="space-y-3">
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, overflow: "hidden" }}>
+                  <div style={{ minWidth: 0 }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       Start Date
                     </label>
@@ -393,8 +393,9 @@ export default function NewChallengePage() {
                         display: "block",
                         width: "100%",
                         minWidth: 0,
+                        maxWidth: "100%",
                         boxSizing: "border-box" as const,
-                        padding: "10px 8px",
+                        padding: "10px 6px",
                         borderRadius: 14,
                         border: "1.5px solid #e2e8f0",
                         background: "rgba(255,255,255,0.8)",
@@ -406,8 +407,8 @@ export default function NewChallengePage() {
                       }}
                     />
                   </div>
-                
-                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+
+                  <div style={{ minWidth: 0 }}>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
                       End Date{" "}
                       {isOngoing && (
@@ -425,8 +426,9 @@ export default function NewChallengePage() {
                         display: "block",
                         width: "100%",
                         minWidth: 0,
+                        maxWidth: "100%",
                         boxSizing: "border-box" as const,
-                        padding: "10px 8px",
+                        padding: "10px 6px",
                         borderRadius: 14,
                         border: "1.5px solid #e2e8f0",
                         background: isOngoing ? "#f8fafc" : "rgba(255,255,255,0.8)",

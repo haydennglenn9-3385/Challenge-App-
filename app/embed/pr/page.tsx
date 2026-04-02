@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { awardPRPoints } from "@/app/actions/awardGlobalPoints";
 
 // ─── Preset PR types ──────────────────────────────────────────────────────────
 const PRESET_TYPES = [
@@ -241,6 +242,12 @@ export default function PRPage() {
         previous_value: currentBest?.value ?? null,
         is_custom:      isCustom,
       });
+
+      // Award global points for setting a new personal record (via server action — bypasses RLS)
+      const isNewRecord = !currentBest || (isTimed ? value < currentBest.value : value > currentBest.value);
+      if (isNewRecord) {
+        awardPRPoints(label, value, unitLabel(unit), formatValue(value, unit));
+      }
     }
 
     await loadPRs(userId);
@@ -270,8 +277,9 @@ export default function PRPage() {
     </div>
   );
 
-  function getEmoji(showHistory: string): import("react").ReactNode {
-    throw new Error("Function not implemented.");
+  function getEmoji(type: string): string {
+    const preset = PRESET_TYPES.find(p => p.type === type || type.startsWith("custom_") && p.type === "custom");
+    return preset?.emoji ?? "🏆";
   }
 
   return (
@@ -401,10 +409,6 @@ export default function PRPage() {
               const hasDelta = pr.previous_value != null;
               const improved = hasDelta && (isTimed ? pr.value < pr.previous_value! : pr.value > pr.previous_value!);
               const delta    = hasDelta ? Math.abs(pr.value - pr.previous_value!) : null;
-
-              function getEmoji(type: string): import("react").ReactNode {
-                throw new Error("Function not implemented.");
-              }
 
               return (
                 <div

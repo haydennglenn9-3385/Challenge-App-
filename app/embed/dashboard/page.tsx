@@ -129,29 +129,6 @@ function groupFeedByDate(feed: FeedItem[]): FeedGroup[] {
   return order.filter((l) => map.has(l)).map((l) => ({ label: l, items: map.get(l)! }));
 }
 
-// ─── App check-in streak ──────────────────────────────────────────────────────
-async function handleAppCheckin(userId: string): Promise<{ appStreak: number }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase
-    .from("users")
-    .select("app_streak, app_last_checkin")
-    .eq("id", userId)
-    .single();
-
-  const lastCheckin: string | null = data?.app_last_checkin ?? null;
-  const currentStreak: number = data?.app_streak ?? 0;
-  if (lastCheckin === today) return { appStreak: currentStreak };
-
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const newStreak = lastCheckin === yesterday ? currentStreak + 1 : 1;
-
-  await supabase
-    .from("users")
-    .update({ app_streak: newStreak, app_last_checkin: today })
-    .eq("id", userId);
-
-  return { appStreak: newStreak };
-}
 
 // ─── Challenge sub-card ───────────────────────────────────────────────────────
 
@@ -482,7 +459,6 @@ export default function DashboardPage() {
   const [userEmail,     setUserEmail]     = useState<string>("");
   const [userName,      setUserName]      = useState<string>("");
   const [userStreak,    setUserStreak]    = useState<number>(0);
-  const [appStreak,     setAppStreak]     = useState<number>(0);
   const [loading,       setLoading]       = useState(true);
   const [postText,      setPostText]      = useState("");
   const [posting,       setPosting]       = useState(false);
@@ -509,8 +485,6 @@ export default function DashboardPage() {
           setUserName(profile.name || user.email?.split("@")[0] || "Member");
         }
 
-        const { appStreak: streak } = await handleAppCheckin(user.id);
-        setAppStreak(streak);
       }
 
       const { data: fData } = await supabase
@@ -609,7 +583,7 @@ export default function DashboardPage() {
   }
 
   const feedGroups    = groupFeedByDate(feed);
-  const streakContext = appStreak >= 2 ? `🔥 ${appStreak}-day streak` : null;
+  const streakContext = userStreak >= 2 ? `🔥 ${userStreak}-day streak` : null;
 
   const pageStyle: CSSProperties = {
     minHeight: "100dvh", width: "100%",
