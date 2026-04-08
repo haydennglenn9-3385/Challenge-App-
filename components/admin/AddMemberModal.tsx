@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { addChallengeMember } from "@/app/actions/addChallengeMember";
 
 interface Challenge {
   id: string;
@@ -110,14 +110,15 @@ export default function AddMemberModal({ challenges, teams, onClose, onCreated }
     const newUser = json.user;
 
     if (challengeId) {
-      await supabase
-        .from("challenge_members")
-        .insert({ challenge_id: challengeId, user_id: newUser.id });
-
-      if (teamId) {
-        await supabase
-          .from("team_members")
-          .insert({ team_id: teamId, user_id: newUser.id });
+      const { error: enrollError } = await addChallengeMember({
+        challengeId,
+        userId: newUser.id,
+        teamId: teamId || null,
+      });
+      if (enrollError) {
+        setError(enrollError);
+        setSubmitting(false);
+        return;
       }
     }
 

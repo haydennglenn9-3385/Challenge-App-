@@ -21,6 +21,7 @@ function ProfileContent() {
   const [loading, setLoading]                     = useState(true);
   const [authed, setAuthed]                       = useState<boolean | null>(null);
   const [showPRModal, setShowPRModal] = useState(false);
+  const [checkedInDays, setCheckedInDays]         = useState<Set<number>>(new Set());
 
 
   // Delete flow
@@ -49,6 +50,29 @@ function ProfileContent() {
       }
 
       const resolvedId = userData?.id || user.id;
+
+      // Fetch this week's check-in days from activity_feed
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: recentCheckins } = await supabase
+        .from("activity_feed")
+        .select("created_at")
+        .eq("user_id", resolvedId)
+        .eq("type", "streak")
+        .gte("created_at", sevenDaysAgo.toISOString());
+
+      const todayPtStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date());
+      const [ty, tm, td] = todayPtStr.split("-").map(Number);
+      const todayPtDow = new Date(ty, tm - 1, td).getDay();
+      const sundayDate = new Date(ty, tm - 1, td - todayPtDow);
+      const days = new Set<number>();
+      (recentCheckins || []).forEach((row: any) => {
+        const ptDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date(row.created_at));
+        const [ry, rm, rd] = ptDateStr.split("-").map(Number);
+        const rowDate = new Date(ry, rm - 1, rd);
+        if (rowDate >= sundayDate) days.add(rowDate.getDay());
+      });
+      setCheckedInDays(days);
 
       const { data: joinedData } = await supabase
         .from("challenge_members")
@@ -142,7 +166,7 @@ function ProfileContent() {
   const streakDays  = profile?.streak || 0;
   const totalPoints = profile?.global_points ?? profile?.total_points ?? 0;
   const avatarEmoji = profile?.avatar_emoji || "😊";
-  const weekDays    = ["M", "T", "W", "T", "F", "S", "S"];
+  const weekDays    = ["S", "M", "T", "W", "T", "F", "S"];
 
   return (
     <>
@@ -239,9 +263,9 @@ function ProfileContent() {
                 <span className="text-xs font-bold text-slate-400">{d}</span>
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={i < streakDays ? { background: "linear-gradient(135deg, #ff6b9d, #667eea)" } : { background: "#f1f5f9" }}
+                  style={checkedInDays.has(i) ? { background: "linear-gradient(135deg, #ff6b9d, #667eea)" } : { background: "#f1f5f9" }}
                 >
-                  {i < streakDays && <span className="text-xs">🔥</span>}
+                  {checkedInDays.has(i) && <span className="text-xs">🔥</span>}
                 </div>
               </div>
             ))}

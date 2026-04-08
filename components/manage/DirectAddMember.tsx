@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { addChallengeMember } from "@/app/actions/addChallengeMember";
 
 interface Team {
   id: string;
@@ -77,16 +78,14 @@ export default function DirectAddMember({
 
       const teamId = selectedTeams[user.id] || null;
 
-      const { error } = await supabase
-        .from("challenge_members")
-        .insert({
-          challenge_id: challengeId,
-          user_id:      user.id,
-          team_id:      teamId,
-        });
+      const { error } = await addChallengeMember({
+        challengeId,
+        userId: user.id,
+        teamId,
+      });
 
       if (error) {
-        alert("Error adding member: " + error.message);
+        alert("Error adding member: " + error);
         setAdding(null);
         return;
       }
