@@ -133,11 +133,13 @@ function groupFeedByDate(feed: FeedItem[]): FeedGroup[] {
 // ─── Challenge sub-card ───────────────────────────────────────────────────────
 
 function ChallengeSubCard({ meta, type }: { meta: Record<string, unknown>; type: FeedType }) {
-  const name     = meta.challenge_name     as string | undefined;
-  const subtitle = meta.challenge_subtitle as string | undefined;
-  const emoji    = meta.challenge_emoji    as string | undefined;
-  const cta      = TYPE_CTA[type];
-  const ctaColor = TYPE_CTA_COLOR[type];
+  const router      = useRouter();
+  const name        = meta.challenge_name     as string | undefined;
+  const subtitle    = meta.challenge_subtitle as string | undefined;
+  const emoji       = meta.challenge_emoji    as string | undefined;
+  const challengeId = meta.challenge_id       as string | undefined;
+  const cta         = TYPE_CTA[type];
+  const ctaColor    = TYPE_CTA_COLOR[type];
 
   if (!name) return null;
 
@@ -173,13 +175,17 @@ function ChallengeSubCard({ meta, type }: { meta: Record<string, unknown>; type:
         {subtitle && <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{subtitle}</div>}
       </div>
       {cta && (
-        <button style={{
-          background: ctaColor, color: "#fff",
-          fontSize: 12, fontWeight: 700,
-          padding: "6px 14px", borderRadius: 20,
-          border: "none", cursor: "pointer",
-          flexShrink: 0, whiteSpace: "nowrap",
-        }}>
+        <button
+          onClick={() => challengeId && router.push(`/embed/challenge/${challengeId}`)}
+          style={{
+            background: ctaColor, color: "#fff",
+            fontSize: 12, fontWeight: 700,
+            padding: "6px 14px", borderRadius: 20,
+            border: "none", cursor: challengeId ? "pointer" : "default",
+            flexShrink: 0, whiteSpace: "nowrap",
+            opacity: challengeId ? 1 : 0.5,
+          }}
+        >
           {cta}
         </button>
       )}
