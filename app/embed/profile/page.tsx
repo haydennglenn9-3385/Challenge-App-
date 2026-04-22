@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import PRLogModal from "@/components/PRLogModal";
+import { repairStreak } from "@/app/actions/repairStreak";
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg, #ff6b9d, #ff9f43)",
@@ -22,6 +23,10 @@ function ProfileContent() {
   const [authed, setAuthed]                       = useState<boolean | null>(null);
   const [showPRModal, setShowPRModal] = useState(false);
   const [checkedInDays, setCheckedInDays]         = useState<Set<number>>(new Set());
+  const [repairAvailable, setRepairAvailable]     = useState(false);
+  const [repairUsedThisMonth, setRepairUsedThisMonth] = useState(false);
+  const [repairLoading, setRepairLoading]         = useState(false);
+  const [repairMessage, setRepairMessage]         = useState<string | null>(null);
 
 
   // Delete flow
@@ -74,6 +79,26 @@ function ProfileContent() {
       });
       setCheckedInDays(days);
 
+      // Streak repair availability
+      const yesterdayPt = new Date();
+      yesterdayPt.setDate(yesterdayPt.getDate() - 1);
+      const yesterdayPtStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(yesterdayPt);
+      const { data: repairData } = await supabase
+        .from("users")
+        .select("last_checkin_date, streak_repair_used_at")
+        .eq("id", resolvedId)
+        .single();
+      if (repairData) {
+        const usedThisMonth = repairData.streak_repair_used_at
+          ? repairData.streak_repair_used_at.slice(0, 7) === todayPtStr.slice(0, 7)
+          : false;
+        const streakIntact =
+          repairData.last_checkin_date === todayPtStr ||
+          repairData.last_checkin_date === yesterdayPtStr;
+        setRepairUsedThisMonth(usedThisMonth);
+        setRepairAvailable(!usedThisMonth && !streakIntact);
+      }
+
       const { data: joinedData } = await supabase
         .from("challenge_members")
         .select(`challenge_id, challenges(id, name, join_code, creator_id, start_date, end_date, description)`)
@@ -102,6 +127,29 @@ function ProfileContent() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push("/");
+  }
+
+  async function handleRepairStreak() {
+    setRepairLoading(true);
+    setRepairMessage(null);
+    const result = await repairStreak();
+    setRepairLoading(false);
+    if (result.success) {
+      setRepairAvailable(false);
+      setRepairUsedThisMonth(true);
+      // Mark yesterday as checked in on calendar
+      const yesterdayPt = new Date();
+      yesterdayPt.setDate(yesterdayPt.getDate() - 1);
+      const ydow = yesterdayPt.getDay();
+      setCheckedInDays((prev) => new Set([...prev, ydow]));
+      setRepairMessage(`Streak saved! Check in today to keep it going. 🛡️🔥`);
+    } else if (result.alreadyUsedThisMonth) {
+      setRepairMessage("You've already used your repair this month.");
+    } else if (result.notNeeded) {
+      setRepairMessage("Your streak is already intact!");
+    } else {
+      setRepairMessage(result.error || "Something went wrong.");
+    }
   }
 
   async function handleSoftDelete() {
@@ -273,6 +321,29 @@ function ProfileContent() {
           <p className="text-xs text-slate-500 mt-3 font-medium text-center">
             {streakDays > 0 ? `${streakDays}-day streak — keep it going! 🔥` : "Start your streak today!"}
           </p>
+
+          {/* Streak repair */}
+          {(repairAvailable || repairUsedThisMonth) && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              {repairAvailable ? (
+                <button
+                  onClick={handleRepairStreak}
+                  disabled={repairLoading}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold transition-colors"
+                  style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "#fff", opacity: repairLoading ? 0.6 : 1 }}
+                >
+                  {repairLoading ? "Repairing…" : "🛡️ Repair Streak · 1 left this month"}
+                </button>
+              ) : repairUsedThisMonth ? (
+                <p className="text-xs text-slate-400 font-medium text-center">🛡️ Streak repair used — resets next month</p>
+              ) : null}
+              {repairMessage && (
+                <p className="text-xs font-medium text-center mt-2" style={{ color: repairMessage.startsWith("Streak saved") ? "#06d6a0" : "#ef4444" }}>
+                  {repairMessage}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Teammates */}

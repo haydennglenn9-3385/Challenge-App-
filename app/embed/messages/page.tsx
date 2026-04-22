@@ -83,7 +83,7 @@ export default function MessagesPage() {
     async function load() {
       setLoading(true);
 
-      const [joinedResult, teamsResult] = await Promise.all([
+      const [joinedResult, teamMemberResult] = await Promise.all([
         user
           ? supabase
               .from("challenge_members")
@@ -92,10 +92,9 @@ export default function MessagesPage() {
           : Promise.resolve({ data: null, error: null }),
         user
           ? supabase
-              .from("challenge_members")
-              .select("teams(id, name, color)")
+              .from("team_members")
+              .select("team_id, teams(id, name, color)")
               .eq("user_id", user.id)
-              .not("team_id", "is", null)
           : Promise.resolve({ data: null, error: null }),
       ]);
 
@@ -105,10 +104,10 @@ export default function MessagesPage() {
         );
       }
 
-      if (teamsResult.data) {
+      if (teamMemberResult.data) {
         const seen = new Set<string>();
         const unique: Team[] = [];
-        (teamsResult.data as any[]).forEach((row) => {
+        (teamMemberResult.data as any[]).forEach((row) => {
           const t = row.teams;
           if (t && !seen.has(t.id)) { seen.add(t.id); unique.push(t); }
         });
@@ -159,7 +158,7 @@ export default function MessagesPage() {
         const newUnreadDmIds = new Set<string>();
         sortedConvs.forEach((conv) => {
           const lastSeen = parseInt(localStorage.getItem(`last_seen_dm_${conv.userId}`) || "0", 10);
-          if (conv.lastAt && new Date(conv.lastAt).getTime() > lastSeen) {
+          if (lastSeen > 0 && conv.lastAt && new Date(conv.lastAt).getTime() > lastSeen) {
             newUnreadDmIds.add(conv.userId);
           }
         });
@@ -191,15 +190,15 @@ export default function MessagesPage() {
             const latest = latestPerChallenge[cid];
             if (!latest) return;
             const lastSeen = parseInt(localStorage.getItem(`last_seen_challenge_${cid}`) || "0", 10);
-            if (new Date(latest).getTime() > lastSeen) newUnreadChallengeIds.add(cid);
+            if (lastSeen > 0 && new Date(latest).getTime() > lastSeen) newUnreadChallengeIds.add(cid);
           });
           setUnreadChallengeIds(newUnreadChallengeIds);
         }
       }
 
       // Compute unread for teams
-      if (teamsResult.data) {
-        const teamIds = (teamsResult.data as any[])
+      if (teamMemberResult.data) {
+        const teamIds = (teamMemberResult.data as any[])
           .map((r) => r.teams?.id).filter(Boolean) as string[];
 
         if (teamIds.length > 0) {
@@ -220,7 +219,7 @@ export default function MessagesPage() {
             const latest = latestPerTeam[tid];
             if (!latest) return;
             const lastSeen = parseInt(localStorage.getItem(`last_seen_team_${tid}`) || "0", 10);
-            if (new Date(latest).getTime() > lastSeen) newUnreadTeamIds.add(tid);
+            if (lastSeen > 0 && new Date(latest).getTime() > lastSeen) newUnreadTeamIds.add(tid);
           });
           setUnreadTeamIds(newUnreadTeamIds);
         }
@@ -236,7 +235,7 @@ export default function MessagesPage() {
         .maybeSingle();
       if (latestCommunity) {
         const lastSeen = parseInt(localStorage.getItem("last_seen_community") || "0", 10);
-        setCommunityUnread(new Date(latestCommunity.created_at).getTime() > lastSeen);
+        setCommunityUnread(lastSeen > 0 && new Date(latestCommunity.created_at).getTime() > lastSeen);
       }
 
       setLoading(false);
