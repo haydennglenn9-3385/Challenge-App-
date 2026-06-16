@@ -76,14 +76,13 @@ Key constants (in `app/actions/dailyCheckin.ts`):
 - Streak milestone bonuses: 7d → +25, 14d → +15, 21d → +20, 30d → +100, 60d → +75, 100d → +500
 - Team scoring supports 4 aggregation methods: total, average, highest, median (see `lib/scoring/`)
 
-## Known Open Issues
-See `docs/AUDIT-2026-06-15.md` for the full list. Key open items:
+## Known Open Items
+See `docs/AUDIT-2026-06-15.md` for the full audit history. All High/Medium issues are resolved. One remaining:
 
-1. **`handleReact` race condition** (`dashboard/page.tsx`) — concurrent reactions can overwrite each other. Needs atomic Supabase RPC.
-2. **`team_members` sync gap** — `joinChallenge` in `lib/storage.ts` skips `team_members` write, breaking team chat for those users.
-3. **`handlePost` user_name from client state** — activity feed posts should resolve display name server-side.
-4. **Streak calendar shows repair days as check-ins** — calendar should query `daily_logs` not `activity_feed`.
-5. **`createUserProfile` IDOR** — doesn't verify caller owns the target user ID.
+- **`lib/storage.ts` architecture** — documented as the central DB layer but largely bypassed. Not an active bug.
+
+### One-time migration required
+Run `supabase/migrations/20260615_toggle_reaction.sql` in the Supabase SQL Editor once to activate the atomic reaction toggle. Until it's run, reaction clicks will fail silently (optimistic update still shows on screen, but won't persist to the DB).
 
 ## No Tests
 There is no test suite. No Jest, Vitest, or test files exist.
