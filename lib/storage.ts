@@ -361,6 +361,13 @@ export async function joinChallenge(
     return false;
   }
 
+  // Keep team_members in sync (used by the messages page for team chat access)
+  if (assignedTeamId) {
+    await supabase
+      .from("team_members")
+      .insert({ team_id: assignedTeamId, user_id: userId });
+  }
+
   return true;
 }
 

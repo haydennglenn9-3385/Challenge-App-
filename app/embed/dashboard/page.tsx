@@ -5,6 +5,8 @@
 import { useEffect, useState, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { postActivity } from "@/app/actions/postActivity";
+import { toggleReaction } from "@/app/actions/toggleReaction";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -538,13 +540,7 @@ export default function DashboardPage() {
   async function handlePost() {
     if (!postText.trim()) return;
     setPosting(true);
-    await supabase.from("activity_feed").insert({
-      user_id:   currentUserId,
-      user_name: userName || "Member",
-      type:      "message",
-      text:      postText.trim(),
-      meta:      {},
-    });
+    await postActivity(postText.trim());
     setPostText("");
     setPosting(false);
   }
@@ -552,10 +548,11 @@ export default function DashboardPage() {
   async function handleReact(itemId: string, emoji: string) {
     if (!currentUserId) return;
 
+    // Optimistic update for instant feedback
     setFeed((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
-        const existing  = item.reactions[emoji] ?? [];
+        const existing   = item.reactions[emoji] ?? [];
         const hasReacted = existing.includes(currentUserId);
         return {
           ...item,
@@ -569,23 +566,15 @@ export default function DashboardPage() {
       })
     );
 
-    const { data } = await supabase
-      .from("activity_feed").select("reactions").eq("id", itemId).single();
-    const current: Record<string, string[]> = data?.reactions ?? {};
-    const existing  = current[emoji] ?? [];
-    const hasReacted = existing.includes(currentUserId);
-
-    await supabase
-      .from("activity_feed")
-      .update({
-        reactions: {
-          ...current,
-          [emoji]: hasReacted
-            ? existing.filter((id) => id !== currentUserId)
-            : [...existing, currentUserId],
-        },
-      })
-      .eq("id", itemId);
+    // Atomic server update — resolves any concurrent reaction conflicts
+    const updatedReactions = await toggleReaction(itemId, emoji);
+    if (updatedReactions) {
+      setFeed((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, reactions: updatedReactions } : item
+        )
+      );
+    }
   }
 
   const feedGroups    = groupFeedByDate(feed);

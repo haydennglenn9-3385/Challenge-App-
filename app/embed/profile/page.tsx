@@ -56,12 +56,13 @@ function ProfileContent() {
 
       const resolvedId = userData?.id || user.id;
 
-      // Fetch this week's check-in days from activity_feed
+      // Fetch this week's check-in days from activity_feed.
+      // Exclude streak-repair entries (meta.repair === true) — those aren't real check-ins.
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const { data: recentCheckins } = await supabase
         .from("activity_feed")
-        .select("created_at")
+        .select("created_at, meta")
         .eq("user_id", resolvedId)
         .eq("type", "streak")
         .gte("created_at", sevenDaysAgo.toISOString());
@@ -71,12 +72,14 @@ function ProfileContent() {
       const todayPtDow = new Date(ty, tm - 1, td).getDay();
       const sundayDate = new Date(ty, tm - 1, td - todayPtDow);
       const days = new Set<number>();
-      (recentCheckins || []).forEach((row: any) => {
-        const ptDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date(row.created_at));
-        const [ry, rm, rd] = ptDateStr.split("-").map(Number);
-        const rowDate = new Date(ry, rm - 1, rd);
-        if (rowDate >= sundayDate) days.add(rowDate.getDay());
-      });
+      (recentCheckins || [])
+        .filter((row: any) => !row.meta?.repair)
+        .forEach((row: any) => {
+          const ptDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date(row.created_at));
+          const [ry, rm, rd] = ptDateStr.split("-").map(Number);
+          const rowDate = new Date(ry, rm - 1, rd);
+          if (rowDate >= sundayDate) days.add(rowDate.getDay());
+        });
       setCheckedInDays(days);
 
       // Streak repair availability
