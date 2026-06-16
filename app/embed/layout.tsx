@@ -1,8 +1,8 @@
 // app/embed/layout.tsx
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { UserProvider } from "@/lib/UserContext";
+import { Suspense, createContext, useContext, useEffect, useRef, useState } from "react";
+import { UserProvider, useUser } from "@/lib/UserContext";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { dailyCheckin, getCheckinStatus } from "@/app/actions/dailyCheckin";
 
@@ -50,7 +50,6 @@ const ADMIN_ITEM = { label: "Admin", icon: "⚙️", path: "/embed/admin" };
 
 // ─── Admin hook ───────────────────────────────────────────────────────────────
 import { supabase } from "@/lib/supabase/client";
-import { useUser } from "@/lib/UserContext";
 
 function useIsAdmin() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -62,6 +61,54 @@ function useIsAdmin() {
     });
   }, []);
   return isAdmin;
+}
+
+// ─── Auth guard ───────────────────────────────────────────────────────────────
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) router.replace("/auth");
+  }, [user, isLoading, router]);
+
+  if (isLoading) return <LoadingScreen />;
+  if (!user) return null;
+  return <>{children}</>;
+}
+
+// ─── Check-in context (shared between BottomNav + Sidebar) ────────────────────
+interface CheckInCtx {
+  checkedIn:    boolean;
+  loading:      boolean;
+  streak:       number;
+  setCheckedIn: (v: boolean) => void;
+  setLoading:   (v: boolean) => void;
+  setStreak:    (v: number)  => void;
+}
+
+const CheckInContext = createContext<CheckInCtx>({
+  checkedIn: false, loading: false, streak: 0,
+  setCheckedIn: () => {}, setLoading: () => {}, setStreak: () => {},
+});
+
+function CheckInProvider({ children }: { children: React.ReactNode }) {
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [streak,    setStreak]    = useState(0);
+
+  useEffect(() => {
+    getCheckinStatus().then(({ checkedInToday, streak }) => {
+      setCheckedIn(checkedInToday);
+      setStreak(streak);
+    });
+  }, []);
+
+  return (
+    <CheckInContext.Provider value={{ checkedIn, loading, streak, setCheckedIn, setLoading, setStreak }}>
+      {children}
+    </CheckInContext.Provider>
+  );
 }
 
 // ─── Unread DMs hook ──────────────────────────────────────────────────────────
@@ -79,7 +126,7 @@ function useUnreadDMs(): boolean {
         .from("messages")
         .select("author_id, created_at")
         .eq("recipient_id", uid)
-        .eq("type", "dm")
+        .eq("is_dm", true)
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -303,25 +350,18 @@ function BottomNav() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const isAdmin      = useIsAdmin();
-
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [streak,    setStreak]    = useState(0);
-
-  // Load status on mount
-  useEffect(() => {
-    getCheckinStatus().then(({ checkedInToday, streak }) => {
-      setCheckedIn(checkedInToday);
-      setStreak(streak);
-    });
-  }, []);
+  const { checkedIn, loading, streak, setCheckedIn, setLoading, setStreak } = useContext(CheckInContext);
 
   const nav = (path: string) => {
     const params = searchParams.toString();
     router.push(params ? `${path}?${params}` : path);
   };
 
-  const isActive      = (path: string) => pathname.includes(path);
+  const isActive = (path: string) => {
+    if (path === "/embed/profile")
+      return pathname === "/embed/profile" || pathname === "/embed/profile/edit";
+    return pathname === path || pathname.startsWith(path + "/");
+  };
   const items         = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
   const hasUnreadDMs  = useUnreadDMs();
 
@@ -452,24 +492,18 @@ function Sidebar() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const isAdmin      = useIsAdmin();
-
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [streak,    setStreak]    = useState(0);
-
-  useEffect(() => {
-    getCheckinStatus().then(({ checkedInToday, streak }) => {
-      setCheckedIn(checkedInToday);
-      setStreak(streak);
-    });
-  }, []);
+  const { checkedIn, loading, streak, setCheckedIn, setLoading, setStreak } = useContext(CheckInContext);
 
   const nav = (path: string) => {
     const params = searchParams.toString();
     router.push(params ? `${path}?${params}` : path);
   };
 
-  const isActive     = (path: string) => pathname.includes(path);
+  const isActive = (path: string) => {
+    if (path === "/embed/profile")
+      return pathname === "/embed/profile" || pathname === "/embed/profile/edit";
+    return pathname === path || pathname.startsWith(path + "/");
+  };
   const items        = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
   const fontStack    = "var(--font-inter), system-ui, sans-serif";
   const hasUnreadDMs = useUnreadDMs();
@@ -623,22 +657,26 @@ export default function EmbedLayout({ children }: { children: React.ReactNode })
   return (
     <Suspense fallback={<LoadingScreen />}>
       <UserProvider>
-        <div className="lg:hidden min-h-screen w-full">
-          {children}
-          <BottomNav />
-        </div>
-        <div className="hidden lg:flex min-h-screen w-full" style={{ background: "#f8f9fa" }}>
-          <Sidebar />
-          <main style={{
-            flex: 1, overflowY: "auto", display: "flex",
-            justifyContent: "center", padding: "0 24px",
-          }}>
-            <div style={{ width: "100%", maxWidth: 680, paddingBottom: 60 }}>
+        <AuthGuard>
+          <CheckInProvider>
+            <div className="lg:hidden min-h-screen w-full">
               {children}
+              <BottomNav />
             </div>
-          </main>
-        </div>
-        <OnboardingModal />
+            <div className="hidden lg:flex min-h-screen w-full" style={{ background: "#f8f9fa" }}>
+              <Sidebar />
+              <main style={{
+                flex: 1, overflowY: "auto", display: "flex",
+                justifyContent: "center", padding: "0 24px",
+              }}>
+                <div style={{ width: "100%", maxWidth: 680, paddingBottom: 60 }}>
+                  {children}
+                </div>
+              </main>
+            </div>
+            <OnboardingModal />
+          </CheckInProvider>
+        </AuthGuard>
       </UserProvider>
     </Suspense>
   );

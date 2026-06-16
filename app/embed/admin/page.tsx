@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { updateMemberStats } from "@/app/actions/updateMemberStats";
 import LoadingScreen from "@/components/LoadingScreen";
 import MemberEditModal from "@/components/manage/MemberEditModal";
 import AddMemberModal from "@/components/admin/AddMemberModal";
@@ -397,11 +398,9 @@ export default function AdminPage() {
     memberId: string; points: number; streak: number; teamId: string | null;
     name?: string; email?: string;
   }) {
-    // Update points + streak in users table
-    await supabase
-      .from("users")
-      .update({ total_points: data.points, streak: data.streak })
-      .eq("id", data.memberId);
+    // Update points + streak via server action (verifies admin role server-side)
+    const result = await updateMemberStats(data.memberId, data.points, data.streak);
+    if (!result.success) throw new Error(result.error || "Failed to update member.");
 
     // Update name/email via admin API if provided
     if (data.name || data.email) {

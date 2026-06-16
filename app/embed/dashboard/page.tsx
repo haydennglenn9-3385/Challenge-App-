@@ -660,7 +660,7 @@ export default function DashboardPage() {
             </a>
 
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 10, fontWeight: 500 }}>
-              Physical Fitness + Mental Health · Sacramento, CA
+              Physical Fitness + Mental Health
             </div>
 
             <button

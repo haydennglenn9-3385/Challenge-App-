@@ -3,13 +3,13 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
 import { supabase } from "@/lib/supabase/client";
+import { validateAndJoinChallenge } from "@/app/actions/validateJoinCode";
 
 interface Challenge {
   id:           string;
   name:         string;
   description?: string;
   is_public:    boolean;
-  join_code?:   string;
   start_date:   string;
   end_date:     string | null;
   member_count: number;
@@ -60,7 +60,7 @@ function ChallengesInner() {
 
       const { data } = await supabase
         .from("challenges")
-        .select("*, challenge_members(count)")
+        .select("id, name, description, is_public, start_date, end_date, capacity, creator_id, scoring_type, challenge_members(count)")
         .order("created_at", { ascending: false })
         .limit(100);
 
@@ -134,18 +134,12 @@ function ChallengesInner() {
   const handleJoinWithCode = async () => {
     if (!codeModal || !currentUserId) return;
     setCodeError(""); setJoining(true);
-    if (codeInput.trim().toUpperCase() !== codeModal.join_code?.toUpperCase()) {
-      setCodeError("Invalid join code. Check the code and try again.");
-      setJoining(false); return;
-    }
-    const { error } = await supabase.from("challenge_members").insert({
-      challenge_id: codeModal.id, user_id: currentUserId,
-    });
-    if (!error) {
+    const result = await validateAndJoinChallenge(codeModal.id, codeInput.trim());
+    if (result.success) {
       setJoinedIds(prev => new Set([...prev, codeModal.id]));
       setCodeModal(null); setCodeInput("");
     } else {
-      setCodeError(joinErrorMessage(error));
+      setCodeError(result.error || "Something went wrong. Please try again.");
     }
     setJoining(false);
   };

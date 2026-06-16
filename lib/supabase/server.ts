@@ -12,8 +12,12 @@ export async function createServerClient() {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
-        set() {},
-        remove() {},
+        set(name: string, value: string, options: Record<string, unknown>) {
+          try { cookieStore.set({ name, value, ...(options as any) }) } catch {}
+        },
+        remove(name: string, options: Record<string, unknown>) {
+          try { cookieStore.set({ name, value: '', ...(options as any) }) } catch {}
+        },
       },
     }
   )

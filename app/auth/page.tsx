@@ -32,6 +32,19 @@ export default function AuthPage() {
     setAgreed(false);
   }
 
+  function friendlyAuthError(msg: string): string {
+    const lower = msg.toLowerCase();
+    if (lower.includes("invalid login credentials") || lower.includes("invalid credentials"))
+      return "Email or password doesn't match — please try again.";
+    if (lower.includes("email not confirmed"))
+      return "Please check your email and confirm your account before logging in.";
+    if (lower.includes("user already registered") || lower.includes("already been registered"))
+      return "An account with this email already exists. Try logging in instead.";
+    if (lower.includes("rate limit"))
+      return "Too many attempts — please wait a moment and try again.";
+    return msg;
+  }
+
   async function handleEmailAuth() {
     clearState();
 
@@ -69,7 +82,7 @@ export default function AuthPage() {
       });
 
       if (err) {
-        setError(err.message);
+        setError(friendlyAuthError(err.message));
       } else {
         window.location.href = "/embed/dashboard";
       }
@@ -89,7 +102,7 @@ export default function AuthPage() {
       });
 
       if (err) {
-        setError(err.message);
+        setError(friendlyAuthError(err.message));
         setLoading(false);
         return;
       }
